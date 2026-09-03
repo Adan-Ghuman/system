@@ -4,10 +4,12 @@ import { env } from './env.js';
 import { seedInitialAdmin } from './seed.js';
 import { seedRazaData } from './seedRaza.js';
 
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // ignore if network interface restricts custom dns
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch {
+    // ignore if network interface restricts custom dns
+  }
 }
 
 let memoryReplSet: { stop: () => Promise<boolean> } | null = null;
