@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:server": "cd server && npm install && npm run build",
-    "build:client": "cd client && npm install && npm run build",
+    "build:server": "cd server && npm install --include=dev && npm run build",
+    "build:client": "cd client && npm install --include=dev && npm run build",
     "build": "npm run build:server && npm run build:client",
     "seed": "cd server && npx tsx src/scripts/seedRazaAll.ts",
     "dev:server": "cd server && npm run dev",
@@ -20,6 +20,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
+    "typescript": "^5.7.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
