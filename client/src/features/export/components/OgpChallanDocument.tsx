@@ -16,7 +16,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
     <div className="bg-white text-zinc-950 p-8 max-w-4xl mx-auto font-sans leading-relaxed border border-zinc-200 shadow-xs print:border-none print:shadow-none print:p-0">
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 text-center">
         <h1 className="text-2xl font-black tracking-wider uppercase text-zinc-950">
-          Ghumman Textile & Knitting Mills
+          Rozain Textile
         </h1>
         <p className="text-xs font-semibold text-zinc-700 mt-0.5 tracking-wide">
           Manufacturers & Job-Work Processors • Sambrial Road, Sialkot, Pakistan

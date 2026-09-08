@@ -47,7 +47,7 @@ export function LoginPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 mb-2">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Rozain & Ghuman Textile ERP</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Rozain Textile</h1>
           <p className="text-xs text-zinc-400">Single Operator Unified Operations, Job-Work & Financial Accounting</p>
         </div>
 

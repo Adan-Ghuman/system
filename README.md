@@ -1,4 +1,4 @@
-# Ghuman Textile ERP
+# Rozain Textile ERP
 
 A comprehensive, modern Enterprise Resource Planning (ERP) system purpose-built for textile manufacturing, knitting, dyeing operations, fabric inventory management, and multi-party ledger accounting.
 

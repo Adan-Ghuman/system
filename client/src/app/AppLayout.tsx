@@ -52,7 +52,7 @@ export function AppLayout() {
               </div>
               <div>
                 <div className="text-sm font-bold tracking-tight text-white leading-none">
-                  ROZAIN & GHUMAN ERP
+                  ROZAIN TEXTILE
                 </div>
                 <div className="text-[10px] text-zinc-400 leading-tight">Textile Operations & Finance</div>
               </div>

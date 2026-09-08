@@ -16,7 +16,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-black tracking-wider uppercase text-zinc-950">
-            Ghumman Textile & Knitting Mills
+            Rozain Textile
           </h1>
           <p className="text-xs font-semibold text-zinc-700 mt-0.5 tracking-wide">
             Manufacturers & Processors • Sambrial Road, Sialkot, Pakistan
@@ -135,7 +135,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
           <div className="p-2.5 border border-zinc-200 rounded-sm text-[11px] text-zinc-600">
             <span className="font-bold uppercase text-[9px] text-zinc-500 block mb-1">Bank Wire Transfer Account</span>
             <div>Bank: <strong>Meezan Bank Ltd, Sialkot Branch</strong></div>
-            <div>Account Title: <strong>Ghuman Textile & Knitting Mills</strong></div>
+            <div>Account Title: <strong>Rozain Textile</strong></div>
             <div>IBAN: <strong className="font-mono">PK92MEZN0001092837123401</strong></div>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
 
         <div>
           <div className="border-t border-zinc-400 pt-1.5 font-bold text-zinc-800 uppercase">
-            For Ghumman Textile & Knitting Mills
+            For Rozain Textile
           </div>
           <div className="text-zinc-500 text-[10px] mt-0.5">Authorized Signatory & Stamp</div>
         </div>
