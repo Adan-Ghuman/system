@@ -158,6 +158,7 @@ export function InventoryPage() {
         { header: 'Yarn Spec', accessor: (i) => i.yarnSpec },
         { header: 'Total Rolls', accessor: (i) => i.totalRolls },
         { header: 'Total Weight (Kg)', accessor: (i) => i.totalWeightKg },
+        { header: 'Last Updated', accessor: (i) => (i.updatedAt ? formatDate(i.updatedAt) : '—') },
         {
           header: 'Avg Weight/Roll (Kg)',
           accessor: (i) => (i.totalRolls > 0 ? (i.totalWeightKg / i.totalRolls).toFixed(2) : 0)
@@ -361,19 +362,20 @@ export function InventoryPage() {
                     <th className="py-3 px-4 text-right">Rolls Count</th>
                     <th className="py-3 px-4 text-right">Available Weight</th>
                     <th className="py-3 px-4 text-right">Avg Weight / Roll</th>
+                    <th className="py-3 px-4 text-center">Last Updated</th>
                     <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {isStockLoading ? (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-zinc-500">
+                      <td colSpan={10} className="py-12 text-center text-zinc-500">
                         Loading fabric inventory...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-zinc-500">
+                      <td colSpan={10} className="py-12 text-center text-zinc-500">
                         No fabric stock found matching selected filters.
                       </td>
                     </tr>
@@ -435,6 +437,10 @@ export function InventoryPage() {
 
                           <td className="py-3 px-4 text-right font-mono text-zinc-400">
                             {avgWeight.toFixed(2)} Kg/R
+                          </td>
+
+                          <td className="py-3 px-4 text-center font-mono text-[11px] text-zinc-400 whitespace-nowrap">
+                            {item.updatedAt ? formatDate(item.updatedAt) : '—'}
                           </td>
 
                           <td className="py-3 px-4 text-center">
