@@ -93,8 +93,8 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={`Settle Dyeing Batch: ${batch.batchNo}`}
-      description="Record finished dyed fabric received, compute process yield shrinkage loss, and credit finished inventory."
+      title={`Receive Dyed Fabric: ${batch.batchNo}`}
+      description="Enter finished rolls and weight received back from the mill to calculate weight loss and add to stock."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -253,7 +253,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
             Cancel
           </Button>
           <Button type="submit" isLoading={isLoading}>
-            Confirm Settlement & Credit Stock
+            Confirm & Add to Stock
           </Button>
         </div>
       </form>

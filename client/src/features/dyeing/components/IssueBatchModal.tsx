@@ -135,8 +135,8 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Issue Dyeing Batch to Processing Mill"
-      description="Allocate raw ecru rolls for dyeing processing across Ghumman or Rajput Dyeing."
+      title="Send Fabric to Dyeing Mill"
+      description="Create a delivery gate pass to send raw fabric rolls to Ghumman or Rajput Mill for dyeing."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -305,7 +305,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             Cancel
           </Button>
           <Button type="submit" isLoading={isLoading}>
-            Issue Batch to Mill
+            Save & Issue Gate Pass
           </Button>
         </div>
       </form>

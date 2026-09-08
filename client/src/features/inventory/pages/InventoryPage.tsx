@@ -174,10 +174,10 @@ export function InventoryPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             <Boxes className="w-5 h-5 text-emerald-500" />
-            Live Location-Aware Inventory
+            Fabric Stock & Warehouse
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Real-time dual-state fabric tracking across ZR Godown and Processing Mills.
+            Live stock of finished dyed fabric and raw grey rolls across ZR Godown and partner mills.
           </p>
         </div>
 
@@ -201,7 +201,7 @@ export function InventoryPage() {
             className="gap-1.5"
           >
             <ArrowRightLeft className="w-4 h-4" />
-            Transfer Stock
+            Move Fabric Between Locations
           </Button>
 
           <Button
@@ -211,7 +211,7 @@ export function InventoryPage() {
             className="gap-1.5"
           >
             <Wrench className="w-4 h-4" />
-            Audit Adjustment
+            + Add / Adjust Stock
           </Button>
         </div>
       </div>
@@ -221,7 +221,7 @@ export function InventoryPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Warehouse className="w-3 h-3" />
-              ZR Godown (Main Depot)
+              Main Godown Stock (ZR)
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.godownKg)}
@@ -234,7 +234,7 @@ export function InventoryPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Factory className="w-3 h-3" />
-              Processing Mills Stock
+              Stock at Dyeing Mills
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.millKg)}
@@ -246,7 +246,7 @@ export function InventoryPage() {
         <Card className="bg-zinc-900/80 border-purple-950/40 p-3">
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider">
-              Finished Dyed Fabric
+              Ready Dyed Fabric
             </div>
             <div className="text-lg font-bold font-mono text-purple-400 mt-1">
               {formatWeight(kpis.finishedKg)}
@@ -258,7 +258,7 @@ export function InventoryPage() {
         <Card className="bg-zinc-900/80 border-amber-950/40 p-3">
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider">
-              Raw Ecru Knitted Fabric
+              Raw Grey Fabric (Un-dyed)
             </div>
             <div className="text-lg font-bold font-mono text-amber-400 mt-1">
               {formatWeight(kpis.ecruKg)}
@@ -277,7 +277,7 @@ export function InventoryPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Live Fabric Inventory Holdings ({items.length})
+          Current Fabric in Stock ({items.length})
         </button>
 
         <button
@@ -288,7 +288,7 @@ export function InventoryPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Inter-Location Transfer Log ({transfers.length})
+          Fabric Movement History ({transfers.length})
         </button>
       </div>
 
@@ -300,7 +300,7 @@ export function InventoryPage() {
               {[
                 { id: 'ALL', label: 'All' },
                 { id: 'ZR_GODOWN', label: 'ZR Godown' },
-                { id: 'GHUMMAN_DYEING', label: 'Ghumman Mill' },
+                { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
                 { id: 'RAJPUT_DYEING', label: 'Rajput Mill' }
               ].map((loc) => (
                 <button
@@ -321,8 +321,8 @@ export function InventoryPage() {
               <span className="text-[11px] font-semibold text-zinc-400 mr-1">State:</span>
               {[
                 { id: 'ALL', label: 'All' },
-                { id: 'FINISHED_DYED', label: 'Finished Dyed' },
-                { id: 'RAW_ECRU', label: 'Raw Ecru' }
+                { id: 'FINISHED_DYED', label: 'Ready Dyed' },
+                { id: 'RAW_ECRU', label: 'Raw Grey' }
               ].map((st) => (
                 <button
                   key={st.id}
@@ -454,7 +454,7 @@ export function InventoryPage() {
                               className="text-[11px] py-1 px-2.5 h-7 gap-1"
                             >
                               <ArrowRightLeft className="w-3 h-3" />
-                              Transfer
+                              Move Location
                             </Button>
                           </td>
                         </tr>

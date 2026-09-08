@@ -86,10 +86,10 @@ export function DispatchPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             <Truck className="w-5 h-5 text-emerald-500" />
-            Fast Dispatch, OGP & 18% GST Dual Invoicing
+            Deliveries, Gate Passes & Invoices
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            RapidGridEntry keyboard roll weighing, pick-from location routing, and atomic ledger posting.
+            Create delivery gate passes (OGP), automatically deduct stock, and print bills or 18% GST invoices.
           </p>
         </div>
 
@@ -101,7 +101,7 @@ export function DispatchPage() {
 
           <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
             <Plus className="w-4 h-4" />
-            New Dispatch (OGP)
+            + New Delivery (Gate Pass & Bill)
           </Button>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function DispatchPage() {
         <Card className="bg-zinc-900/80 border-zinc-800 p-3">
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-              Commercial Base Sales
+              Total Sales (Base Amount)
             </div>
             <div className="text-lg font-bold font-mono text-white mt-1">
               {formatCurrency(kpis.totalBase)}
@@ -161,7 +161,7 @@ export function DispatchPage() {
 
       <div className="flex items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
         <div className="text-xs font-semibold text-zinc-300">
-          Dispatch & Inward Gate Pass Audit History ({dispatches.length})
+          Delivery & Gate Pass History ({dispatches.length})
         </div>
 
         <div className="w-full md:w-72 relative">

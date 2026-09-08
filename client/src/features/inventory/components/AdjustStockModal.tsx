@@ -25,11 +25,11 @@ const LOCATIONS: { label: string; value: InventoryLocation }[] = [
 ];
 
 const REASONS: { label: string; value: StockAdjustmentReason }[] = [
-  { label: 'Physical Audit Discrepancy (Stocktake)', value: 'AUDIT_DISCREPANCY' },
+  { label: 'Physical Stocktake / Warehouse Count', value: 'AUDIT_DISCREPANCY' },
   { label: 'Fabric Damage / Oil Stains / Tears', value: 'DAMAGE' },
   { label: 'Buyer Sample Cutting / Swatches', value: 'SAMPLE_CUTTING' },
   { label: 'Scrap / Unusable End Pieces', value: 'SCRAP' },
-  { label: 'Manual Data Correction', value: 'MANUAL_CORRECTION' }
+  { label: 'New Stock Entry / Data Correction', value: 'MANUAL_CORRECTION' }
 ];
 
 export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModalProps) {
@@ -70,7 +70,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
 
       await api.post('/inventory/adjustments', payload);
 
-      setSuccess('Physical stock adjustment recorded and balance reconciled');
+      setSuccess('Stock changes recorded and live balance updated');
       onSuccess();
 
       setTimeout(() => {
@@ -89,8 +89,8 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Physical Inventory Stock Adjustment"
-      description="Record stock adjustments, write-offs, or audit reconciliations with full audit logging."
+      title="Add New Stock or Correct Inventory"
+      description="Enter brand new fabric received into warehouse, or adjust roll and weight counts."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,7 +204,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
           label="Remarks / Audit Explanation"
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          placeholder="e.g. Monthly physical inventory variance verified by warehouse supervisor"
+          placeholder="e.g. Initial stock intake from factory or monthly physical count"
         />
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
@@ -213,7 +213,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
             <Wrench className="w-3.5 h-3.5" />
-            <span>Commit Adjustment</span>
+            <span>Save Stock Changes</span>
           </Button>
         </div>
       </form>

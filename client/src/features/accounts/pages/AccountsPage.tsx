@@ -118,10 +118,10 @@ export function AccountsPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-emerald-500" />
-            Financial Accounting & Party Ledgers
+            Payments & Account Ledgers
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Running Dr/Cr ledger balances, double-entry payment vouchers, and cashflow tracking.
+            Track who owes you money, whom you owe, record payments, and view party account statements.
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export function AccountsPage() {
             className="gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            Log Payment Voucher
+            + Record Payment (Money In / Out)
           </Button>
         </div>
       </div>
@@ -150,12 +150,12 @@ export function AccountsPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <ArrowDownLeft className="w-3 h-3" />
-              Total Receivables (Debtors)
+              Money We Have To Take
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatCurrency(metrics?.totalReceivables || 0)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Owed by fabric buyers</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Pending from customers (Buyers)</div>
           </CardContent>
         </Card>
 
@@ -163,24 +163,24 @@ export function AccountsPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" />
-              Total Payables (Creditors)
+              Money We Have To Pay
             </div>
             <div className="text-lg font-bold font-mono text-amber-400 mt-1">
               {formatCurrency(metrics?.totalPayables || 0)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Owed to knitters & mills</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Pending to knitters, mills & suppliers</div>
           </CardContent>
         </Card>
 
         <Card className="bg-zinc-900/80 border-emerald-950/40 p-3">
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider">
-              Net Financial Position
+              Net Difference (Take minus Pay)
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatCurrency(metrics?.netReceivablePosition || 0)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Receivables minus payables</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Overall money balance</div>
           </CardContent>
         </Card>
 
@@ -188,12 +188,12 @@ export function AccountsPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
               <Receipt className="w-3 h-3" />
-              Monthly Inflow (Receipts)
+              Money Received This Month
             </div>
             <div className="text-lg font-bold font-mono text-purple-400 mt-1">
               {formatCurrency(metrics?.monthlyReceipts || 0)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Last 30 days cash & bank receipts</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Total cash & bank collected in last 30 days</div>
           </CardContent>
         </Card>
       </div>
@@ -207,7 +207,7 @@ export function AccountsPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Party Balances & Ledgers ({parties.length})
+          Customer & Supplier Balances ({parties.length})
         </button>
 
         <button
@@ -218,7 +218,7 @@ export function AccountsPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Payment Vouchers Log ({vouchers.length})
+          Payment Records (Money In / Out) ({vouchers.length})
         </button>
       </div>
 
@@ -226,7 +226,7 @@ export function AccountsPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
             <div className="text-xs font-semibold text-zinc-300">
-              Customer & Supplier Accounts Directory
+              Party Account Balances Directory
             </div>
 
             <div className="w-full md:w-72 relative">
@@ -247,8 +247,8 @@ export function AccountsPage() {
                   <tr>
                     <th className="py-3 px-4">Party</th>
                     <th className="py-3 px-4">Contact</th>
-                    <th className="py-3 px-4">Role Classification</th>
-                    <th className="py-3 px-4 text-right">Running Balance</th>
+                    <th className="py-3 px-4">Business Role</th>
+                    <th className="py-3 px-4 text-right">Net Balance</th>
                     <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
@@ -313,7 +313,7 @@ export function AccountsPage() {
                             variant={p.currentBalance > 0 ? 'default' : p.currentBalance < 0 ? 'destructive' : 'outline'}
                             className="text-[10px]"
                           >
-                            {p.currentBalance > 0 ? 'Dr (Receivable)' : p.currentBalance < 0 ? 'Cr (Payable)' : 'Settled'}
+                            {p.currentBalance > 0 ? 'They Owe Us' : p.currentBalance < 0 ? 'We Owe Them' : 'Settled (Zero)'}
                           </Badge>
                         </td>
 
@@ -326,7 +326,7 @@ export function AccountsPage() {
                               className="text-[11px] py-1 px-2.5 h-7 gap-1"
                             >
                               <BookOpen className="w-3 h-3 text-emerald-400" />
-                              Statement
+                              View Ledger
                             </Button>
 
                             <Button
@@ -338,7 +338,7 @@ export function AccountsPage() {
                               }}
                               className="text-[11px] py-1 px-2 h-7"
                             >
-                              Pay / Receive
+                              Record Payment
                             </Button>
                           </div>
                         </td>
@@ -366,7 +366,7 @@ export function AccountsPage() {
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <Input
-                placeholder="Search voucher #, bank, cheque, ref, remarks..."
+                placeholder="Search receipt/payment #, bank, cheque, notes..."
                 value={voucherSearchTerm}
                 onChange={(e) => setVoucherSearchTerm(e.target.value)}
                 className="pl-9 h-9 text-xs"
@@ -377,27 +377,27 @@ export function AccountsPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Voucher #</th>
+                  <th className="py-3 px-4">Receipt / Payment #</th>
                   <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Party</th>
-                  <th className="py-3 px-4">Payment Mode</th>
-                  <th className="py-3 px-4">Bank / Instrument #</th>
+                  <th className="py-3 px-4">Money Flow</th>
+                  <th className="py-3 px-4">Customer / Supplier</th>
+                  <th className="py-3 px-4">Payment Method</th>
+                  <th className="py-3 px-4">Bank / Cheque Details</th>
                   <th className="py-3 px-4 text-right">Amount (PKR)</th>
-                  <th className="py-3 px-4">Remarks</th>
+                  <th className="py-3 px-4">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isVouchersLoading ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-zinc-500">
-                      Loading payment vouchers...
+                      Loading payment records...
                     </td>
                   </tr>
                 ) : vouchers.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-zinc-500">
-                      No payment vouchers logged yet.
+                      No payment records found yet.
                     </td>
                   </tr>
                 ) : (
@@ -416,7 +416,7 @@ export function AccountsPage() {
                           variant={v.voucherType === 'RECEIPT' ? 'success' : 'default'}
                           className="text-[10px]"
                         >
-                          {v.voucherType === 'RECEIPT' ? 'RECEIPT (CR)' : 'PAYMENT (DR)'}
+                          {v.voucherType === 'RECEIPT' ? 'MONEY RECEIVED' : 'MONEY PAID'}
                         </Badge>
                       </td>
 
@@ -427,7 +427,7 @@ export function AccountsPage() {
 
                       <td className="py-3 px-4">
                         <span className="font-mono text-[11px] text-zinc-300">
-                          {v.paymentMode}
+                          {v.paymentMode === 'CASH' ? 'Cash in Hand' : v.paymentMode === 'BANK_TRANSFER' ? 'Bank Transfer' : v.paymentMode === 'CHEQUE' ? 'Bank Cheque' : v.paymentMode}
                         </span>
                       </td>
 

@@ -155,7 +155,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
         </div>
 
         <div className="space-y-2 pt-2 border-t border-zinc-800">
-          <label className="text-xs font-semibold text-zinc-300">Operational Role Tags</label>
+          <label className="text-xs font-semibold text-zinc-300">Who is this party? (Select all that apply)</label>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
               <input
@@ -164,7 +164,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
                 onChange={() => handleTagToggle('isFabricBuyer')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Fabric Buyer</span>
+              <span>Customer (Buys fabric from us)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -174,7 +174,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
                 onChange={() => handleTagToggle('isKnitter')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Contract Knitter</span>
+              <span>Knitter (Knits yarn into fabric)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -184,7 +184,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
                 onChange={() => handleTagToggle('isYarnClient')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Yarn Client</span>
+              <span>Yarn Supplier / Client (Provides yarn)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -194,7 +194,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
                 onChange={() => handleTagToggle('isDyeingMill')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Dyeing Processing Mill</span>
+              <span>Dyeing Mill (Dyes raw fabric)</span>
             </label>
           </div>
         </div>

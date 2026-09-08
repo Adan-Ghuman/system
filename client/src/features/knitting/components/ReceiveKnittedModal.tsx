@@ -96,8 +96,8 @@ export function ReceiveKnittedModal({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Inward Knitted Rolls Receipt"
-      description="Log knitted ecru fabric returning from contract knitter to decrement remaining yarn obligation."
+      title="Receive Knitted Fabric Rolls"
+      description="Record knitted fabric received back from a knitter to update their yarn balance."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,7 +204,7 @@ export function ReceiveKnittedModal({
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
             <PackageCheck className="w-4 h-4" />
-            <span>Confirm Fabric Receipt</span>
+            <span>Confirm & Add to Godown</span>
           </Button>
         </div>
       </form>

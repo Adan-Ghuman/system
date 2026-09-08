@@ -43,7 +43,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
 
       <div className="grid grid-cols-2 gap-4 text-xs mb-5 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
         <div>
-          <div className="text-[10px] uppercase font-bold text-zinc-500">Bill To (Buyer)</div>
+          <div className="text-[10px] uppercase font-bold text-zinc-500">Billed To (Customer)</div>
           <div className="font-bold text-base text-zinc-950 mt-0.5">{dispatch.customerId?.name}</div>
           <div className="text-zinc-700 font-mono mt-0.5">Party Code: {dispatch.customerId?.code}</div>
           <div className="text-zinc-700">Phone: {dispatch.customerId?.phone || '—'}</div>
@@ -51,11 +51,11 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
 
         <div className="text-right space-y-1 text-xs">
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Dispatch Note Ref:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Delivery Ref:</span>
             <span className="font-mono font-semibold text-zinc-900">{dispatch.dispatchNo}</span>
           </div>
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Outward Gate Pass:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Gate Pass (OGP) #:</span>
             <span className="font-mono font-semibold text-zinc-900">{dispatch.ogpNo}</span>
           </div>
           <div>
@@ -63,7 +63,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
             <span className="font-semibold text-zinc-900">Immediate / Current Account</span>
           </div>
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Dispatch Location:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Loaded From (Godown):</span>
             <span className="font-semibold text-zinc-900">{dispatch.fromLocation}</span>
           </div>
         </div>

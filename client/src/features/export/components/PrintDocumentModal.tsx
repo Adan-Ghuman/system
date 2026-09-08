@@ -24,10 +24,10 @@ export function PrintDocumentModal({ isOpen, onClose, type, dispatch }: PrintDoc
         <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-950/80 print:hidden">
           <div>
             <h2 className="text-sm font-bold text-white">
-              {type === 'OGP' ? `Outward Gate Pass: ${dispatch.ogpNo}` : `Commercial Invoice: ${dispatch.invoice?.invoiceNo || 'DRAFT'}`}
+              {type === 'OGP' ? `Delivery Gate Pass (OGP): ${dispatch.ogpNo}` : `Sales Tax / Commercial Bill: ${dispatch.invoice?.invoiceNo || 'DRAFT'}`}
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Standardized A4 business document layout optimized for direct thermal/laser printing.
+              Print-ready A4 document format for thermal or laser printing.
             </p>
           </div>
 

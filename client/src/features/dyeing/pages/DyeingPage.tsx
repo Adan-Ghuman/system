@@ -119,7 +119,7 @@ export function DyeingPage() {
 
           <Button size="sm" onClick={() => setIsIssueOpen(true)} className="gap-1.5">
             <Plus className="w-4 h-4" />
-            Issue New Batch
+            + Send Fabric for Dyeing
           </Button>
         </div>
       </div>
@@ -129,7 +129,7 @@ export function DyeingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Factory className="w-3 h-3" />
-              In-Process Ecru Weight
+              Fabric Currently at Mills
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.inProcessKg)}
@@ -141,7 +141,7 @@ export function DyeingPage() {
         <Card className="bg-zinc-900/80 border-zinc-800 p-3">
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-              Active Batches in Mill
+              Batches Being Dyed
             </div>
             <div className="text-lg font-bold text-white mt-1">
               {kpis.inProcessBatches}
@@ -154,12 +154,12 @@ export function DyeingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
-              Finished Dyed Fabric Received
+              Total Dyed Fabric Received
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.completedKg)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">{kpis.completedBatches} batches settled</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">{kpis.completedBatches} batches received</div>
           </CardContent>
         </Card>
 
@@ -167,7 +167,7 @@ export function DyeingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-1">
               <Scale className="w-3 h-3" />
-              Average Process Shrinkage
+              Average Weight Loss (Shrinkage)
             </div>
             <div
               className={`text-lg font-bold font-mono mt-1 ${
@@ -188,7 +188,7 @@ export function DyeingPage() {
           {[
             { id: 'GHUMMAN_DYEING', label: 'Ghuman Dyeing Mill' },
             { id: 'RAJPUT_DYEING', label: 'Rajput Dyeing Mill' },
-            { id: 'ALL', label: 'All Mills Unified' }
+            { id: 'ALL', label: 'All Dyeing Mills' }
           ].map((mill) => (
             <button
               key={mill.id}
@@ -208,8 +208,8 @@ export function DyeingPage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
           <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto">
             {[
-              { id: 'ACTIVE', label: 'Active / In-Process' },
-              { id: 'COMPLETED', label: 'Completed / Settled' },
+              { id: 'ACTIVE', label: 'Currently Being Dyed' },
+              { id: 'COMPLETED', label: 'Finished & Received' },
               { id: 'ALL', label: 'All Batches' }
             ].map((st) => (
               <button
@@ -350,11 +350,11 @@ export function DyeingPage() {
                       {b.status === 'COMPLETED' ? (
                         <Badge variant="success" className="gap-1 text-[10px]">
                           <CheckCheck className="w-3 h-3" />
-                          Settled
+                          Completed
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="gap-1 text-[10px] text-amber-400 border-amber-500/30">
-                          Active
+                          In Dyeing
                         </Badge>
                       )}
                     </td>
@@ -367,11 +367,11 @@ export function DyeingPage() {
                           onClick={() => setSettlingBatch(b)}
                           className="text-[11px] py-1 px-2.5 h-7"
                         >
-                          Settle Batch
+                          Receive Dyed Fabric
                         </Button>
                       ) : (
                         <span className="text-[11px] text-zinc-500 font-mono">
-                          {b.igpNo || 'Settled'}
+                          {b.igpNo || 'Completed'}
                         </span>
                       )}
                     </td>

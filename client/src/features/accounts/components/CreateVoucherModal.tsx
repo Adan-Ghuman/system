@@ -19,10 +19,10 @@ export interface CreateVoucherModalProps {
 }
 
 const PAYMENT_MODES: { label: string; value: PaymentMode }[] = [
-  { label: 'Cash Payment', value: 'CASH' },
-  { label: 'Bank Transfer / Online RTGS', value: 'BANK_TRANSFER' },
-  { label: 'Cheque / Pay Order', value: 'CHEQUE' },
-  { label: 'Online / Digital Wallet', value: 'ONLINE' }
+  { label: 'Cash in Hand', value: 'CASH' },
+  { label: 'Bank Transfer (Online)', value: 'BANK_TRANSFER' },
+  { label: 'Bank Cheque / Pay Order', value: 'CHEQUE' },
+  { label: 'Digital Wallet / Other Online', value: 'ONLINE' }
 ];
 
 export function CreateVoucherModal({
@@ -105,7 +105,7 @@ export function CreateVoucherModal({
 
       await api.post('/accounts/vouchers', payload);
 
-      setSuccess('Payment voucher recorded and party ledger balance updated');
+      setSuccess('Payment entry recorded successfully and party balance updated');
       onSuccess();
 
       setTimeout(() => {
@@ -114,7 +114,7 @@ export function CreateVoucherModal({
       }, 900);
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { error?: string } }; message?: string };
-      setError(anyErr.response?.data?.error || anyErr.message || 'Failed to record voucher');
+      setError(anyErr.response?.data?.error || anyErr.message || 'Failed to record payment');
     } finally {
       setIsLoading(false);
     }
@@ -124,8 +124,8 @@ export function CreateVoucherModal({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={voucherType === 'RECEIPT' ? 'Record Customer Receipt Voucher' : 'Record Supplier Payment Voucher'}
-      description="Post cash, bank, or cheque vouchers with instant party balance updates."
+      title={voucherType === 'RECEIPT' ? 'Record Money Received (Receipt)' : 'Record Money Paid (Payment)'}
+      description="Record money received or paid with immediate update to their account balance."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,7 +154,7 @@ export function CreateVoucherModal({
             }`}
           >
             <ArrowDownLeft className="w-4 h-4" />
-            <span>Inward Receipt (From Buyer)</span>
+            <span>Money Received (From Customer / Buyer)</span>
           </button>
           <button
             type="button"
@@ -166,25 +166,25 @@ export function CreateVoucherModal({
             }`}
           >
             <ArrowUpRight className="w-4 h-4" />
-            <span>Outward Payment (To Supplier / Mill)</span>
+            <span>Money Paid (To Knitter / Mill / Supplier)</span>
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Select
             id="voucherParty"
-            label="Party Account"
+            label="Customer / Supplier Name"
             value={partyId}
             onChange={(e) => setPartyId(e.target.value)}
             options={parties.map((p) => ({
-              label: `${p.code} - ${p.name} (${formatCurrency(p.currentBalance)})`,
+              label: `${p.code} - ${p.name} (Bal: ${formatCurrency(p.currentBalance)})`,
               value: p._id
             }))}
           />
 
           <Select
             id="paymentModeSelect"
-            label="Payment Mode"
+            label="Payment Method"
             value={paymentMode}
             onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}
             options={PAYMENT_MODES}
@@ -197,7 +197,7 @@ export function CreateVoucherModal({
             type="number"
             step="0.01"
             min="0.01"
-            label="Voucher Amount (PKR)"
+            label="Payment Amount (PKR)"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
@@ -207,7 +207,7 @@ export function CreateVoucherModal({
           <Input
             id="voucherDate"
             type="date"
-            label="Voucher Date"
+            label="Payment Date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
@@ -216,7 +216,7 @@ export function CreateVoucherModal({
 
         {(paymentMode === 'BANK_TRANSFER' || paymentMode === 'CHEQUE' || paymentMode === 'ONLINE') && (
           <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-3">
-            <div className="text-xs font-semibold text-zinc-300">Bank / Instrument Information</div>
+            <div className="text-xs font-semibold text-zinc-300">Bank & Cheque Details</div>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 id="bankName"
@@ -245,7 +245,7 @@ export function CreateVoucherModal({
               <Input
                 id="chequeDate"
                 type="date"
-                label="Cheque Clearance Date"
+                label="Cheque Date"
                 value={chequeDate}
                 onChange={(e) => setChequeDate(e.target.value)}
               />
@@ -259,23 +259,23 @@ export function CreateVoucherModal({
             <div className="font-bold text-zinc-200 mt-0.5">{formatCurrency(balancePreview.current)}</div>
           </div>
           <div className="text-center">
-            <div className="text-zinc-500 text-[10px] uppercase">Voucher Effect:</div>
+            <div className="text-zinc-500 text-[10px] uppercase">Payment Change:</div>
             <div className={`font-bold mt-0.5 ${voucherType === 'RECEIPT' ? 'text-emerald-400' : 'text-zinc-200'}`}>
               {voucherType === 'RECEIPT' ? '-' : '+'}{formatCurrency(parseFloat(amount) || 0)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-zinc-500 text-[10px] uppercase">Projected Balance:</div>
+            <div className="text-zinc-500 text-[10px] uppercase">New Balance After Payment:</div>
             <div className="font-bold text-white mt-0.5">{formatCurrency(balancePreview.projected)}</div>
           </div>
         </div>
 
         <Input
           id="voucherRemarks"
-          label="Remarks / Narrative"
+          label="Notes / Reason for Payment"
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          placeholder="e.g. Payment for invoice INV-GST-001 received via online transfer"
+          placeholder="e.g. Advance payment or against bill"
         />
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
@@ -284,7 +284,7 @@ export function CreateVoucherModal({
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
             <DollarSign className="w-4 h-4" />
-            <span>Post Voucher to Ledger</span>
+            <span>Save Payment Entry</span>
           </Button>
         </div>
       </form>

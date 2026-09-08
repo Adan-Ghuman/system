@@ -130,7 +130,7 @@ export function KnittingPage() {
             className="gap-1.5"
           >
             <ArrowUpRight className="w-4 h-4" />
-            Issue Yarn Outward
+            + Send Yarn to Knitter
           </Button>
 
           <Button
@@ -143,7 +143,7 @@ export function KnittingPage() {
             className="gap-1.5"
           >
             <PackageCheck className="w-4 h-4" />
-            Receive Knitted Rolls
+            + Receive Knitted Fabric
           </Button>
 
           <Button
@@ -156,7 +156,7 @@ export function KnittingPage() {
             className="gap-1.5 text-zinc-300"
           >
             <ArrowDownLeft className="w-4 h-4" />
-            Inward Client Yarn
+            + Receive Outside Yarn
           </Button>
         </div>
       </div>
@@ -166,7 +166,7 @@ export function KnittingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
               <Scale className="w-3 h-3" />
-              Yarn in Field (Knitter Balance)
+              Yarn Remaining at Knitters
             </div>
             <div className="text-lg font-bold font-mono text-amber-400 mt-1">
               {formatWeight(kpis.totalRemaining)}
@@ -179,12 +179,12 @@ export function KnittingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Layers className="w-3 h-3" />
-              Total Yarn Dispatched
+              Total Yarn Sent Out
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.totalGross)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Historical issued raw yarn</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">All yarn issued to knitters</div>
           </CardContent>
         </Card>
 
@@ -192,7 +192,7 @@ export function KnittingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              Projected Ecru Fabric (-1%)
+              Expected Fabric (After 1% Wastage)
             </div>
             <div className="text-lg font-bold font-mono text-purple-400 mt-1">
               {formatWeight(kpis.totalExpected)}
@@ -205,7 +205,7 @@ export function KnittingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <PackageCheck className="w-3 h-3" />
-              Received Ecru Fabric
+              Fabric Received Back
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.totalReceived)}
@@ -224,7 +224,7 @@ export function KnittingPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Live Knitter Yarn Balances ({balances.length})
+          Knitter Yarn Balances ({balances.length})
         </button>
 
         <button
@@ -235,7 +235,7 @@ export function KnittingPage() {
               : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
           }`}
         >
-          Transaction History Log ({transactions.length})
+          Yarn Movement History ({transactions.length})
         </button>
       </div>
 
@@ -331,7 +331,7 @@ export function KnittingPage() {
                             }}
                             className="text-[11px] py-1 px-2 h-7"
                           >
-                            Receive Rolls
+                            Receive Fabric
                           </Button>
                         </td>
                       </tr>

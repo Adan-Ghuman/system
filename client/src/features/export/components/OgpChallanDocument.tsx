@@ -32,7 +32,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
 
       <div className="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
         <div>
-          <div className="text-[10px] uppercase font-bold text-zinc-500">Consignee / Destination</div>
+          <div className="text-[10px] uppercase font-bold text-zinc-500">Delivered To (Customer)</div>
           <div className="font-bold text-sm text-zinc-950 mt-0.5">{dispatch.customerId?.name}</div>
           <div className="text-zinc-700 font-mono mt-0.5">Code: {dispatch.customerId?.code}</div>
           <div className="text-zinc-700">Phone: {dispatch.customerId?.phone || '—'}</div>
@@ -40,11 +40,11 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
 
         <div className="text-right space-y-1">
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">OGP Number:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Gate Pass (OGP) #:</span>
             <span className="font-mono font-black text-sm text-zinc-950">{dispatch.ogpNo}</span>
           </div>
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Dispatch Ref:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Delivery Ref:</span>
             <span className="font-mono font-semibold text-zinc-800">{dispatch.dispatchNo}</span>
           </div>
           <div>
@@ -52,7 +52,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
             <span className="font-mono text-zinc-800">{formatDate(dispatch.date)}</span>
           </div>
           <div>
-            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Dispatch Location:</span>
+            <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Loaded From (Godown):</span>
             <span className="font-semibold text-zinc-900">{dispatch.fromLocation}</span>
           </div>
         </div>

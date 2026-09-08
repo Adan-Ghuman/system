@@ -150,8 +150,8 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Create Fabric Dispatch & Dual Invoice"
-      description="Select dispatch location, weigh rolls via RapidGridEntry, configure 18% GST vs Non-GST, and post atomic ledger debit."
+      title="Create Delivery Gate Pass & Invoice"
+      description="Send fabric rolls to a customer, make an Outward Gate Pass (OGP), and generate their bill."
       className="max-w-2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -183,7 +183,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
           <Select
             id="fromLocationSelect"
-            label="Pick-From Dispatch Location"
+            label="Pick-From Location"
             value={fromLocation}
             onChange={(e) => {
               setFromLocation(e.target.value as InventoryLocation);
@@ -195,7 +195,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
         <Select
           id="stockSelect"
-          label="Select Finished Dyed Fabric at Location"
+          label="Select Fabric from Stock"
           value={selectedStockId}
           onChange={(e) => setSelectedStockId(e.target.value)}
           options={
@@ -253,7 +253,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           <Input
             id="dispatchDate"
             type="date"
-            label="Dispatch Date"
+            label="Delivery Date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
@@ -264,16 +264,16 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
             <span className="flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              Automated Commercial Invoice Calculation
+              Calculated Bill & Tax Amount
             </span>
             <span className="text-[11px] font-mono text-zinc-400">
-              {invoiceType === 'TAX_18_PERCENT' ? 'Standard Sales Tax (18%)' : 'Non-GST Commercial Bill (0%)'}
+              {invoiceType === 'TAX_18_PERCENT' ? 'Standard Sales Tax (18%)' : 'Non-GST Bill (0%)'}
             </span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 pt-1">
             <div className="p-2 rounded bg-zinc-900 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Base Amount</div>
+              <div className="text-[10px] text-zinc-500 uppercase">Goods Value (Before Tax)</div>
               <div className="text-sm font-bold font-mono text-zinc-100 mt-0.5">
                 {formatCurrency(financials.baseAmount)}
               </div>
@@ -287,7 +287,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
             </div>
 
             <div className="p-2 rounded bg-zinc-900 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Grand Total (Receivable)</div>
+              <div className="text-[10px] text-zinc-500 uppercase">Total Bill (Customer Owed)</div>
               <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
                 {formatCurrency(financials.grandTotal)}
               </div>
@@ -315,7 +315,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
         <Input
           id="remarks"
-          label="Dispatch & Transport Remarks"
+          label="Delivery & Transport Notes"
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="e.g. Goods delivered at buyer warehouse in Kotli Behram"
@@ -327,7 +327,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
             <Truck className="w-4 h-4" />
-            <span>Generate OGP & Post Invoice</span>
+            <span>Save Delivery & Generate Bill</span>
           </Button>
         </div>
       </form>

@@ -48,13 +48,13 @@ export function LoginPage() {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Rozain Textile</h1>
-          <p className="text-xs text-zinc-400">Single Operator Unified Operations, Job-Work & Financial Accounting</p>
+          <p className="text-xs text-zinc-400">Factory Operations, Inventory & Accounts Management System</p>
         </div>
 
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-xl">
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your operator or administrator credentials to proceed.</CardDescription>
+            <CardDescription>Enter your email and password to log in.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -87,13 +87,13 @@ export function LoginPage() {
               />
 
               <div className="p-2.5 rounded-md bg-zinc-950/60 border border-zinc-800 text-[11px] text-zinc-400">
-                <span className="font-semibold text-zinc-300">Default Superuser:</span> <br />
+                <span className="font-semibold text-zinc-300">Default Admin Login:</span> <br />
                 Email: <code className="text-emerald-400">admin@gmail.com</code> | Password: <code className="text-emerald-400">12345678</code>
               </div>
             </CardContent>
             <CardFooter>
               <Button type="submit" className="w-full" isLoading={isLoading}>
-                Sign In to System
+                Sign In
               </Button>
             </CardFooter>
           </form>

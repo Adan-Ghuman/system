@@ -99,8 +99,8 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Create New Party Profile"
-      description="Register a commercial buyer, contract knitter, yarn client, or dyeing mill."
+      title="Add Customer, Knitter or Mill"
+      description="Register a customer, outside knitter, yarn client, or dyeing mill."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -178,7 +178,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
         </div>
 
         <div className="space-y-2 pt-2 border-t border-zinc-800">
-          <label className="text-xs font-semibold text-zinc-300">Operational Role Tags (Multi-Select)</label>
+          <label className="text-xs font-semibold text-zinc-300">Who is this party? (Select all that apply)</label>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
               <input
@@ -187,7 +187,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                 onChange={() => handleTagToggle('isFabricBuyer')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Fabric Buyer (Commercial Sales)</span>
+              <span>Customer (Buys fabric from us)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -197,7 +197,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                 onChange={() => handleTagToggle('isKnitter')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Contract Knitter (Outside Mill)</span>
+              <span>Knitter (Knits yarn into fabric)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -207,7 +207,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                 onChange={() => handleTagToggle('isYarnClient')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Yarn Client (Job-Work Supplier)</span>
+              <span>Yarn Supplier / Client (Provides yarn)</span>
             </label>
 
             <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
@@ -217,13 +217,13 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                 onChange={() => handleTagToggle('isDyeingMill')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Dyeing Processing Mill</span>
+              <span>Dyeing Mill (Dyes raw fabric)</span>
             </label>
           </div>
         </div>
 
         <div className="pt-2 border-t border-zinc-800">
-          <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Opening Balance</label>
+          <label className="text-xs font-semibold text-zinc-300 block mb-1.5">Starting Balance (Rs.)</label>
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <Input
@@ -243,7 +243,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                   balanceType === 'Dr' ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Dr (Receivable)
+                They Owe Us (Debit)
               </button>
               <button
                 type="button"
@@ -252,10 +252,11 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                   balanceType === 'Cr' ? 'bg-amber-600 text-white' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                Cr (Payable)
+                We Owe Them (Credit)
               </button>
             </div>
           </div>
+          <p className="text-[10px] text-zinc-500 mt-1">Select &quot;They Owe Us&quot; if this customer has an unpaid balance. Select &quot;We Owe Them&quot; if we have to pay this supplier.</p>
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
@@ -263,7 +264,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
             Cancel
           </Button>
           <Button type="submit" isLoading={isLoading}>
-            Register Party
+            <span>Save Party</span>
           </Button>
         </div>
       </form>

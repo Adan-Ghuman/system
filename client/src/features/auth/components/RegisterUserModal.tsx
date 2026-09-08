@@ -13,19 +13,19 @@ export interface RegisterUserModalProps {
 }
 
 const AVAILABLE_PERMISSIONS = [
-  { id: 'parties:read', label: 'Parties: View Directory' },
-  { id: 'parties:write', label: 'Parties: Create/Edit Parties' },
-  { id: 'knitting:read', label: 'Knitting: View Transactions & Balances' },
-  { id: 'knitting:write', label: 'Knitting: Record Yarn Outward/Inward' },
-  { id: 'dyeing:read', label: 'Dyeing: View Batches & Mill Progress' },
-  { id: 'dyeing:write', label: 'Dyeing: Issue & Settle Batches' },
-  { id: 'inventory:read', label: 'Inventory: View Multi-Location Stock' },
-  { id: 'inventory:write', label: 'Inventory: Stock Adjustment' },
-  { id: 'dispatch:read', label: 'Dispatch: View Gate Passes & Invoices' },
-  { id: 'dispatch:write', label: 'Dispatch: Create OGP & GST Invoices' },
-  { id: 'accounts:read', label: 'Accounts: View Ledgers & Balances' },
-  { id: 'accounts:write', label: 'Accounts: Record Payment Vouchers' },
-  { id: 'export:generate', label: 'Exports: Generate PDFs & Excel' }
+  { id: 'parties:read', label: 'Customers & Suppliers: View list' },
+  { id: 'parties:write', label: 'Customers & Suppliers: Add & Edit' },
+  { id: 'knitting:read', label: 'Knitting & Yarn: View yarn balances' },
+  { id: 'knitting:write', label: 'Knitting & Yarn: Send yarn / Receive fabric' },
+  { id: 'dyeing:read', label: 'Dyeing Batches: View status & mills' },
+  { id: 'dyeing:write', label: 'Dyeing Batches: Send to mill & Receive back' },
+  { id: 'inventory:read', label: 'Fabric Stock: View warehouse inventory' },
+  { id: 'inventory:write', label: 'Fabric Stock: Add stock & Move locations' },
+  { id: 'dispatch:read', label: 'Deliveries & Bills: View history' },
+  { id: 'dispatch:write', label: 'Deliveries & Bills: Create gate passes & bills' },
+  { id: 'accounts:read', label: 'Payments & Ledgers: View accounts & statements' },
+  { id: 'accounts:write', label: 'Payments & Ledgers: Record payments in / out' },
+  { id: 'export:generate', label: 'Document Printing: Print bills & export reports' }
 ];
 
 export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUserModalProps) {
@@ -103,8 +103,8 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Provision New Operator / User"
-      description="Create credentials and grant granular permissions for new staff members."
+      title="Create New Staff Account"
+      description="Set up login email and password, and choose which features this staff member can access."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,7 +147,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
           <Input
             id="userPassword"
             type="password"
-            label="Temporary Password"
+            label="Login Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -156,13 +156,13 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
 
           <Select
             id="role"
-            label="System Role"
+            label="Account Type"
             value={role}
             onChange={(e) => setRole(e.target.value as 'operator' | 'viewer' | 'admin')}
             options={[
-              { label: 'Operator (Standard Operations)', value: 'operator' },
-              { label: 'Viewer (Read Only)', value: 'viewer' },
-              { label: 'Administrator (Full Access)', value: 'admin' }
+              { label: 'Staff / Operator (Standard daily use)', value: 'operator' },
+              { label: 'Viewer (Can only view data, no changes)', value: 'viewer' },
+              { label: 'Administrator (Full access to all features)', value: 'admin' }
             ]}
           />
         </div>
@@ -170,7 +170,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
         {role !== 'admin' && (
           <div className="space-y-2 pt-2 border-t border-zinc-800">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-zinc-300">Granular Permissions</label>
+              <label className="text-xs font-semibold text-zinc-300">Feature Access Permissions</label>
               <button
                 type="button"
                 onClick={handleSelectAllPermissions}
@@ -203,7 +203,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
             Cancel
           </Button>
           <Button type="submit" isLoading={isLoading}>
-            Create User
+            Save User Account
           </Button>
         </div>
       </form>

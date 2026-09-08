@@ -143,46 +143,46 @@ export function DashboardPage() {
 
   const modules = [
     {
-      title: 'Party Directory',
-      description: 'Profiles for Yarn Clients, Knitters, Fabric Buyers & Dyeing Mills with live Dr/Cr balances.',
+      title: 'Parties & Contacts',
+      description: 'Manage Yarn Clients, Knitters, Fabric Buyers & Dyeing Mills and view their balances.',
       to: '/parties',
       icon: Users,
-      badge: `${totalParties} Active Entities`
+      badge: `${totalParties} Total Contacts`
     },
     {
-      title: 'Yarn & Knitting',
-      description: 'Yarn outward to contract knitters & inward fabric receipts with automated 1% wastage deduction.',
+      title: 'Knitting & Yarn',
+      description: 'Send yarn to knitters, receive fabric rolls, and track 1% wastage.',
       to: '/knitting',
       icon: Layers,
       badge: `${knittersCount} Contract Knitters`
     },
     {
-      title: 'Multi-Mill Dyeing',
-      description: 'Dual-mill batch tracking across Ghumman & Rajput Dyeing with process shrinkage calculation.',
+      title: 'Dyeing Batches',
+      description: 'Track fabric sent to Ghumman & Rajput mills, target colors, and weight loss.',
       to: '/dyeing',
       icon: Palette,
       badge: `${activeGhummanBatches + activeRajputBatches} In Process`
     },
     {
-      title: 'Live Inventory',
-      description: 'Real-time stock of Raw Ecru and Finished Dyed fabric across ZR Godown & partner mills.',
+      title: 'Fabric Stock',
+      description: 'Live stock of ready dyed fabric and raw grey rolls across ZR Godown and partner mills.',
       to: '/inventory',
       icon: Boxes,
       badge: `${totalRolls} Rolls (${Math.round(totalWeightKg).toLocaleString()} Kg)`
     },
     {
-      title: 'Fast Dispatch & Invoicing',
-      description: 'Rapid roll-entry grid, sequential OGP generation, and 18% GST / Commercial invoicing.',
+      title: 'Deliveries & Bills',
+      description: 'Create delivery gate passes (OGP), deduct stock, and print bills or 18% GST tax invoices.',
       to: '/dispatch',
       icon: Truck,
-      badge: 'Rapid Roll Grid'
+      badge: 'Delivery & Invoicing'
     },
     {
-      title: 'Accounts & Ledgers',
-      description: 'Double-entry running ledgers, payment voucher entry (CRV/BRV/BPV), and statement exports.',
+      title: 'Payments & Ledgers',
+      description: 'Record money received or paid, track who owes money, and view party account statements.',
       to: '/accounts',
       icon: FileSpreadsheet,
-      badge: `Rs. ${Math.round(accountsStats?.totalReceivables || 0).toLocaleString()} Rec.`
+      badge: `Rs. ${Math.round(accountsStats?.totalReceivables || 0).toLocaleString()} Receivable`
     }
   ];
 
@@ -191,26 +191,26 @@ export function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-white">Operations Command Center</h1>
+            <h1 className="text-xl font-bold tracking-tight text-white">Operations Dashboard</h1>
             <Badge variant="success" className="gap-1 py-0.5 px-2 text-[10px]">
               <ShieldCheck className="w-3 h-3" />
-              Live Connected
+              System Online
             </Badge>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Operator: <span className="text-zinc-200 font-semibold">{user?.fullName}</span> | Single Operator Unified ERP & Financial Accounting
+            Operator: <span className="text-zinc-200 font-semibold">{user?.fullName}</span> | Rozain Textile Management System
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleRefreshAll} isLoading={isFetchingParties}>
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh Stats</span>
+            <span>Refresh</span>
           </Button>
           <Link to="/dispatch">
             <Button size="sm">
               <Truck className="w-3.5 h-3.5" />
-              <span>Fast Dispatch</span>
+              <span>+ New Delivery (Gate Pass)</span>
             </Button>
           </Link>
         </div>
@@ -220,7 +220,7 @@ export function DashboardPage() {
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Commercial Network</span>
+              <span className="text-xs font-medium text-zinc-400">Customers & Suppliers</span>
               <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                 <Users className="w-4 h-4" />
               </div>
@@ -283,7 +283,7 @@ export function DashboardPage() {
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Total Receivables</span>
+              <span className="text-xs font-medium text-zinc-400">Money We Have To Take</span>
               <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                 <TrendingUp className="w-4 h-4" />
               </div>
@@ -294,8 +294,8 @@ export function DashboardPage() {
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span>Inflow: Rs. {Math.round(accountsStats?.monthlyReceipts || 0).toLocaleString()}</span>
-              <span>Payables: Rs. {Math.round(accountsStats?.totalPayables || 0).toLocaleString()}</span>
+              <span>Received: Rs. {Math.round(accountsStats?.monthlyReceipts || 0).toLocaleString()}</span>
+              <span>We Owe: Rs. {Math.round(accountsStats?.totalPayables || 0).toLocaleString()}</span>
             </div>
           </CardContent>
         </Card>

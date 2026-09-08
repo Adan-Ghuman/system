@@ -97,10 +97,10 @@ export function PartiesPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-500" />
-            Party Directory & Master Accounts
+            Customers & Suppliers (Parties)
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Manage fabric buyers, contract knitters, yarn clients, and dyeing mills with live Dr/Cr balance audits.
+            Manage customers, knitters, yarn suppliers, and dyeing mills and view their running balances.
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export function PartiesPage() {
           </Button>
           <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
             <UserPlus className="w-4 h-4" />
-            Add Party
+            + Add Customer / Supplier
           </Button>
         </div>
       </div>
@@ -119,7 +119,7 @@ export function PartiesPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="bg-zinc-900/80 border-zinc-800 p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Total Entities</div>
+            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Total Parties</div>
             <div className="text-lg font-bold text-white mt-1">{metrics.total}</div>
             <div className="text-[10px] text-zinc-500 mt-0.5">{metrics.buyers} Buyers, {metrics.knitters} Knitters</div>
           </CardContent>
@@ -151,10 +151,10 @@ export function PartiesPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" />
-              Total Receivable (Dr)
+              They Owe Us (Receivable)
             </div>
             <div className="text-lg font-bold text-emerald-400 mt-1">{formatCurrency(metrics.totalDr)}</div>
-            <div className="text-[10px] text-emerald-600 mt-0.5">Active customer debt</div>
+            <div className="text-[10px] text-emerald-600 mt-0.5">Balance to collect from buyers</div>
           </CardContent>
         </Card>
 
@@ -162,10 +162,10 @@ export function PartiesPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
               <ArrowDownLeft className="w-3 h-3" />
-              Total Payable (Cr)
+              We Owe Them (Payable)
             </div>
             <div className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(metrics.totalCr)}</div>
-            <div className="text-[10px] text-amber-600 mt-0.5">Liabilities & deposits</div>
+            <div className="text-[10px] text-amber-600 mt-0.5">Balance to pay to mills & knitters</div>
           </CardContent>
         </Card>
       </div>

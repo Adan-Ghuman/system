@@ -128,8 +128,8 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={transactionType === 'OUTWARD_TO_KNITTER' ? 'Issue Yarn Outward to Knitter' : 'Inward Yarn Receipt from Client'}
-      description="Record yarn outward/inward with automated 1.0% standard wastage deduction math."
+      title={transactionType === 'OUTWARD_TO_KNITTER' ? 'Send Yarn to Knitter (Outward Gate Pass)' : 'Receive Outside Yarn from Supplier'}
+      description="Record yarn delivery with automatic 1.0% wastage calculation."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -311,7 +311,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
             Cancel
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <span>Commit Transaction</span>
+            <span>Save & Issue Yarn</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>
         </div>

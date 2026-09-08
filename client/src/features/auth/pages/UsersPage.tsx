@@ -61,8 +61,8 @@ export function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">User Management & Access Control</h1>
-          <p className="text-xs text-zinc-400">Provision system operators, manage credentials, and audit permissions.</p>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Staff Accounts & User Access</h1>
+          <p className="text-xs text-zinc-400">Manage login accounts and assign permissions for operators and staff.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -71,7 +71,7 @@ export function UsersPage() {
           </Button>
           <Button size="sm" onClick={() => setIsCreateOpen(true)}>
             <UserPlus className="w-4 h-4" />
-            Register New User
+            + Add New User
           </Button>
         </div>
       </div>
@@ -79,13 +79,13 @@ export function UsersPage() {
       <Card>
         <CardHeader className="border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <CardTitle>System Accounts</CardTitle>
-            <CardDescription>All operators and administrators with authorized access.</CardDescription>
+            <CardTitle>Staff & User Accounts</CardTitle>
+            <CardDescription>List of staff members with login access to the system.</CardDescription>
           </div>
           <div className="relative max-w-xs w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search staff by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 h-8 text-xs"
@@ -97,24 +97,24 @@ export function UsersPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/70 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">User</th>
-                  <th className="py-3 px-4">Role</th>
+                  <th className="py-3 px-4">Staff Member</th>
+                  <th className="py-3 px-4">Account Type</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Assigned Permissions</th>
-                  <th className="py-3 px-4">Created Date</th>
+                  <th className="py-3 px-4">Allowed Features</th>
+                  <th className="py-3 px-4">Date Added</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isLoading ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-zinc-500">
-                      Loading users...
+                      Loading staff accounts...
                     </td>
                   </tr>
                 ) : users?.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-zinc-500">
-                      No users found.
+                      No staff accounts found.
                     </td>
                   </tr>
                 ) : (
@@ -137,7 +137,7 @@ export function UsersPage() {
                             u.role === 'admin' ? 'default' : u.role === 'operator' ? 'secondary' : 'outline'
                           }
                         >
-                          {u.role.toUpperCase()}
+                          {u.role === 'admin' ? 'Admin' : u.role === 'operator' ? 'Operator' : 'Viewer'}
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
@@ -147,7 +147,7 @@ export function UsersPage() {
                       </td>
                       <td className="py-3 px-4">
                         {u.role === 'admin' ? (
-                          <span className="text-[11px] text-emerald-400 font-medium">All Permissions (Bypassed)</span>
+                          <span className="text-[11px] text-emerald-400 font-medium">Full Access (All Features)</span>
                         ) : (
                           <div className="flex flex-wrap gap-1 max-w-md">
                             {u.permissions.map((p) => (

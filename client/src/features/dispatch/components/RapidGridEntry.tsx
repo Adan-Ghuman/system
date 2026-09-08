@@ -94,10 +94,10 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
           <Keyboard className="w-4 h-4 text-emerald-400" />
-          <span>RapidGridEntry • Keyboard-First Roll Weighing Table</span>
+          <span>Roll Weights (Enter weight for each roll)</span>
         </div>
-        <div className="text-[11px] text-zinc-500 font-mono">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold border border-zinc-700">Enter</kbd> to add roll
+        <div className="text-[11px] text-zinc-400 font-mono">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 font-bold border border-zinc-700">Enter</kbd> to quickly add next roll
         </div>
       </div>
 
@@ -106,9 +106,9 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
           <thead className="bg-zinc-900 sticky top-0 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
             <tr>
               <th className="py-2 px-3 w-16 text-center">Roll #</th>
-              <th className="py-2 px-3">Gross Wt (Kg)</th>
-              <th className="py-2 px-3 w-24">Tare (Kg)</th>
-              <th className="py-2 px-3 text-right">Net Wt (Kg)</th>
+              <th className="py-2 px-3">Roll Weight (Gross Kg)</th>
+              <th className="py-2 px-3 w-28">Empty / Tare (Kg)</th>
+              <th className="py-2 px-3 text-right">Net Fabric (Kg)</th>
               <th className="py-2 px-2 w-10 text-center"></th>
             </tr>
           </thead>
@@ -175,20 +175,20 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
           className="gap-1 text-xs py-1 h-7"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Roll Row
+          + Add Next Roll
         </Button>
 
         <div className="flex items-center gap-4 text-xs font-mono">
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Rolls:</span>
+            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Total Rolls:</span>
             <span className="font-bold text-zinc-200">{totals.rollsCount}</span>
           </div>
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Avg:</span>
+            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Avg Weight:</span>
             <span className="text-zinc-300">{avgRollWeight.toFixed(2)} Kg</span>
           </div>
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Total Net:</span>
+            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Total Net Weight:</span>
             <span className="font-bold text-emerald-400 text-sm">{formatWeight(totals.totalNet)}</span>
           </div>
         </div>

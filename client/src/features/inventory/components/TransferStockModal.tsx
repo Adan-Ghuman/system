@@ -125,8 +125,8 @@ export function TransferStockModal({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Inter-Location Fabric Transfer"
-      description="Transfer fabric rolls between ZR Godown and Dyeing Mills with atomic stock updates."
+      title="Move Fabric Between Locations"
+      description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Mill."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,7 +282,7 @@ export function TransferStockModal({
           </Button>
           <Button type="submit" isLoading={isLoading} className="gap-1.5">
             <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Confirm Transfer</span>
+            <span>Confirm & Move Stock</span>
           </Button>
         </div>
       </form>

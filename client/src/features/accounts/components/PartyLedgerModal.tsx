@@ -63,8 +63,8 @@ export function PartyLedgerModal({ partyId, isOpen, onClose }: PartyLedgerModalP
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={party ? `Statement of Account • ${party.code}` : 'Party Statement of Account'}
-      description="Chronological running balance ledger statement with all debit invoices and credit payments."
+      title={party ? `Account Statement (Ledger) • ${party.name}` : 'Party Account Statement'}
+      description="Complete transaction history with bills, payments received, and running account balance."
       className="max-w-3xl"
     >
       <div className="space-y-4">
@@ -91,7 +91,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose }: PartyLedgerModalP
                 variant={party.currentBalance > 0 ? 'default' : party.currentBalance < 0 ? 'destructive' : 'outline'}
                 className="text-[10px]"
               >
-                {party.currentBalance > 0 ? 'Dr (Receivable)' : party.currentBalance < 0 ? 'Cr (Payable)' : 'Settled'}
+                {party.currentBalance > 0 ? 'They Owe Us' : party.currentBalance < 0 ? 'We Owe Them' : 'Settled (Zero)'}
               </Badge>
             </div>
           </div>
@@ -140,11 +140,11 @@ export function PartyLedgerModal({ partyId, isOpen, onClose }: PartyLedgerModalP
             <thead className="bg-zinc-900 sticky top-0 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
                 <th className="py-2.5 px-3">Date</th>
-                <th className="py-2.5 px-3">Reference #</th>
-                <th className="py-2.5 px-3">Particulars / Narrative</th>
-                <th className="py-2.5 px-3 text-right">Debit (Rs.)</th>
-                <th className="py-2.5 px-3 text-right">Credit (Rs.)</th>
-                <th className="py-2.5 px-3 text-right">Running Bal</th>
+                <th className="py-2.5 px-3">Bill / Voucher #</th>
+                <th className="py-2.5 px-3">Description / Details</th>
+                <th className="py-2.5 px-3 text-right">They Owe Us (+)</th>
+                <th className="py-2.5 px-3 text-right">We Owe Them (-)</th>
+                <th className="py-2.5 px-3 text-right">Current Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
@@ -196,15 +196,15 @@ export function PartyLedgerModal({ partyId, isOpen, onClose }: PartyLedgerModalP
         {data && (
           <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 grid grid-cols-3 gap-2 text-xs font-mono">
             <div>
-              <div className="text-[10px] text-zinc-500 uppercase">Total Debits (+)</div>
+              <div className="text-[10px] text-zinc-500 uppercase">Total Billed / Added (+)</div>
               <div className="font-bold text-zinc-200 mt-0.5">{formatCurrency(data.totalDebits)}</div>
             </div>
             <div className="text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Total Credits (-)</div>
+              <div className="text-[10px] text-zinc-500 uppercase">Total Paid / Received (-)</div>
               <div className="font-bold text-emerald-400 mt-0.5">{formatCurrency(data.totalCredits)}</div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-zinc-500 uppercase">Net Closing Balance</div>
+              <div className="text-[10px] text-zinc-500 uppercase">Final Balance</div>
               <div className="font-bold text-white mt-0.5">{formatCurrency(data.closingBalance)}</div>
             </div>
           </div>
