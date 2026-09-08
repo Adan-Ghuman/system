@@ -12,6 +12,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PartyBalanceBadge } from '../../parties/components/PartyBalanceBadge.js';
 import { CreateVoucherModal } from '../components/CreateVoucherModal.js';
 import { PartyLedgerModal } from '../components/PartyLedgerModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatCurrency, formatDate } from '../../../lib/formatters.js';
 import {
   DollarSign,
@@ -255,11 +256,7 @@ export function AccountsPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {isPartiesLoading ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-500">
-                        Loading party balances...
-                      </td>
-                    </tr>
+                    <LoadingState isTableRow colSpan={6} message="Loading party account balances..." />
                   ) : parties.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-zinc-500">
@@ -389,11 +386,7 @@ export function AccountsPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isVouchersLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-500">
-                      Loading payment records...
-                    </td>
-                  </tr>
+                  <LoadingState isTableRow colSpan={8} message="Loading payment records..." />
                 ) : vouchers.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-zinc-500">

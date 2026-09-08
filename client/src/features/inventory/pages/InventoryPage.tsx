@@ -15,6 +15,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { TransferStockModal } from '../components/TransferStockModal.js';
 import { AdjustStockModal } from '../components/AdjustStockModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatWeight, formatDate } from '../../../lib/formatters.js';
 import { exportToCsv } from '../../../lib/csvExport.js';
 import {
@@ -368,11 +369,7 @@ export function InventoryPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {isStockLoading ? (
-                    <tr>
-                      <td colSpan={10} className="py-12 text-center text-zinc-500">
-                        Loading fabric inventory...
-                      </td>
-                    </tr>
+                    <LoadingState isTableRow colSpan={10} message="Loading fabric inventory..." />
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="py-12 text-center text-zinc-500">
@@ -505,11 +502,7 @@ export function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isTransfersLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-500">
-                      Loading transfers log...
-                    </td>
-                  </tr>
+                  <LoadingState isTableRow colSpan={8} message="Loading fabric movements log..." />
                 ) : transfers.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-zinc-500">

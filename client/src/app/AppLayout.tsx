@@ -3,6 +3,7 @@ import { useAuthStore } from '../features/auth/stores/useAuthStore.js';
 import { api } from '../lib/api.js';
 import { Button } from '../components/ui/Button.js';
 import { Badge } from '../components/ui/Badge.js';
+import { GlobalSyncBar } from '../components/ui/GlobalSyncBar.js';
 import { cn } from '../lib/cn.js';
 import {
   Factory,
@@ -43,6 +44,7 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
+      <GlobalSyncBar />
       <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md">
         <div className="px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-6">

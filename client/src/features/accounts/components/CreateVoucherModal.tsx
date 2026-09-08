@@ -5,6 +5,7 @@ import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
+import { LoadingOverlay } from '../../../components/ui/LoadingOverlay.js';
 import { formatCurrency } from '../../../lib/formatters.js';
 import { AlertCircle, CheckCircle2, DollarSign, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { VoucherType, PaymentMode, CreateVoucherPayload } from '../types/accounts.types.js';
@@ -128,7 +129,8 @@ export function CreateVoucherModal({
       description="Record money received or paid with immediate update to their account balance."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 relative">
+        <LoadingOverlay isLoading={isLoading} message="Recording payment entry..." />
         {error && (
           <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
             <AlertCircle className="w-4 h-4 shrink-0" />

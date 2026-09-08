@@ -10,6 +10,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { CreateDispatchModal } from '../components/CreateDispatchModal.js';
 import { PrintDocumentModal } from '../../export/components/PrintDocumentModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatCurrency, formatWeight, formatDate } from '../../../lib/formatters.js';
 import {
   Truck,
@@ -195,11 +196,7 @@ export function DispatchPage() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <tr>
-                  <td colSpan={11} className="py-12 text-center text-zinc-500">
-                    Loading dispatches...
-                  </td>
-                </tr>
+                <LoadingState isTableRow colSpan={11} message="Loading delivery & invoice records..." />
               ) : dispatches.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-zinc-500">

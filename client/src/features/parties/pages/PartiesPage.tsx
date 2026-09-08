@@ -11,6 +11,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PartyBalanceBadge } from '../components/PartyBalanceBadge.js';
 import { CreatePartyModal } from '../components/CreatePartyModal.js';
 import { EditPartyModal } from '../components/EditPartyModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatCurrency } from '../../../lib/formatters.js';
 import {
   UserPlus,
@@ -221,11 +222,7 @@ export function PartiesPage() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-500">
-                    Loading party records...
-                  </td>
-                </tr>
+                <LoadingState isTableRow colSpan={8} message="Loading customers & suppliers..." />
               ) : parties.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-zinc-500">

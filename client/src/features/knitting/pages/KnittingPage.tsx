@@ -10,6 +10,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueYarnModal } from '../components/IssueYarnModal.js';
 import { ReceiveKnittedModal } from '../components/ReceiveKnittedModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatWeight, formatDate } from '../../../lib/formatters.js';
 import {
   Layers,
@@ -257,11 +258,7 @@ export function KnittingPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isBalancesLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-500">
-                      Loading knitter balances...
-                    </td>
-                  </tr>
+                  <LoadingState isTableRow colSpan={8} message="Loading knitter yarn balances..." />
                 ) : balances.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-zinc-500">
@@ -376,11 +373,7 @@ export function KnittingPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isTxLoading ? (
-                  <tr>
-                    <td colSpan={11} className="py-12 text-center text-zinc-500">
-                      Loading transactions...
-                    </td>
-                  </tr>
+                  <LoadingState isTableRow colSpan={11} message="Loading yarn movement history..." />
                 ) : transactions.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="py-12 text-center text-zinc-500">

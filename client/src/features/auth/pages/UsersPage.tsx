@@ -8,6 +8,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { RegisterUserModal } from '../components/RegisterUserModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { UserPlus, Shield, User as UserIcon, RefreshCw, Search } from 'lucide-react';
 
 interface UserListItem {
@@ -106,11 +107,7 @@ export function UsersPage() {
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-zinc-500">
-                      Loading staff accounts...
-                    </td>
-                  </tr>
+                  <LoadingState isTableRow colSpan={5} message="Loading staff accounts..." />
                 ) : users?.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-zinc-500">

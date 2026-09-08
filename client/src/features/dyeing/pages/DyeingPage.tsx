@@ -10,6 +10,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueBatchModal } from '../components/IssueBatchModal.js';
 import { SettleBatchModal } from '../components/SettleBatchModal.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatWeight, formatDate } from '../../../lib/formatters.js';
 import {
   Palette,
@@ -257,11 +258,7 @@ export function DyeingPage() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <tr>
-                  <td colSpan={10} className="py-12 text-center text-zinc-500">
-                    Loading dyeing batches...
-                  </td>
-                </tr>
+                <LoadingState isTableRow colSpan={10} message="Loading dyeing batches..." />
               ) : batches.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-zinc-500">

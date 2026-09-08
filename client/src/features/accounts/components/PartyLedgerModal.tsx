@@ -6,6 +6,7 @@ import { Badge } from '../../../components/ui/Badge.js';
 import { Button } from '../../../components/ui/Button.js';
 import { formatCurrency, formatDate } from '../../../lib/formatters.js';
 import { exportToCsv } from '../../../lib/csvExport.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { LedgerStatementResponse } from '../types/accounts.types.js';
 import { BookOpen, Calendar, Printer, Download } from 'lucide-react';
 
@@ -149,11 +150,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose }: PartyLedgerModalP
             </thead>
             <tbody className="divide-y divide-zinc-800/40">
               {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-500">
-                    Loading statement entries...
-                  </td>
-                </tr>
+                <LoadingState isTableRow colSpan={6} message="Loading account statement entries..." />
               ) : entries.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-zinc-500">

@@ -13,7 +13,7 @@ import { DispatchPage } from '../features/dispatch/pages/DispatchPage.js';
 import { AccountsPage } from '../features/accounts/pages/AccountsPage.js';
 import { AppLayout } from './AppLayout.js';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary.js';
-import { Loader2 } from 'lucide-react';
+import { ThemedLoadingScreen } from '../components/ui/ThemedLoadingScreen.js';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,12 +33,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-400">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <p className="text-xs">Connecting to secure session...</p>
-        </div>
-      </div>
+      <ThemedLoadingScreen
+        message="Connecting to secure session..."
+        subtitle="Verifying credentials & loading operations workspace"
+      />
     );
   }
 

@@ -1,6 +1,6 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '../../lib/cn.js';
-import { Loader2 } from 'lucide-react';
+import { ThemedSpinner } from './ThemedSpinner.js';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
@@ -33,7 +33,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(baseStyles, variants[variant], sizes[size], className)}
         {...props}
       >
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-current" />}
+        {isLoading && (
+          <ThemedSpinner
+            size={size === 'lg' ? 'md' : size === 'sm' ? 'xs' : 'sm'}
+            variant={variant === 'primary' || variant === 'destructive' ? 'white' : 'emerald'}
+          />
+        )}
         {children}
       </button>
     );
