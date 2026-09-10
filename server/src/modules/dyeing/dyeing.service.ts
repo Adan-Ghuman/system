@@ -105,6 +105,10 @@ export async function settleDyeingBatch(id: string, input: SettleBatchInput): Pr
       ? 'GHUMMAN_DYEING'
       : batch.millName === 'RAJPUT_DYEING'
       ? 'RAJPUT_DYEING'
+      : batch.millName === 'HAFIZ_SAAD_DYEING'
+      ? 'HAFIZ_SAAD_DYEING'
+      : batch.millName === 'HB_DYEING'
+      ? 'HB_DYEING'
       : 'ZR_GODOWN';
 
     await FabricInventory.findOneAndUpdate(

@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-export const locationEnum = z.enum(['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING']);
+export const locationEnum = z.enum([
+  'ZR_GODOWN',
+  'GHUMMAN_DYEING',
+  'RAJPUT_DYEING',
+  'HAFIZ_SAAD_DYEING',
+  'HB_DYEING'
+]);
 export const stateEnum = z.enum(['RAW_ECRU', 'FINISHED_DYED']);
 export const reasonEnum = z.enum([
   'AUDIT_DISCREPANCY',

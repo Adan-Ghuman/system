@@ -1,16 +1,22 @@
 import { Schema, model, Document } from 'mongoose';
 
 export type FabricState = 'RAW_ECRU' | 'FINISHED_DYED';
-export type InventoryLocation = 'ZR_GODOWN' | 'GHUMMAN_DYEING' | 'RAJPUT_DYEING';
+export type InventoryLocation =
+  | 'ZR_GODOWN'
+  | 'GHUMMAN_DYEING'
+  | 'RAJPUT_DYEING'
+  | 'HAFIZ_SAAD_DYEING'
+  | 'HB_DYEING';
 
 export interface IFabricInventory extends Document {
   fabricType: string;
   yarnSpec: string;
-  state: FabricState;
+  state: 'RAW_ECRU' | 'FINISHED_DYED';
   color: string;
   location: InventoryLocation;
   totalRolls: number;
   totalWeightKg: number;
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -36,12 +42,13 @@ const fabricInventorySchema = new Schema<IFabricInventory>(
     color: {
       type: String,
       required: true,
+      trim: true,
       uppercase: true,
-      trim: true
+      default: 'ECRU'
     },
     location: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING'],
+      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },

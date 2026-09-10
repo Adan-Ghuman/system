@@ -185,16 +185,18 @@ export function DyeingPage() {
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
           {[
-            { id: 'GHUMMAN_DYEING', label: 'Ghuman Dyeing Mill' },
-            { id: 'RAJPUT_DYEING', label: 'Rajput Dyeing Mill' },
+            { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
+            { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
+            { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
+            { id: 'HB_DYEING', label: 'HB Dyeing Mill' },
             { id: 'ALL', label: 'All Dyeing Mills' }
           ].map((mill) => (
             <button
               key={mill.id}
               onClick={() => setSelectedMill(mill.id as DyeingMillType | 'ALL')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-semibold transition-colors select-none ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors select-none whitespace-nowrap ${
                 selectedMill === mill.id
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
@@ -275,10 +277,24 @@ export function DyeingPage() {
 
                     <td className="py-3 px-4">
                       <Badge
-                        variant={b.millName === 'GHUMMAN_DYEING' ? 'default' : 'success'}
+                        variant={
+                          b.millName === 'GHUMMAN_DYEING'
+                            ? 'default'
+                            : b.millName === 'RAJPUT_DYEING'
+                            ? 'success'
+                            : 'outline'
+                        }
                         className="text-[10px] py-0.5"
                       >
-                        {b.millName === 'GHUMMAN_DYEING' ? 'Ghumman' : 'Rajput'}
+                        {b.millName === 'GHUMMAN_DYEING'
+                          ? 'Ghumman'
+                          : b.millName === 'RAJPUT_DYEING'
+                          ? 'Rajput'
+                          : b.millName === 'HAFIZ_SAAD_DYEING'
+                          ? 'Hafiz Saad'
+                          : b.millName === 'HB_DYEING'
+                          ? 'HB'
+                          : 'Mill'}
                       </Badge>
                     </td>
 

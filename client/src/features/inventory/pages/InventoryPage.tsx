@@ -322,7 +322,9 @@ export function InventoryPage() {
                 { id: 'ALL', label: 'All' },
                 { id: 'ZR_GODOWN', label: 'ZR Godown' },
                 { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
-                { id: 'RAJPUT_DYEING', label: 'Rajput Mill' }
+                { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
+                { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
+                { id: 'HB_DYEING', label: 'HB Dyeing Mill' }
               ].map((loc) => (
                 <button
                   key={loc.id}

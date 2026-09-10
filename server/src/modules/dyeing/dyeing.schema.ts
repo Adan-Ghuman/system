@@ -1,8 +1,16 @@
 import { z } from 'zod';
 
+export const millNameEnum = z.enum([
+  'GHUMMAN_DYEING',
+  'RAJPUT_DYEING',
+  'HAFIZ_SAAD_DYEING',
+  'HB_DYEING',
+  'OTHER'
+]);
+
 export const createBatchSchema = z.object({
   batchNo: z.string().trim().toUpperCase().optional(),
-  millName: z.enum(['GHUMMAN_DYEING', 'RAJPUT_DYEING', 'OTHER']),
+  millName: millNameEnum,
   millPartyId: z.string().optional(),
   fabricType: z.string().min(1, 'Fabric type is required').trim(),
   yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
@@ -25,7 +33,7 @@ export const settleBatchSchema = z.object({
 });
 
 export const queryBatchesSchema = z.object({
-  millName: z.enum(['GHUMMAN_DYEING', 'RAJPUT_DYEING', 'OTHER']).optional(),
+  millName: millNameEnum.optional(),
   status: z.enum(['ISSUED', 'IN_PROCESS', 'COMPLETED']).optional(),
   fabricType: z.string().optional(),
   search: z.string().optional(),

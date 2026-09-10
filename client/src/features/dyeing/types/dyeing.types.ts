@@ -1,4 +1,4 @@
-export type DyeingMillType = 'GHUMMAN_DYEING' | 'RAJPUT_DYEING' | 'OTHER';
+export type DyeingMillType = 'GHUMMAN_DYEING' | 'RAJPUT_DYEING' | 'HAFIZ_SAAD_DYEING' | 'HB_DYEING' | 'OTHER';
 export type DyeingBatchStatus = 'ISSUED' | 'IN_PROCESS' | 'COMPLETED';
 
 export interface DyeingBatchItem {

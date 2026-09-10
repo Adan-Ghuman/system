@@ -167,7 +167,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
               }`}
             >
               <Factory className="w-4 h-4" />
-              <span>Ghumman Dyeing Mill</span>
+              <span>Ghumman Dyeing</span>
             </button>
 
             <button
@@ -180,7 +180,33 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
               }`}
             >
               <Factory className="w-4 h-4" />
-              <span>Rajput Dyeing Mill</span>
+              <span>Rajput Dyeing</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMillName('HAFIZ_SAAD_DYEING')}
+              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
+                millName === 'HAFIZ_SAAD_DYEING'
+                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              <Factory className="w-4 h-4" />
+              <span>Hafiz Saad Dyeing</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMillName('HB_DYEING')}
+              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
+                millName === 'HB_DYEING'
+                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              <Factory className="w-4 h-4" />
+              <span>HB Dyeing</span>
             </button>
           </div>
         </div>

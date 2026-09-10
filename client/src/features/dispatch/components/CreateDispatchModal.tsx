@@ -26,7 +26,9 @@ export interface CreateDispatchModalProps {
 const LOCATIONS: { label: string; value: InventoryLocation }[] = [
   { label: 'ZR Godown (Main Dispatch Depot)', value: 'ZR_GODOWN' },
   { label: 'Ghumman Dyeing Mill (Direct Mill Dispatch)', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Mill (Direct Mill Dispatch)', value: 'RAJPUT_DYEING' }
+  { label: 'Rajput Dyeing Mill (Direct Mill Dispatch)', value: 'RAJPUT_DYEING' },
+  { label: 'Hafiz Saad Dyeing Mill (Direct Mill Dispatch)', value: 'HAFIZ_SAAD_DYEING' },
+  { label: 'HB Dyeing Mill (Direct Mill Dispatch)', value: 'HB_DYEING' }
 ];
 
 export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispatchModalProps) {
