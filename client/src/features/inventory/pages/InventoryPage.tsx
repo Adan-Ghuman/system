@@ -5,7 +5,8 @@ import {
   FabricInventoryItem,
   StockTransferItem,
   InventoryLocation,
-  FabricState
+  FabricState,
+  InventorySummaryGroup
 } from '../types/inventory.types.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Badge } from '../../../components/ui/Badge.js';
@@ -109,12 +110,31 @@ export function InventoryPage() {
     }
   });
 
+  const { data: stockSummaryData, refetch: refetchSummary } = useQuery<InventorySummaryGroup[]>({
+    queryKey: ['inventory-summary', selectedLocation, selectedState, debouncedSearchTerm],
+    queryFn: async () => {
+      const params: Record<string, string> = {};
+      if (selectedLocation !== 'ALL') {
+        params.location = selectedLocation;
+      }
+      if (selectedState !== 'ALL') {
+        params.state = selectedState;
+      }
+      if (debouncedSearchTerm.trim()) {
+        params.search = debouncedSearchTerm.trim();
+      }
+      const res = await api.get<{ success: boolean; data: InventorySummaryGroup[] }>('/inventory/summary', { params });
+      return res.data.data;
+    }
+  });
+
   const items = stockData?.items || [];
   const transfers = transfersData?.items || [];
 
   function handleRefetchAll() {
     refetchStock();
     refetchTransfers();
+    refetchSummary();
   }
 
   const kpis = useMemo(() => {
@@ -127,26 +147,26 @@ export function InventoryPage() {
     let ecruRolls = 0;
     let ecruKg = 0;
 
-    items.forEach((i) => {
-      if (i.location === 'ZR_GODOWN') {
-        godownRolls += i.totalRolls;
-        godownKg += i.totalWeightKg;
+    (stockSummaryData || []).forEach((group) => {
+      if (group._id.location === 'ZR_GODOWN') {
+        godownRolls += group.totalRolls;
+        godownKg += group.totalWeightKg;
       } else {
-        millRolls += i.totalRolls;
-        millKg += i.totalWeightKg;
+        millRolls += group.totalRolls;
+        millKg += group.totalWeightKg;
       }
 
-      if (i.state === 'FINISHED_DYED') {
-        finishedRolls += i.totalRolls;
-        finishedKg += i.totalWeightKg;
+      if (group._id.state === 'FINISHED_DYED') {
+        finishedRolls += group.totalRolls;
+        finishedKg += group.totalWeightKg;
       } else {
-        ecruRolls += i.totalRolls;
-        ecruKg += i.totalWeightKg;
+        ecruRolls += group.totalRolls;
+        ecruKg += group.totalWeightKg;
       }
     });
 
     return { godownRolls, godownKg, millRolls, millKg, finishedRolls, finishedKg, ecruRolls, ecruKg };
-  }, [items]);
+  }, [stockSummaryData]);
 
   function handleExportCsv() {
     exportToCsv(
@@ -212,7 +232,7 @@ export function InventoryPage() {
             className="gap-1.5"
           >
             <Wrench className="w-4 h-4" />
-            + Add / Adjust Stock
+            Add / Adjust Stock
           </Button>
         </div>
       </div>

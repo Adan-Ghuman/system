@@ -131,7 +131,7 @@ export function KnittingPage() {
             className="gap-1.5"
           >
             <ArrowUpRight className="w-4 h-4" />
-            + Send Yarn to Knitter
+            Send Yarn to Knitter
           </Button>
 
           <Button
@@ -144,7 +144,7 @@ export function KnittingPage() {
             className="gap-1.5"
           >
             <PackageCheck className="w-4 h-4" />
-            + Receive Knitted Fabric
+            Receive Knitted Fabric
           </Button>
 
           <Button
@@ -157,7 +157,7 @@ export function KnittingPage() {
             className="gap-1.5 text-zinc-300"
           >
             <ArrowDownLeft className="w-4 h-4" />
-            + Receive Outside Yarn
+            Receive Outside Yarn
           </Button>
         </div>
       </div>

@@ -112,7 +112,7 @@ export function PartiesPage() {
           </Button>
           <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
             <UserPlus className="w-4 h-4" />
-            + Add Customer / Supplier
+            Add Customer / Supplier
           </Button>
         </div>
       </div>

@@ -102,7 +102,7 @@ export function DispatchPage() {
 
           <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
             <Plus className="w-4 h-4" />
-            + New Delivery (Gate Pass & Bill)
+            New Delivery (Gate Pass & Bill)
           </Button>
         </div>
       </div>

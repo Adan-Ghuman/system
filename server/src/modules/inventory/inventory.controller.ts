@@ -24,8 +24,8 @@ export async function handleListInventory(req: Request, res: Response): Promise<
   sendSuccess(res, result);
 }
 
-export async function handleGetSummary(_req: Request, res: Response): Promise<void> {
-  const summary = await getInventorySummary();
+export async function handleGetSummary(req: Request, res: Response): Promise<void> {
+  const summary = await getInventorySummary(req.query as Parameters<typeof getInventorySummary>[0]);
   sendSuccess(res, summary);
 }
 

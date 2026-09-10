@@ -120,7 +120,7 @@ export function DyeingPage() {
 
           <Button size="sm" onClick={() => setIsIssueOpen(true)} className="gap-1.5">
             <Plus className="w-4 h-4" />
-            + Send Fabric for Dyeing
+            Send Fabric for Dyeing
           </Button>
         </div>
       </div>

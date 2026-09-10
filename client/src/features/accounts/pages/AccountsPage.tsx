@@ -141,7 +141,7 @@ export function AccountsPage() {
             className="gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            + Record Payment (Money In / Out)
+            Record Payment (Money In / Out)
           </Button>
         </div>
       </div>

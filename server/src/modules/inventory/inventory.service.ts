@@ -212,12 +212,43 @@ export async function listInventoryItems(query: QueryInventoryInput) {
   return formatPaginatedResult(items, total, page, limit);
 }
 
-export async function getInventorySummary() {
+export interface InventorySummaryQuery {
+  location?: string;
+  state?: string;
+  search?: string;
+}
+
+export async function getInventorySummary(query: InventorySummaryQuery = {}) {
+  const matchFilter: Record<string, unknown> = {
+    $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
+  };
+
+  if (query.location && query.location !== 'ALL') {
+    matchFilter.location = query.location;
+  }
+  if (query.state && query.state !== 'ALL') {
+    matchFilter.state = query.state;
+  }
+  if (query.search && query.search.trim()) {
+    const searchRegex = new RegExp(query.search.trim(), 'i');
+    matchFilter.$and = [
+      {
+        $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
+      },
+      {
+        $or: [
+          { fabricType: searchRegex },
+          { yarnSpec: searchRegex },
+          { color: searchRegex }
+        ]
+      }
+    ];
+    delete matchFilter.$or;
+  }
+
   const result = await FabricInventory.aggregate([
     {
-      $match: {
-        $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
-      }
+      $match: matchFilter
     },
     {
       $group: {

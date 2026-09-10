@@ -175,7 +175,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
           className="gap-1 text-xs py-1 h-7"
         >
           <Plus className="w-3.5 h-3.5" />
-          + Add Next Roll
+          Add Next Roll
         </Button>
 
         <div className="flex items-center gap-4 text-xs font-mono">

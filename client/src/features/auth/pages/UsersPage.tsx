@@ -72,7 +72,7 @@ export function UsersPage() {
           </Button>
           <Button size="sm" onClick={() => setIsCreateOpen(true)}>
             <UserPlus className="w-4 h-4" />
-            + Add New User
+            Add New User
           </Button>
         </div>
       </div>

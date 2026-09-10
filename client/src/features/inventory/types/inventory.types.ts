@@ -81,3 +81,13 @@ export interface CreateAdjustmentPayload {
   date?: string;
   remarks?: string;
 }
+
+export interface InventorySummaryGroup {
+  _id: {
+    location: InventoryLocation;
+    state: FabricState;
+  };
+  totalRolls: number;
+  totalWeightKg: number;
+  uniqueVarieties: number;
+}

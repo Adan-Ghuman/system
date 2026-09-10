@@ -21,6 +21,7 @@ import {
   Building2,
   ShieldCheck
 } from 'lucide-react';
+import { InventorySummaryGroup } from '../inventory/types/inventory.types.js';
 
 interface PartySummary {
   _id: string;
@@ -31,13 +32,6 @@ interface PartySummary {
     isYarnClient: boolean;
   };
   currentBalance: number;
-}
-
-interface InventorySummary {
-  location: 'ZR_GODOWN' | 'GHUMMAN_DYEING' | 'RAJPUT_DYEING';
-  state: 'RAW_ECRU' | 'FINISHED_DYED';
-  totalRolls: number;
-  totalWeightKg: number;
 }
 
 interface DyeingBatchSummary {
@@ -69,12 +63,10 @@ export function DashboardPage() {
     }
   });
 
-  const { data: inventoryData, refetch: refetchInventory } = useQuery<{ items: InventorySummary[]; total: number }>({
-    queryKey: ['dashboard-inventory'],
+  const { data: inventorySummaryData, refetch: refetchInventory } = useQuery<InventorySummaryGroup[]>({
+    queryKey: ['dashboard-inventory-summary'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: InventorySummary[]; total: number } }>('/inventory/items', {
-        params: { limit: 200 }
-      });
+      const res = await api.get<{ success: boolean; data: InventorySummaryGroup[] }>('/inventory/summary');
       return res.data.data;
     }
   });
@@ -105,7 +97,7 @@ export function DashboardPage() {
   }
 
   const parties = partiesData?.items || [];
-  const inventory = inventoryData?.items || [];
+  const inventorySummary = inventorySummaryData || [];
   const batches = batchesData?.items || [];
 
   const buyersCount = parties.filter((p) => p?.tags?.isFabricBuyer).length;
@@ -113,29 +105,29 @@ export function DashboardPage() {
   const millsCount = parties.filter((p) => p?.tags?.isDyeingMill).length;
   const totalParties = partiesData?.total || parties.length;
 
-  const totalRolls = inventory.reduce((sum, item) => sum + (item.totalRolls || 0), 0);
-  const totalWeightKg = inventory.reduce((sum, item) => sum + (item.totalWeightKg || 0), 0);
+  const totalRolls = inventorySummary.reduce((sum, g) => sum + (g.totalRolls || 0), 0);
+  const totalWeightKg = inventorySummary.reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
 
-  const zrGodownRolls = inventory
-    .filter((i) => i.location === 'ZR_GODOWN')
-    .reduce((sum, i) => sum + (i.totalRolls || 0), 0);
-  const zrGodownKg = inventory
-    .filter((i) => i.location === 'ZR_GODOWN')
-    .reduce((sum, i) => sum + (i.totalWeightKg || 0), 0);
+  const zrGodownRolls = inventorySummary
+    .filter((g) => g._id.location === 'ZR_GODOWN')
+    .reduce((sum, g) => sum + (g.totalRolls || 0), 0);
+  const zrGodownKg = inventorySummary
+    .filter((g) => g._id.location === 'ZR_GODOWN')
+    .reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
 
-  const ghummanRolls = inventory
-    .filter((i) => i.location === 'GHUMMAN_DYEING')
-    .reduce((sum, i) => sum + (i.totalRolls || 0), 0);
-  const ghummanKg = inventory
-    .filter((i) => i.location === 'GHUMMAN_DYEING')
-    .reduce((sum, i) => sum + (i.totalWeightKg || 0), 0);
+  const ghummanRolls = inventorySummary
+    .filter((g) => g._id.location === 'GHUMMAN_DYEING')
+    .reduce((sum, g) => sum + (g.totalRolls || 0), 0);
+  const ghummanKg = inventorySummary
+    .filter((g) => g._id.location === 'GHUMMAN_DYEING')
+    .reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
 
-  const rajputRolls = inventory
-    .filter((i) => i.location === 'RAJPUT_DYEING')
-    .reduce((sum, i) => sum + (i.totalRolls || 0), 0);
-  const rajputKg = inventory
-    .filter((i) => i.location === 'RAJPUT_DYEING')
-    .reduce((sum, i) => sum + (i.totalWeightKg || 0), 0);
+  const rajputRolls = inventorySummary
+    .filter((g) => g._id.location === 'RAJPUT_DYEING')
+    .reduce((sum, g) => sum + (g.totalRolls || 0), 0);
+  const rajputKg = inventorySummary
+    .filter((g) => g._id.location === 'RAJPUT_DYEING')
+    .reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
 
   const activeGhummanBatches = batches.filter((b) => b.millName === 'GHUMMAN_DYEING' && b.status !== 'COMPLETED').length;
   const activeRajputBatches = batches.filter((b) => b.millName === 'RAJPUT_DYEING' && b.status !== 'COMPLETED').length;
@@ -210,7 +202,7 @@ export function DashboardPage() {
           <Link to="/dispatch">
             <Button size="sm">
               <Truck className="w-3.5 h-3.5" />
-              <span>+ New Delivery (Gate Pass)</span>
+              <span>New Delivery (Gate Pass)</span>
             </Button>
           </Link>
         </div>
