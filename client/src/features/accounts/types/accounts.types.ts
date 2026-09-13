@@ -67,6 +67,25 @@ export interface CreateVoucherPayload {
   remarks?: string;
 }
 
+export interface UpdateVoucherPayload {
+  voucherType?: VoucherType;
+  paymentMode?: PaymentMode;
+  partyId?: string;
+  amount?: number;
+  date?: string;
+  bankName?: string;
+  chequeNo?: string;
+  chequeDate?: string;
+  transactionRef?: string;
+  remarks?: string;
+}
+
+export interface UpdateLedgerEntryPayload {
+  amount?: number;
+  date?: string;
+  description?: string;
+}
+
 export interface AccountingMetricsSummary {
   totalReceivables: number;
   totalPayables: number;

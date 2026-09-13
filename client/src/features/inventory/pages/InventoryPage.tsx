@@ -17,7 +17,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { TransferStockModal } from '../components/TransferStockModal.js';
 import { AdjustStockModal } from '../components/AdjustStockModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatWeight, formatDate } from '../../../lib/formatters.js';
+import { formatWeight, formatDate, formatDateTime } from '../../../lib/formatters.js';
 import { exportToCsv } from '../../../lib/csvExport.js';
 import {
   Boxes,
@@ -377,16 +377,16 @@ export function InventoryPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                   <tr>
-                    <th className="py-3 px-4">Fabric Variety</th>
-                    <th className="py-3 px-4">Yarn Spec</th>
-                    <th className="py-3 px-4">State</th>
-                    <th className="py-3 px-4">Color Shade</th>
-                    <th className="py-3 px-4">Current Location</th>
-                    <th className="py-3 px-4 text-right">Rolls Count</th>
-                    <th className="py-3 px-4 text-right">Available Weight</th>
-                    <th className="py-3 px-4 text-right">Avg Weight / Roll</th>
-                    <th className="py-3 px-4 text-center">Last Updated</th>
-                    <th className="py-3 px-4 text-center">Action</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Fabric Variety</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Last Updated</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Yarn Spec</th>
+                    <th className="py-3 px-4 whitespace-nowrap">State</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Color Shade</th>
+                    <th className="py-3 px-4 whitespace-nowrap">Current Location</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Rolls Count</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Available Weight</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap">Avg Weight / Roll</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
@@ -403,16 +403,20 @@ export function InventoryPage() {
                       const avgWeight = item.totalRolls > 0 ? item.totalWeightKg / item.totalRolls : 0;
 
                       return (
-                        <tr key={item._id} className="hover:bg-zinc-800/40 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-zinc-100">
+                        <tr key={item._id} className="group hover:bg-zinc-800/40 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-zinc-100 whitespace-nowrap">
                             {item.fabricType}
                           </td>
 
-                          <td className="py-3 px-4 font-mono text-zinc-400">
+                          <td className="py-3 px-4 font-mono text-zinc-300 whitespace-nowrap">
+                            {formatDateTime(item.updatedAt, true)}
+                          </td>
+
+                          <td className="py-3 px-4 font-mono text-zinc-400 whitespace-nowrap">
                             {item.yarnSpec}
                           </td>
 
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 whitespace-nowrap">
                             <Badge
                               variant={item.state === 'FINISHED_DYED' ? 'success' : 'warning'}
                               className="text-[10px]"
@@ -421,13 +425,13 @@ export function InventoryPage() {
                             </Badge>
                           </td>
 
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-zinc-800 text-zinc-200 border border-zinc-700">
                               {item.color}
                             </span>
                           </td>
 
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 whitespace-nowrap">
                             <Badge
                               variant={
                                 item.location === 'ZR_GODOWN'
@@ -442,27 +446,29 @@ export function InventoryPage() {
                                 ? 'ZR Godown'
                                 : item.location === 'GHUMMAN_DYEING'
                                 ? 'Ghumman Mill'
-                                : 'Rajput Mill'}
+                                : item.location === 'RAJPUT_DYEING'
+                                ? 'Rajput Mill'
+                                : item.location === 'HAFIZ_SAAD_DYEING'
+                                ? 'Hafiz Saad Mill'
+                                : item.location === 'HB_DYEING'
+                                ? 'HB Mill'
+                                : 'Mill'}
                             </Badge>
                           </td>
 
-                          <td className="py-3 px-4 text-right font-mono font-bold text-zinc-200">
+                          <td className="py-3 px-4 text-right font-mono font-bold text-zinc-200 whitespace-nowrap">
                             {item.totalRolls}
                           </td>
 
-                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
                             {formatWeight(item.totalWeightKg)}
                           </td>
 
-                          <td className="py-3 px-4 text-right font-mono text-zinc-400">
+                          <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
                             {avgWeight.toFixed(2)} Kg/R
                           </td>
 
-                          <td className="py-3 px-4 text-center font-mono text-[11px] text-zinc-400 whitespace-nowrap">
-                            {item.updatedAt ? formatDate(item.updatedAt) : '—'}
-                          </td>
-
-                          <td className="py-3 px-4 text-center">
+                          <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                             <Button
                               variant="outline"
                               size="sm"
@@ -470,7 +476,7 @@ export function InventoryPage() {
                                 setSelectedItemForTransfer(item);
                                 setIsTransferOpen(true);
                               }}
-                              className="text-[11px] py-1 px-2.5 h-7 gap-1"
+                              className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
                             >
                               <ArrowRightLeft className="w-3 h-3" />
                               Move Location
@@ -512,14 +518,14 @@ export function InventoryPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Transfer #</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Route</th>
-                  <th className="py-3 px-4">Fabric Variety & Color</th>
-                  <th className="py-3 px-4 text-right">Rolls</th>
-                  <th className="py-3 px-4 text-right">Weight (Kg)</th>
-                  <th className="py-3 px-4">Gate Pass #</th>
-                  <th className="py-3 px-4">Driver / Vehicle</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Transfer #</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Date</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Route</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Fabric Variety & Color</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Rolls</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Weight (Kg)</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Gate Pass #</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Driver / Vehicle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -534,15 +540,15 @@ export function InventoryPage() {
                 ) : (
                   transfers.map((trf) => (
                     <tr key={trf._id} className="hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                      <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
                         {trf.transferNo}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400 font-mono">
-                        {formatDate(trf.date)}
+                      <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                        {formatDateTime(trf.date, true)}
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold">
                           <span className="text-zinc-300">{trf.fromLocation}</span>
                           <ArrowRight className="w-3 h-3 text-emerald-400" />
@@ -550,28 +556,26 @@ export function InventoryPage() {
                         </div>
                       </td>
 
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-zinc-100">{trf.fabricType}</div>
-                        <div className="text-[10px] text-zinc-400">
-                          {trf.color} • {trf.state}
-                        </div>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="font-medium text-zinc-100">{trf.fabricType}</span>
+                        <span className="text-[10px] text-zinc-400 ml-1.5">({trf.color} • {trf.state})</span>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono font-semibold text-zinc-200">
+                      <td className="py-3 px-4 text-right font-mono font-semibold text-zinc-200 whitespace-nowrap">
                         {trf.rollsCount}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
                         {formatWeight(trf.weightKg)}
                       </td>
 
-                      <td className="py-3 px-4 font-mono text-zinc-300">
+                      <td className="py-3 px-4 font-mono text-zinc-300 whitespace-nowrap">
                         {trf.gatePassNo || '—'}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400">
-                        <div>{trf.driverName || '—'}</div>
-                        <div className="text-[10px] font-mono text-zinc-500">{trf.vehicleNo}</div>
+                      <td className="py-3 px-4 text-zinc-300 whitespace-nowrap">
+                        <span>{trf.driverName || '—'}</span>
+                        {trf.vehicleNo && <span className="text-[10px] font-mono text-zinc-500 ml-1.5">({trf.vehicleNo})</span>}
                       </td>
                     </tr>
                   ))

@@ -147,7 +147,11 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
     filter.millName = query.millName;
   }
   if (query.status) {
-    filter.status = query.status;
+    if (query.status === 'ACTIVE') {
+      filter.status = { $in: ['ISSUED', 'IN_PROCESS'] };
+    } else {
+      filter.status = query.status;
+    }
   }
   if (query.fabricType) {
     filter.fabricType = query.fabricType;

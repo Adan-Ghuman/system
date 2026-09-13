@@ -9,6 +9,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { RegisterUserModal } from '../components/RegisterUserModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { formatDateTime } from '../../../lib/formatters.js';
 import { UserPlus, Shield, User as UserIcon, RefreshCw, Search } from 'lucide-react';
 
 interface UserListItem {
@@ -98,11 +99,11 @@ export function UsersPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/70 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Staff Member</th>
-                  <th className="py-3 px-4">Account Type</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Allowed Features</th>
-                  <th className="py-3 px-4">Date Added</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Staff Member</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Account Type</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Status</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Allowed Features</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -117,18 +118,21 @@ export function UsersPage() {
                 ) : (
                   users?.map((u) => (
                     <tr key={u._id} className="hover:bg-zinc-800/30 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
-                            {u.role === 'admin' ? <Shield className="w-3.5 h-3.5 text-emerald-400" /> : <UserIcon className="w-3.5 h-3.5" />}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
+                            {u.role === 'admin' ? <Shield className="w-3 h-3 text-emerald-400" /> : <UserIcon className="w-3 h-3" />}
                           </div>
-                          <div>
-                            <div className="font-medium text-zinc-100">{u.fullName}</div>
-                            <div className="text-[11px] text-zinc-400">{u.email}</div>
-                          </div>
+                          <span className="font-semibold text-zinc-100">{u.fullName}</span>
+                          <span className="text-[11px] font-mono text-zinc-400 ml-1">({u.email})</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+
+                      <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                        {formatDateTime(u.createdAt, true)}
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <Badge
                           variant={
                             u.role === 'admin' ? 'default' : u.role === 'operator' ? 'secondary' : 'outline'
@@ -137,12 +141,14 @@ export function UsersPage() {
                           {u.role === 'admin' ? 'Admin' : u.role === 'operator' ? 'Operator' : 'Viewer'}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">
+
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <Badge variant={u.isActive ? 'success' : 'destructive'}>
                           {u.isActive ? 'Active' : 'Disabled'}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">
+
+                      <td className="py-3 px-4 whitespace-nowrap">
                         {u.role === 'admin' ? (
                           <span className="text-[11px] text-emerald-400 font-medium">Full Access (All Features)</span>
                         ) : (
@@ -157,9 +163,6 @@ export function UsersPage() {
                             ))}
                           </div>
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-zinc-400">
-                        {new Date(u.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))

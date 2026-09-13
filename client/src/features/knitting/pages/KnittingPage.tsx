@@ -11,7 +11,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueYarnModal } from '../components/IssueYarnModal.js';
 import { ReceiveKnittedModal } from '../components/ReceiveKnittedModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatWeight, formatDate } from '../../../lib/formatters.js';
+import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
   Layers,
   RefreshCw,
@@ -246,22 +246,23 @@ export function KnittingPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Knitter</th>
-                  <th className="py-3 px-4">Yarn Specification</th>
-                  <th className="py-3 px-4 text-right">Gross Issued</th>
-                  <th className="py-3 px-4 text-right">Expected (-1%)</th>
-                  <th className="py-3 px-4 text-right">Fabric Received</th>
-                  <th className="py-3 px-4 text-right">Yarn Left in Field</th>
-                  <th className="py-3 px-4">Completion Progress</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Knitter</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Last Date</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Yarn Specification</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Gross Issued</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Expected (-1%)</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Fabric Received</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Yarn Left in Field</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Completion Progress</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isBalancesLoading ? (
-                  <LoadingState isTableRow colSpan={8} message="Loading knitter yarn balances..." />
+                  <LoadingState isTableRow colSpan={9} message="Loading knitter yarn balances..." />
                 ) : balances.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-500">
+                    <td colSpan={9} className="py-12 text-center text-zinc-500">
                       <Inbox className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
                       No active knitter yarn balances. Issue yarn outward to populate this ledger.
                     </td>
@@ -273,41 +274,41 @@ export function KnittingPage() {
                       : 0;
 
                     return (
-                      <tr key={`${b.partyId}-${b.yarnSpec}`} className="hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-zinc-100">{b.partyName}</div>
-                          <div className="text-[11px] font-mono text-zinc-400">
-                            {b.partyCode} • {b.phone || 'No phone'}
-                          </div>
+                      <tr key={`${b.partyId}-${b.yarnSpec}`} className="group hover:bg-zinc-800/40 transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className="font-semibold text-zinc-100">{b.partyName}</span>
+                          <span className="text-[10px] font-mono text-zinc-400 ml-2 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                            {b.partyCode}
+                          </span>
                         </td>
 
-                        <td className="py-3 px-4 font-mono font-medium text-emerald-400">
+                        <td className="py-2.5 px-3 text-zinc-300 font-mono whitespace-nowrap">
+                          {formatDateTime(b.lastDate, true)}
+                        </td>
+
+                        <td className="py-2.5 px-3 font-mono font-medium text-emerald-400 whitespace-nowrap">
                           {b.yarnSpec}
                         </td>
 
-                        <td className="py-3 px-4 text-right font-mono text-zinc-300">
+                        <td className="py-2.5 px-3 text-right font-mono text-zinc-300 whitespace-nowrap">
                           {formatWeight(b.totalGrossKg)}
                         </td>
 
-                        <td className="py-3 px-4 text-right font-mono text-purple-300">
+                        <td className="py-2.5 px-3 text-right font-mono text-purple-300 whitespace-nowrap">
                           {formatWeight(b.totalExpectedKg)}
                         </td>
 
-                        <td className="py-3 px-4 text-right font-mono text-emerald-400 font-semibold">
+                        <td className="py-2.5 px-3 text-right font-mono text-emerald-400 font-semibold whitespace-nowrap">
                           {formatWeight(b.totalReceivedKg)}
                         </td>
 
-                        <td className="py-3 px-4 text-right font-mono font-bold text-amber-400">
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
                           {formatWeight(b.remainingYarnKg)}
                         </td>
 
-                        <td className="py-3 px-4 min-w-36">
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                              <span>Yield Progress</span>
-                              <span className="font-mono font-bold text-zinc-200">{percent}%</span>
-                            </div>
-                            <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                        <td className="py-2.5 px-3 whitespace-nowrap min-w-[140px]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 bg-zinc-800 rounded-full h-1.5 overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all ${
                                   percent >= 100 ? 'bg-emerald-400' : 'bg-emerald-600'
@@ -315,10 +316,11 @@ export function KnittingPage() {
                                 style={{ width: `${percent}%` }}
                               />
                             </div>
+                            <span className="font-mono text-[11px] font-bold text-zinc-200">{percent}%</span>
                           </div>
                         </td>
 
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                           <Button
                             variant="secondary"
                             size="sm"
@@ -326,7 +328,7 @@ export function KnittingPage() {
                               setSelectedBalance(b);
                               setIsReceiveModalOpen(true);
                             }}
-                            className="text-[11px] py-1 px-2 h-7"
+                            className="text-[11px] py-1 px-2.5 h-7 whitespace-nowrap"
                           >
                             Receive Fabric
                           </Button>
@@ -358,17 +360,17 @@ export function KnittingPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Gate Pass #</th>
-                  <th className="py-3 px-4">Party</th>
-                  <th className="py-3 px-4">Spec</th>
-                  <th className="py-3 px-4 text-right">Boxes</th>
-                  <th className="py-3 px-4 text-right">Gross (Kg)</th>
-                  <th className="py-3 px-4 text-right">1% Loss (Kg)</th>
-                  <th className="py-3 px-4 text-right">Expected (Kg)</th>
-                  <th className="py-3 px-4 text-right">Received (Kg)</th>
-                  <th className="py-3 px-4 text-right">Remaining (Kg)</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Gate Pass #</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Date</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Type</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Party</th>
+                  <th className="py-3 px-4 whitespace-nowrap">Spec</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Boxes</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Gross (Kg)</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">1% Loss (Kg)</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Expected (Kg)</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Received (Kg)</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap">Remaining (Kg)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -383,52 +385,57 @@ export function KnittingPage() {
                 ) : (
                   transactions.map((tx) => (
                     <tr key={tx._id} className="hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-3 px-4 text-zinc-400 font-mono">
-                        {formatDate(tx.date)}
+                      <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                        {tx.gatePassNo}
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                        {formatDateTime(tx.date, true)}
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <Badge
                           variant={tx.transactionType === 'OUTWARD_TO_KNITTER' ? 'default' : 'secondary'}
+                          className="text-[10px]"
                         >
                           {tx.transactionType === 'OUTWARD_TO_KNITTER' ? 'OUTWARD' : 'INWARD'}
                         </Badge>
                       </td>
 
-                      <td className="py-3 px-4 font-mono font-semibold text-zinc-200">
-                        {tx.gatePassNo}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className="font-medium text-zinc-100">{tx.partyId?.name || '—'}</span>
+                        {tx.partyId?.code && (
+                          <span className="text-[10px] font-mono text-zinc-400 ml-1.5 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                            {tx.partyId.code}
+                          </span>
+                        )}
                       </td>
 
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-zinc-100">{tx.partyId?.name || '—'}</div>
-                        <div className="text-[10px] font-mono text-zinc-500">{tx.partyId?.code}</div>
-                      </td>
-
-                      <td className="py-3 px-4 font-mono text-emerald-400">
+                      <td className="py-3 px-4 font-mono text-emerald-400 whitespace-nowrap">
                         {tx.yarnSpec}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono text-zinc-400">
+                      <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
                         {tx.boxCount}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono text-zinc-200 font-medium">
+                      <td className="py-3 px-4 text-right font-mono text-zinc-200 font-medium whitespace-nowrap">
                         {formatWeight(tx.grossWeightKg)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono text-amber-400">
+                      <td className="py-3 px-4 text-right font-mono text-amber-400 whitespace-nowrap">
                         {formatWeight(tx.wastageWeightKg)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono text-purple-400">
+                      <td className="py-3 px-4 text-right font-mono text-purple-400 whitespace-nowrap">
                         {formatWeight(tx.netExpectedFabricKg)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono text-emerald-400">
+                      <td className="py-3 px-4 text-right font-mono text-emerald-400 whitespace-nowrap">
                         {formatWeight(tx.receivedFabricKg)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono font-bold text-amber-400">
+                      <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
                         {formatWeight(tx.remainingYarnBalanceKg)}
                       </td>
                     </tr>

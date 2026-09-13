@@ -33,6 +33,27 @@ export const queryLedgerSchema = z.object({
   endDate: z.string().optional()
 });
 
+export const updateVoucherSchema = z.object({
+  voucherType: voucherTypeEnum.optional(),
+  paymentMode: paymentModeEnum.optional(),
+  partyId: z.string().optional(),
+  amount: z.number().positive('Amount must be positive').optional(),
+  date: z.string().optional(),
+  bankName: z.string().optional(),
+  chequeNo: z.string().optional(),
+  chequeDate: z.string().optional().nullable(),
+  transactionRef: z.string().optional(),
+  remarks: z.string().optional()
+});
+
+export const updateLedgerEntrySchema = z.object({
+  amount: z.number().positive('Amount must be positive').optional(),
+  date: z.string().optional(),
+  description: z.string().optional()
+});
+
 export type CreateVoucherInput = z.infer<typeof createVoucherSchema>;
+export type UpdateVoucherInput = z.infer<typeof updateVoucherSchema>;
 export type QueryVouchersInput = z.infer<typeof queryVouchersSchema>;
 export type QueryLedgerInput = z.infer<typeof queryLedgerSchema>;
+export type UpdateLedgerEntryInput = z.infer<typeof updateLedgerEntrySchema>;

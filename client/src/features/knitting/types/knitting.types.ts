@@ -31,6 +31,7 @@ export interface KnitterBalanceSummary {
   partyName: string;
   phone: string;
   yarnSpec: string;
+  lastDate?: string;
   totalGrossKg: number;
   totalExpectedKg: number;
   totalReceivedKg: number;

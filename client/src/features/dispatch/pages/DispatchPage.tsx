@@ -11,7 +11,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { CreateDispatchModal } from '../components/CreateDispatchModal.js';
 import { PrintDocumentModal } from '../../export/components/PrintDocumentModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatCurrency, formatWeight, formatDate } from '../../../lib/formatters.js';
+import { formatCurrency, formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
   Truck,
   RefreshCw,
@@ -181,53 +181,59 @@ export function DispatchPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
-                <th className="py-3 px-4">Dispatch & Date</th>
-                <th className="py-3 px-4">OGP #</th>
-                <th className="py-3 px-4">Invoice #</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Origin Location</th>
-                <th className="py-3 px-4">Fabric & Color</th>
-                <th className="py-3 px-4 text-right">Rolls</th>
-                <th className="py-3 px-4 text-right">Net Weight</th>
-                <th className="py-3 px-4 text-right">Grand Total</th>
-                <th className="py-3 px-4 text-center">Tax Type</th>
-                <th className="py-3 px-4 text-center">Print / Export</th>
+                <th className="py-3 px-4 whitespace-nowrap">Dispatch #</th>
+                <th className="py-3 px-4 whitespace-nowrap">Date</th>
+                <th className="py-3 px-4 whitespace-nowrap">OGP #</th>
+                <th className="py-3 px-4 whitespace-nowrap">Invoice #</th>
+                <th className="py-3 px-4 whitespace-nowrap">Customer</th>
+                <th className="py-3 px-4 whitespace-nowrap">Origin Location</th>
+                <th className="py-3 px-4 whitespace-nowrap">Fabric & Color</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Rolls</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Net Weight</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Grand Total</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap">Tax Type</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Print / Export</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <LoadingState isTableRow colSpan={11} message="Loading delivery & invoice records..." />
+                <LoadingState isTableRow colSpan={12} message="Loading delivery & invoice records..." />
               ) : dispatches.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-zinc-500">
+                  <td colSpan={12} className="py-12 text-center text-zinc-500">
                     <Inbox className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
                     No dispatches recorded yet. Click &quot;New Dispatch (OGP)&quot; to create your first delivery.
                   </td>
                 </tr>
               ) : (
                 dispatches.map((d) => (
-                  <tr key={d._id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-mono font-bold text-emerald-400">{d.dispatchNo}</div>
-                      <div className="text-[10px] text-zinc-500">{formatDate(d.date)}</div>
+                  <tr key={d._id} className="group hover:bg-zinc-800/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                      {d.dispatchNo}
                     </td>
 
-                    <td className="py-3 px-4 font-mono font-semibold text-zinc-200">
+                    <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                      {formatDateTime(d.date, true)}
+                    </td>
+
+                    <td className="py-3 px-4 font-mono font-semibold text-zinc-200 whitespace-nowrap">
                       {d.ogpNo}
                     </td>
 
-                    <td className="py-3 px-4 font-mono text-purple-400 font-semibold">
+                    <td className="py-3 px-4 font-mono text-purple-400 font-semibold whitespace-nowrap">
                       {d.invoice?.invoiceNo || '—'}
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-zinc-100">{d.customerId?.name || '—'}</div>
-                      <div className="text-[10px] font-mono text-zinc-500">
-                        {d.customerId?.code} • {d.customerId?.phone || 'No phone'}
-                      </div>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="font-semibold text-zinc-100">{d.customerId?.name || '—'}</span>
+                      {d.customerId?.code && (
+                        <span className="text-[10px] font-mono text-zinc-400 ml-1.5 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                          {d.customerId.code}
+                        </span>
+                      )}
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <Badge
                         variant={
                           d.fromLocation === 'ZR_GODOWN'
@@ -246,26 +252,24 @@ export function DispatchPage() {
                       </Badge>
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-zinc-200">{d.fabricType}</div>
-                      <div className="text-[10px] font-mono text-zinc-400">
-                        {d.color} • {d.yarnSpec}
-                      </div>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="font-medium text-zinc-200">{d.fabricType}</span>
+                      <span className="text-[10px] text-zinc-400 ml-1.5">({d.color} • {d.yarnSpec})</span>
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono text-zinc-300">
+                    <td className="py-3 px-4 text-right font-mono text-zinc-300 whitespace-nowrap">
                       {d.totalRolls}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
                       {formatWeight(d.totalNetWeightKg)}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono font-bold text-white">
+                    <td className="py-3 px-4 text-right font-mono font-bold text-white whitespace-nowrap">
                       {d.invoice ? formatCurrency(d.invoice.grandTotal) : '—'}
                     </td>
 
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
                       {d.invoice?.invoiceType === 'TAX_18_PERCENT' ? (
                         <Badge variant="warning" className="text-[10px]">
                           18% GST
@@ -277,7 +281,7 @@ export function DispatchPage() {
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                       <div className="flex items-center justify-center gap-1.5">
                         <Button
                           variant="outline"

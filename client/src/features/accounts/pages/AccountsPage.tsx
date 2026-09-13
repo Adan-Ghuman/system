@@ -11,9 +11,10 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PartyBalanceBadge } from '../../parties/components/PartyBalanceBadge.js';
 import { CreateVoucherModal } from '../components/CreateVoucherModal.js';
+import { EditVoucherModal } from '../components/EditVoucherModal.js';
 import { PartyLedgerModal } from '../components/PartyLedgerModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatCurrency, formatDate } from '../../../lib/formatters.js';
+import { formatCurrency, formatDateTime } from '../../../lib/formatters.js';
 import {
   DollarSign,
   RefreshCw,
@@ -22,7 +23,8 @@ import {
   ArrowUpRight,
   Search,
   BookOpen,
-  Receipt
+  Receipt,
+  Edit2
 } from 'lucide-react';
 
 export function AccountsPage() {
@@ -36,6 +38,7 @@ export function AccountsPage() {
   const [vouchersLimit, setVouchersLimit] = useState(20);
 
   const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<PaymentVoucherItem | null>(null);
   const [selectedPartyForLedger, setSelectedPartyForLedger] = useState<string | null>(null);
   const [preselectedPartyForVoucher, setPreselectedPartyForVoucher] = useState<string | undefined>(undefined);
 
@@ -246,38 +249,45 @@ export function AccountsPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                   <tr>
-                    <th className="py-3 px-4">Party</th>
-                    <th className="py-3 px-4">Contact</th>
-                    <th className="py-3 px-4">Business Role</th>
-                    <th className="py-3 px-4 text-right">Net Balance</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Party</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Last Activity</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Contact & Phone</th>
+                    <th className="py-2.5 px-3 whitespace-nowrap">Business Role</th>
+                    <th className="py-2.5 px-3 text-right whitespace-nowrap">Net Balance</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {isPartiesLoading ? (
-                    <LoadingState isTableRow colSpan={6} message="Loading party account balances..." />
+                    <LoadingState isTableRow colSpan={7} message="Loading party account balances..." />
                   ) : parties.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-zinc-500">
+                      <td colSpan={7} className="py-12 text-center text-zinc-500">
                         No parties found matching criteria.
                       </td>
                     </tr>
                   ) : (
                     parties.map((p) => (
-                      <tr key={p._id} className="hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-zinc-100">{p.name}</div>
-                          <div className="text-[10px] font-mono text-zinc-500">{p.code}</div>
+                      <tr key={p._id} className="group hover:bg-zinc-800/40 transition-colors">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className="font-semibold text-zinc-100">{p.name}</span>
+                          <span className="text-[10px] font-mono text-zinc-400 ml-2 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                            {p.code}
+                          </span>
                         </td>
 
-                        <td className="py-3 px-4 text-zinc-400">
-                          <div>{p.contactPerson || '—'}</div>
-                          <div className="text-[10px] font-mono text-zinc-500">{p.phone}</div>
+                        <td className="py-2.5 px-3 font-mono text-zinc-300 whitespace-nowrap">
+                          {formatDateTime(p.updatedAt || p.createdAt, true)}
                         </td>
 
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
+                        <td className="py-2.5 px-3 text-zinc-300 whitespace-nowrap">
+                          <span>{p.contactPerson || '—'}</span>
+                          {p.phone && <span className="text-[11px] font-mono text-zinc-500 ml-1.5">({p.phone})</span>}
+                        </td>
+
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
                             {p.tags.isFabricBuyer && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                 Buyer
@@ -301,11 +311,11 @@ export function AccountsPage() {
                           </div>
                         </td>
 
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
                           <PartyBalanceBadge balance={p.currentBalance} />
                         </td>
 
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
                           <Badge
                             variant={p.currentBalance > 0 ? 'default' : p.currentBalance < 0 ? 'destructive' : 'outline'}
                             className="text-[10px]"
@@ -314,13 +324,13 @@ export function AccountsPage() {
                           </Badge>
                         </td>
 
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                           <div className="flex items-center justify-center gap-1.5">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setSelectedPartyForLedger(p._id)}
-                              className="text-[11px] py-1 px-2.5 h-7 gap-1"
+                              className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
                             >
                               <BookOpen className="w-3 h-3 text-emerald-400" />
                               View Ledger
@@ -333,7 +343,7 @@ export function AccountsPage() {
                                 setPreselectedPartyForVoucher(p._id);
                                 setIsVoucherOpen(true);
                               }}
-                              className="text-[11px] py-1 px-2 h-7"
+                              className="text-[11px] py-1 px-2 h-7 whitespace-nowrap"
                             >
                               Record Payment
                             </Button>
@@ -374,37 +384,38 @@ export function AccountsPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
-                  <th className="py-3 px-4">Receipt / Payment #</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Money Flow</th>
-                  <th className="py-3 px-4">Customer / Supplier</th>
-                  <th className="py-3 px-4">Payment Method</th>
-                  <th className="py-3 px-4">Bank / Cheque Details</th>
-                  <th className="py-3 px-4 text-right">Amount (PKR)</th>
-                  <th className="py-3 px-4">Notes</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Receipt / Payment #</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Date</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Money Flow</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Customer / Supplier</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Payment Method</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Bank / Cheque Details</th>
+                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Amount (PKR)</th>
+                  <th className="py-2.5 px-3 whitespace-nowrap">Notes</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isVouchersLoading ? (
-                  <LoadingState isTableRow colSpan={8} message="Loading payment records..." />
+                  <LoadingState isTableRow colSpan={9} message="Loading payment records..." />
                 ) : vouchers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-500">
+                    <td colSpan={9} className="py-12 text-center text-zinc-500">
                       No payment records found yet.
                     </td>
                   </tr>
                 ) : (
                   vouchers.map((v) => (
-                    <tr key={v._id} className="hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                    <tr key={v._id} className="group hover:bg-zinc-800/40 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-400 whitespace-nowrap">
                         {v.voucherNo}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400 font-mono">
-                        {formatDate(v.date)}
+                      <td className="py-2.5 px-3 text-zinc-300 font-mono whitespace-nowrap">
+                        {formatDateTime(v.date, true)}
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <Badge
                           variant={v.voucherType === 'RECEIPT' ? 'success' : 'default'}
                           className="text-[10px]"
@@ -413,34 +424,60 @@ export function AccountsPage() {
                         </Badge>
                       </td>
 
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-zinc-100">{v.partyId?.name || '—'}</div>
-                        <div className="text-[10px] font-mono text-zinc-500">{v.partyId?.code}</div>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span className="font-semibold text-zinc-100">{v.partyId?.name || '—'}</span>
+                        {v.partyId?.code && (
+                          <span className="text-[10px] font-mono text-zinc-400 ml-1.5 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
+                            {v.partyId.code}
+                          </span>
+                        )}
                       </td>
 
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         <span className="font-mono text-[11px] text-zinc-300">
-                          {v.paymentMode === 'CASH' ? 'Cash in Hand' : v.paymentMode === 'BANK_TRANSFER' ? 'Bank Transfer' : v.paymentMode === 'CHEQUE' ? 'Bank Cheque' : v.paymentMode}
+                          {v.paymentMode === 'CASH'
+                            ? 'Cash in Hand'
+                            : v.paymentMode === 'BANK_TRANSFER'
+                            ? 'Bank Transfer'
+                            : v.paymentMode === 'CHEQUE'
+                            ? 'Bank Cheque'
+                            : v.paymentMode}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400 font-mono">
+                      <td className="py-2.5 px-3 text-zinc-300 font-mono whitespace-nowrap">
                         {v.bankName ? (
-                          <div>
-                            <div>{v.bankName}</div>
-                            <div className="text-[10px] text-zinc-500">{v.chequeNo || v.transactionRef}</div>
-                          </div>
+                          <span>
+                            {v.bankName}
+                            {(v.chequeNo || v.transactionRef) && (
+                              <span className="text-[10px] text-zinc-400 ml-1.5">
+                                ({v.chequeNo || v.transactionRef})
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           '—'
                         )}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
                         {formatCurrency(v.amount)}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400 text-[11px] truncate max-w-xs">
+                      <td className="py-2.5 px-3 text-zinc-400 text-[11px] whitespace-nowrap truncate max-w-xs">
                         {v.remarks || '—'}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingVoucher(v)}
+                          className="text-[11px] py-1 px-2.5 h-7 gap-1"
+                        >
+                          <Edit2 className="w-3 h-3 text-emerald-400" />
+                          Edit / Delete
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -469,10 +506,18 @@ export function AccountsPage() {
         onSuccess={handleRefetchAll}
       />
 
+      <EditVoucherModal
+        voucher={editingVoucher}
+        isOpen={Boolean(editingVoucher)}
+        onClose={() => setEditingVoucher(null)}
+        onSuccess={handleRefetchAll}
+      />
+
       <PartyLedgerModal
         partyId={selectedPartyForLedger}
         isOpen={Boolean(selectedPartyForLedger)}
         onClose={() => setSelectedPartyForLedger(null)}
+        onSuccess={handleRefetchAll}
       />
     </div>
   );

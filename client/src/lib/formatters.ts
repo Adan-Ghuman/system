@@ -42,11 +42,34 @@ export function formatBalance(amount: number): {
   };
 }
 
-export function formatDate(dateString: string | Date): string {
+export function formatDate(dateString?: string | Date | null): string {
+  if (!dateString) return '—';
   const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
   });
+}
+
+export function formatDateTime(dateString?: string | Date | null, smartTime = true): string {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '—';
+  const datePart = d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0 || d.getSeconds() !== 0;
+  if (smartTime && !hasTime) {
+    return datePart;
+  }
+  const timePart = d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+  return `${datePart} ${timePart}`;
 }

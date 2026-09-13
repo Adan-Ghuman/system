@@ -12,7 +12,7 @@ import { PartyBalanceBadge } from '../components/PartyBalanceBadge.js';
 import { CreatePartyModal } from '../components/CreatePartyModal.js';
 import { EditPartyModal } from '../components/EditPartyModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatCurrency } from '../../../lib/formatters.js';
+import { formatCurrency, formatDateTime } from '../../../lib/formatters.js';
 import {
   UserPlus,
   Search,
@@ -210,42 +210,51 @@ export function PartiesPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
-                <th className="py-3 px-4">Code</th>
-                <th className="py-3 px-4">Party / Business Name</th>
-                <th className="py-3 px-4">Contact Person & Phone</th>
-                <th className="py-3 px-4">Address / ML</th>
-                <th className="py-3 px-4">Role Classification</th>
-                <th className="py-3 px-4 text-right">Opening Bal.</th>
-                <th className="py-3 px-4 text-right">Current Balance</th>
-                <th className="py-3 px-4 text-center">Action</th>
+                <th className="py-3 px-4 whitespace-nowrap">Code</th>
+                <th className="py-3 px-4 whitespace-nowrap">Date</th>
+                <th className="py-3 px-4 whitespace-nowrap">Party / Business Name</th>
+                <th className="py-3 px-4 whitespace-nowrap">Contact Person & Phone</th>
+                <th className="py-3 px-4 whitespace-nowrap">Address / ML</th>
+                <th className="py-3 px-4 whitespace-nowrap">Role Classification</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Opening Bal.</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Current Balance</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <LoadingState isTableRow colSpan={8} message="Loading customers & suppliers..." />
+                <LoadingState isTableRow colSpan={9} message="Loading customers & suppliers..." />
               ) : parties.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-500">
+                  <td colSpan={9} className="py-12 text-center text-zinc-500">
                     No parties found matching criteria.
                   </td>
                 </tr>
               ) : (
                 parties.map((party) => (
-                  <tr key={party._id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-400">{party.code}</td>
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-zinc-100">{party.name}</div>
+                  <tr key={party._id} className="group hover:bg-zinc-800/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">{party.code}</td>
+                    
+                    <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                      {formatDateTime(party.updatedAt || party.createdAt, true)}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="text-zinc-200">{party.contactPerson || '—'}</div>
-                      <div className="text-[11px] font-mono text-zinc-400">{party.phone || '—'}</div>
+
+                    <td className="py-3 px-4 font-semibold text-zinc-100 whitespace-nowrap">
+                      {party.name}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="text-zinc-300 truncate max-w-xs">{party.address || '—'}</div>
-                      {party.mlNo && <div className="text-[10px] text-zinc-500 font-mono">ML: {party.mlNo}</div>}
+
+                    <td className="py-3 px-4 text-zinc-300 whitespace-nowrap">
+                      <span>{party.contactPerson || '—'}</span>
+                      {party.phone && <span className="text-[11px] font-mono text-zinc-500 ml-1.5">({party.phone})</span>}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
+
+                    <td className="py-3 px-4 text-zinc-300 whitespace-nowrap">
+                      <span>{party.address || '—'}</span>
+                      {party.mlNo && <span className="text-[10px] text-zinc-500 font-mono ml-1.5">(ML: {party.mlNo})</span>}
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
                         {party.tags.isFabricBuyer && <Badge variant="default">Buyer</Badge>}
                         {party.tags.isKnitter && <Badge variant="secondary">Knitter</Badge>}
                         {party.tags.isYarnClient && <Badge variant="outline">Yarn Client</Badge>}
@@ -257,13 +266,16 @@ export function PartiesPage() {
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-mono text-zinc-400">
+
+                    <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
                       {formatCurrency(party.openingBalance)}
                     </td>
-                    <td className="py-3 px-4 text-right">
+
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
                       <PartyBalanceBadge balance={party.currentBalance} />
                     </td>
-                    <td className="py-3 px-4 text-center">
+
+                    <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                       <button
                         onClick={() => setEditingParty(party)}
                         className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors inline-flex items-center"

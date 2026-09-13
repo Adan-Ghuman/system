@@ -11,7 +11,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueBatchModal } from '../components/IssueBatchModal.js';
 import { SettleBatchModal } from '../components/SettleBatchModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
-import { formatWeight, formatDate } from '../../../lib/formatters.js';
+import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
   Palette,
   RefreshCw,
@@ -25,8 +25,8 @@ import {
 } from 'lucide-react';
 
 export function DyeingPage() {
-  const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('GHUMMAN_DYEING');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
+  const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -53,7 +53,7 @@ export function DyeingPage() {
         params.millName = selectedMill;
       }
       if (statusFilter === 'ACTIVE') {
-        params.status = 'ISSUED';
+        params.status = 'ACTIVE';
       } else if (statusFilter === 'COMPLETED') {
         params.status = 'COMPLETED';
       }
@@ -187,11 +187,11 @@ export function DyeingPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
           {[
+            { id: 'ALL', label: 'All Dyeing Mills' },
             { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
             { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
             { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
-            { id: 'HB_DYEING', label: 'HB Dyeing Mill' },
-            { id: 'ALL', label: 'All Dyeing Mills' }
+            { id: 'HB_DYEING', label: 'HB Dyeing Mill' }
           ].map((mill) => (
             <button
               key={mill.id}
@@ -211,9 +211,9 @@ export function DyeingPage() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
           <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto">
             {[
+              { id: 'ALL', label: 'All Batches' },
               { id: 'ACTIVE', label: 'Currently Being Dyed' },
-              { id: 'COMPLETED', label: 'Finished & Received' },
-              { id: 'ALL', label: 'All Batches' }
+              { id: 'COMPLETED', label: 'Finished & Received' }
             ].map((st) => (
               <button
                 key={st.id}
@@ -246,36 +246,40 @@ export function DyeingPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
-                <th className="py-3 px-4">Batch #</th>
-                <th className="py-3 px-4">Mill</th>
-                <th className="py-3 px-4">Fabric Variety & Count</th>
-                <th className="py-3 px-4">Target Color</th>
-                <th className="py-3 px-4 text-right">Ecru Issued</th>
-                <th className="py-3 px-4 text-right">Finish Received</th>
-                <th className="py-3 px-4 text-right">Shortage Loss</th>
-                <th className="py-3 px-4 text-center">Shrinkage %</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-center">Action</th>
+                <th className="py-3 px-4 whitespace-nowrap">Batch #</th>
+                <th className="py-3 px-4 whitespace-nowrap">Date Issued</th>
+                <th className="py-3 px-4 whitespace-nowrap">Mill</th>
+                <th className="py-3 px-4 whitespace-nowrap">Fabric Variety & Count</th>
+                <th className="py-3 px-4 whitespace-nowrap">Target Color</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Ecru Issued</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Finish Received</th>
+                <th className="py-3 px-4 text-right whitespace-nowrap">Shortage Loss</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap">Shrinkage %</th>
+                <th className="py-3 px-4 whitespace-nowrap">Status</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
-                <LoadingState isTableRow colSpan={10} message="Loading dyeing batches..." />
+                <LoadingState isTableRow colSpan={11} message="Loading dyeing batches..." />
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-zinc-500">
+                  <td colSpan={11} className="py-12 text-center text-zinc-500">
                     No batches found matching selected criteria.
                   </td>
                 </tr>
               ) : (
                 batches.map((b) => (
-                  <tr key={b._id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-mono font-bold text-emerald-400">{b.batchNo}</div>
-                      <div className="text-[10px] text-zinc-500">{formatDate(b.dateIssued)}</div>
+                  <tr key={b._id} className="group hover:bg-zinc-800/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                      {b.batchNo}
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                      {formatDateTime(b.dateIssued, true)}
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <Badge
                         variant={
                           b.millName === 'GHUMMAN_DYEING'
@@ -298,39 +302,39 @@ export function DyeingPage() {
                       </Badge>
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-zinc-100">{b.fabricType}</div>
-                      <div className="text-[10px] font-mono text-zinc-400">{b.yarnSpec}</div>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="font-medium text-zinc-100">{b.fabricType}</span>
+                      <span className="text-[10px] font-mono text-zinc-400 ml-1.5">({b.yarnSpec})</span>
                     </td>
 
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-zinc-800 text-zinc-200 border border-zinc-700">
                         {b.targetColor}
                       </span>
                       {b.allocatedCustomerId && (
-                        <div className="text-[10px] text-emerald-400 mt-0.5">
-                          Order: {b.allocatedCustomerId.name}
-                        </div>
+                        <span className="text-[10px] text-emerald-400 ml-1.5 font-medium">
+                          ({b.allocatedCustomerId.name})
+                        </span>
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono text-zinc-300">
-                      <div>{formatWeight(b.ecruWeightKg)}</div>
-                      <div className="text-[10px] text-zinc-500">{b.ecruRollsCount} rolls</div>
+                    <td className="py-3 px-4 text-right font-mono text-zinc-300 whitespace-nowrap">
+                      <span>{formatWeight(b.ecruWeightKg)}</span>
+                      <span className="text-[10px] text-zinc-500 ml-1">({b.ecruRollsCount}R)</span>
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono">
+                    <td className="py-3 px-4 text-right font-mono whitespace-nowrap">
                       {b.status === 'COMPLETED' ? (
-                        <>
-                          <div className="text-emerald-400 font-semibold">{formatWeight(b.finishWeightKg || 0)}</div>
-                          <div className="text-[10px] text-zinc-500">{b.finishRollsCount} rolls</div>
-                        </>
+                        <span className="text-emerald-400 font-semibold">
+                          {formatWeight(b.finishWeightKg || 0)}
+                          <span className="text-[10px] text-zinc-500 font-normal ml-1">({b.finishRollsCount}R)</span>
+                        </span>
                       ) : (
                         <span className="text-zinc-600">—</span>
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono">
+                    <td className="py-3 px-4 text-right font-mono whitespace-nowrap">
                       {b.status === 'COMPLETED' ? (
                         <span className={(b.shortagePercent || 0) > 5.0 ? 'text-amber-400 font-bold' : 'text-zinc-300'}>
                           {formatWeight(b.shortageWeightKg || 0)}
@@ -340,7 +344,7 @@ export function DyeingPage() {
                       )}
                     </td>
 
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
                       {b.status === 'COMPLETED' ? (
                         <div className="inline-flex items-center gap-1 font-mono font-bold text-xs">
                           {(b.shortagePercent || 0) > 5.0 ? (
@@ -355,37 +359,42 @@ export function DyeingPage() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-zinc-600 text-xs">In Process</span>
+                        <span className="text-zinc-600 font-mono text-xs">—</span>
                       )}
                     </td>
 
-                    <td className="py-3 px-4">
-                      {b.status === 'COMPLETED' ? (
-                        <Badge variant="success" className="gap-1 text-[10px]">
-                          <CheckCheck className="w-3 h-3" />
-                          Completed
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1 text-[10px] text-amber-400 border-amber-500/30">
-                          In Dyeing
-                        </Badge>
-                      )}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <Badge
+                        variant={
+                          b.status === 'COMPLETED'
+                            ? 'success'
+                            : b.status === 'IN_PROCESS'
+                            ? 'default'
+                            : 'warning'
+                        }
+                        className="text-[10px]"
+                      >
+                        {b.status === 'COMPLETED'
+                          ? 'RECEIVED'
+                          : b.status === 'IN_PROCESS'
+                          ? 'DYEING'
+                          : 'ISSUED'}
+                      </Badge>
                     </td>
 
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                       {b.status !== 'COMPLETED' ? (
                         <Button
-                          variant="secondary"
                           size="sm"
+                          variant="secondary"
                           onClick={() => setSettlingBatch(b)}
-                          className="text-[11px] py-1 px-2.5 h-7"
+                          className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
                         >
-                          Receive Dyed Fabric
+                          <CheckCheck className="w-3 h-3" />
+                          Receive Finished
                         </Button>
                       ) : (
-                        <span className="text-[11px] text-zinc-500 font-mono">
-                          {b.igpNo || 'Completed'}
-                        </span>
+                        <span className="text-[10px] text-zinc-500 font-medium">Reconciled</span>
                       )}
                     </td>
                   </tr>

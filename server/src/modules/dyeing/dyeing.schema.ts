@@ -34,7 +34,7 @@ export const settleBatchSchema = z.object({
 
 export const queryBatchesSchema = z.object({
   millName: millNameEnum.optional(),
-  status: z.enum(['ISSUED', 'IN_PROCESS', 'COMPLETED']).optional(),
+  status: z.enum(['ISSUED', 'IN_PROCESS', 'COMPLETED', 'ACTIVE']).optional(),
   fabricType: z.string().optional(),
   search: z.string().optional(),
   page: z.coerce.number().optional(),

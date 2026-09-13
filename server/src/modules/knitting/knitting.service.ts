@@ -117,6 +117,7 @@ export interface KnitterBalanceSummary {
   partyName: string;
   phone: string;
   yarnSpec: string;
+  lastDate?: Date | string;
   totalGrossKg: number;
   totalExpectedKg: number;
   totalReceivedKg: number;
@@ -136,6 +137,7 @@ export async function getKnitterBalances(): Promise<KnitterBalanceSummary[]> {
           partyId: '$partyId',
           yarnSpec: '$yarnSpec'
         },
+        lastDate: { $max: '$date' },
         totalGrossKg: { $sum: '$grossWeightKg' },
         totalExpectedKg: { $sum: '$netExpectedFabricKg' },
         totalReceivedKg: { $sum: '$receivedFabricKg' },
@@ -161,6 +163,7 @@ export async function getKnitterBalances(): Promise<KnitterBalanceSummary[]> {
         partyCode: '$party.code',
         partyName: '$party.name',
         phone: '$party.phone',
+        lastDate: 1,
         totalGrossKg: { $round: ['$totalGrossKg', 2] },
         totalExpectedKg: { $round: ['$totalExpectedKg', 2] },
         totalReceivedKg: { $round: ['$totalReceivedKg', 2] },
