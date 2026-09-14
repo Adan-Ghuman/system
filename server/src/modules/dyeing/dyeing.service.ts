@@ -4,7 +4,7 @@ import { FabricInventory } from '../../models/FabricInventory.js';
 import { Party } from '../../models/Party.js';
 import { NotFoundError, BadRequestError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult } from '../../utils/pagination.js';
-import { CreateBatchInput, SettleBatchInput, QueryBatchesInput } from './dyeing.schema.js';
+import { CreateBatchInput, UpdateBatchInput, SettleBatchInput, QueryBatchesInput } from './dyeing.schema.js';
 
 export function calculateBatchSettlement(ecruWeightKg: number, finishWeightKg: number) {
   const shortageWeightKg = Math.round((ecruWeightKg - finishWeightKg) * 100) / 100;
@@ -211,3 +211,186 @@ export async function getDyeingMetrics() {
 
   return { activeStats, completedStats };
 }
+
+export function getBatchLocation(millName: string): string {
+  if (millName === 'GHUMMAN_DYEING') return 'GHUMMAN_DYEING';
+  if (millName === 'RAJPUT_DYEING') return 'RAJPUT_DYEING';
+  if (millName === 'HAFIZ_SAAD_DYEING') return 'HAFIZ_SAAD_DYEING';
+  if (millName === 'HB_DYEING') return 'HB_DYEING';
+  return 'ZR_GODOWN';
+}
+
+export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Promise<IDyeingBatch> {
+  const batch = await DyeingBatch.findById(id);
+  if (!batch) {
+    throw new NotFoundError('Dyeing batch not found');
+  }
+
+  const isCompleted = batch.status === 'COMPLETED';
+
+  if (isCompleted) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const oldLocation = getBatchLocation(batch.millName);
+      const oldFabricType = batch.fabricType;
+      const oldYarnSpec = batch.yarnSpec;
+      const oldColor = batch.targetColor;
+      const oldFinishRolls = batch.finishRollsCount || 0;
+      const oldFinishWeight = batch.finishWeightKg || 0;
+
+      const newMillName = input.millName ?? batch.millName;
+      const newLocation = getBatchLocation(newMillName);
+      const newFabricType = input.fabricType ?? batch.fabricType;
+      const newYarnSpec = input.yarnSpec ?? batch.yarnSpec;
+      const newColor = input.targetColor ? input.targetColor.toUpperCase() : batch.targetColor;
+      const newEcruRolls = input.ecruRollsCount ?? batch.ecruRollsCount;
+      const newEcruWeight = input.ecruWeightKg ?? batch.ecruWeightKg;
+      const newFinishRolls = input.finishRollsCount !== undefined ? input.finishRollsCount : oldFinishRolls;
+      const newFinishWeight = input.finishWeightKg !== undefined ? input.finishWeightKg : oldFinishWeight;
+
+      if (oldFinishRolls > 0 || oldFinishWeight > 0) {
+        await FabricInventory.findOneAndUpdate(
+          {
+            fabricType: oldFabricType,
+            yarnSpec: oldYarnSpec,
+            state: 'FINISHED_DYED',
+            color: oldColor,
+            location: oldLocation
+          },
+          {
+            $inc: {
+              totalRolls: -oldFinishRolls,
+              totalWeightKg: -oldFinishWeight
+            },
+            $set: { updatedAt: new Date() }
+          },
+          { session }
+        );
+      }
+
+      if (newFinishRolls > 0 || newFinishWeight > 0) {
+        await FabricInventory.findOneAndUpdate(
+          {
+            fabricType: newFabricType,
+            yarnSpec: newYarnSpec,
+            state: 'FINISHED_DYED',
+            color: newColor,
+            location: newLocation
+          },
+          {
+            $inc: {
+              totalRolls: newFinishRolls,
+              totalWeightKg: newFinishWeight
+            },
+            $set: { updatedAt: new Date() }
+          },
+          { upsert: true, session }
+        );
+      }
+
+      const { shortageWeightKg, shortagePercent } = calculateBatchSettlement(newEcruWeight, newFinishWeight);
+
+      if (input.batchNo) batch.batchNo = input.batchNo;
+      batch.millName = newMillName;
+      batch.fabricType = newFabricType;
+      batch.yarnSpec = newYarnSpec;
+      batch.targetColor = newColor;
+      batch.ecruRollsCount = newEcruRolls;
+      batch.ecruWeightKg = newEcruWeight;
+      batch.finishRollsCount = newFinishRolls;
+      batch.finishWeightKg = newFinishWeight;
+      batch.shortageWeightKg = shortageWeightKg;
+      batch.shortagePercent = shortagePercent;
+
+      if (input.ogpNo !== undefined) batch.ogpNo = input.ogpNo;
+      if (input.igpNo !== undefined) batch.igpNo = input.igpNo;
+      if (input.dateIssued) batch.dateIssued = new Date(input.dateIssued);
+      if (input.allocatedCustomerId !== undefined) {
+        batch.allocatedCustomerId = input.allocatedCustomerId ? new Types.ObjectId(input.allocatedCustomerId) : undefined;
+      }
+      if (input.remarks !== undefined) batch.remarks = input.remarks;
+
+      await batch.save({ session });
+      await session.commitTransaction();
+
+      await batch.populate('millPartyId', 'code name phone');
+      await batch.populate('allocatedCustomerId', 'code name');
+      return batch;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  } else {
+    if (input.batchNo) batch.batchNo = input.batchNo;
+    if (input.millName) batch.millName = input.millName;
+    if (input.millPartyId) batch.millPartyId = new Types.ObjectId(input.millPartyId);
+    if (input.fabricType) batch.fabricType = input.fabricType;
+    if (input.yarnSpec) batch.yarnSpec = input.yarnSpec;
+    if (input.targetColor) batch.targetColor = input.targetColor.toUpperCase();
+    if (input.ogpNo !== undefined) batch.ogpNo = input.ogpNo;
+    if (input.igpNo !== undefined) batch.igpNo = input.igpNo;
+    if (input.dateIssued) batch.dateIssued = new Date(input.dateIssued);
+    if (input.ecruRollsCount !== undefined) batch.ecruRollsCount = input.ecruRollsCount;
+    if (input.ecruWeightKg !== undefined) batch.ecruWeightKg = input.ecruWeightKg;
+    if (input.allocatedCustomerId !== undefined) {
+      batch.allocatedCustomerId = input.allocatedCustomerId ? new Types.ObjectId(input.allocatedCustomerId) : undefined;
+    }
+    if (input.remarks !== undefined) batch.remarks = input.remarks;
+
+    await batch.save();
+    await batch.populate('millPartyId', 'code name phone');
+    await batch.populate('allocatedCustomerId', 'code name');
+    return batch;
+  }
+}
+
+export async function deleteDyeingBatch(id: string): Promise<void> {
+  const batch = await DyeingBatch.findById(id);
+  if (!batch) {
+    throw new NotFoundError('Dyeing batch not found');
+  }
+
+  if (batch.status === 'COMPLETED') {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const location = getBatchLocation(batch.millName);
+      const finishRolls = batch.finishRollsCount || 0;
+      const finishWeight = batch.finishWeightKg || 0;
+
+      if (finishRolls > 0 || finishWeight > 0) {
+        await FabricInventory.findOneAndUpdate(
+          {
+            fabricType: batch.fabricType,
+            yarnSpec: batch.yarnSpec,
+            state: 'FINISHED_DYED',
+            color: batch.targetColor,
+            location
+          },
+          {
+            $inc: {
+              totalRolls: -finishRolls,
+              totalWeightKg: -finishWeight
+            },
+            $set: { updatedAt: new Date() }
+          },
+          { session }
+        );
+      }
+
+      await DyeingBatch.findByIdAndDelete(id, { session });
+      await session.commitTransaction();
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  } else {
+    await DyeingBatch.findByIdAndDelete(id);
+  }
+}
+

@@ -32,6 +32,19 @@ export const queryTransactionsSchema = z.object({
   skip: z.coerce.number().optional()
 });
 
+export const updateYarnTransactionSchema = z.object({
+  partyId: z.string().optional(),
+  yarnSpec: z.string().min(1).trim().optional(),
+  gatePassNo: z.string().min(1).trim().optional(),
+  date: z.string().optional(),
+  boxCount: z.number().int().min(1).optional(),
+  netWeightPerBox: z.number().positive().optional(),
+  wastagePercent: z.number().min(0).max(10).optional(),
+  remarks: z.string().optional()
+});
+
 export type CreateYarnTransactionInput = z.infer<typeof createYarnTransactionSchema>;
+export type UpdateYarnTransactionInput = z.infer<typeof updateYarnTransactionSchema>;
 export type ReceiveFabricInput = z.infer<typeof receiveFabricSchema>;
 export type QueryTransactionsInput = z.infer<typeof queryTransactionsSchema>;
+

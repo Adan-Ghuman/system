@@ -59,3 +59,15 @@ export interface ReceiveFabricPayload {
   gatePassNo?: string;
   remarks?: string;
 }
+
+export interface UpdateYarnTransactionPayload {
+  partyId?: string;
+  yarnSpec?: string;
+  gatePassNo?: string;
+  date?: string;
+  boxCount?: number;
+  netWeightPerBox?: number;
+  wastagePercent?: number;
+  remarks?: string;
+}
+

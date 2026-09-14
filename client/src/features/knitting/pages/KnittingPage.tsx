@@ -10,6 +10,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueYarnModal } from '../components/IssueYarnModal.js';
 import { ReceiveKnittedModal } from '../components/ReceiveKnittedModal.js';
+import { EditYarnTransactionModal } from '../components/EditYarnTransactionModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
@@ -21,7 +22,8 @@ import {
   Scale,
   Sparkles,
   Inbox,
-  Search
+  Search,
+  Edit
 } from 'lucide-react';
 
 export function KnittingPage() {
@@ -30,6 +32,8 @@ export function KnittingPage() {
   const [issueType, setIssueType] = useState<YarnTransactionType>('OUTWARD_TO_KNITTER');
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [selectedBalance, setSelectedBalance] = useState<KnitterBalanceSummary | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<YarnTransactionItem | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -371,20 +375,21 @@ export function KnittingPage() {
                   <th className="py-3 px-4 text-right whitespace-nowrap">Expected (Kg)</th>
                   <th className="py-3 px-4 text-right whitespace-nowrap">Received (Kg)</th>
                   <th className="py-3 px-4 text-right whitespace-nowrap">Remaining (Kg)</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {isTxLoading ? (
-                  <LoadingState isTableRow colSpan={11} message="Loading yarn movement history..." />
+                  <LoadingState isTableRow colSpan={12} message="Loading yarn movement history..." />
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="py-12 text-center text-zinc-500">
+                    <td colSpan={12} className="py-12 text-center text-zinc-500">
                       No yarn transactions recorded yet.
                     </td>
                   </tr>
                 ) : (
                   transactions.map((tx) => (
-                    <tr key={tx._id} className="hover:bg-zinc-800/40 transition-colors">
+                    <tr key={tx._id} className="group hover:bg-zinc-800/40 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
                         {tx.gatePassNo}
                       </td>
@@ -438,6 +443,21 @@ export function KnittingPage() {
                       <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
                         {formatWeight(tx.remainingYarnBalanceKg)}
                       </td>
+
+                      <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingTransaction(tx);
+                            setIsEditModalOpen(true);
+                          }}
+                          className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Edit
+                        </Button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -466,6 +486,16 @@ export function KnittingPage() {
         isOpen={isReceiveModalOpen}
         preselectedBalance={selectedBalance}
         onClose={() => setIsReceiveModalOpen(false)}
+        onSuccess={handleRefetchAll}
+      />
+
+      <EditYarnTransactionModal
+        isOpen={isEditModalOpen}
+        transaction={editingTransaction}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTransaction(null);
+        }}
         onSuccess={handleRefetchAll}
       />
     </div>

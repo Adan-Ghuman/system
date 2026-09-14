@@ -5,6 +5,7 @@ import { NotFoundError, BadRequestError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult } from '../../utils/pagination.js';
 import {
   CreateYarnTransactionInput,
+  UpdateYarnTransactionInput,
   ReceiveFabricInput,
   QueryTransactionsInput
 } from './knitting.schema.js';
@@ -211,3 +212,65 @@ export async function listYarnTransactions(query: QueryTransactionsInput) {
 
   return formatPaginatedResult(items, total, page, limit);
 }
+
+export async function updateYarnTransaction(id: string, input: UpdateYarnTransactionInput): Promise<IYarnTransaction> {
+  const transaction = await YarnTransaction.findById(id);
+  if (!transaction) {
+    throw new NotFoundError('Yarn transaction not found');
+  }
+
+  if (input.partyId && input.partyId !== transaction.partyId.toString()) {
+    const party = await Party.findById(input.partyId);
+    if (!party) {
+      throw new NotFoundError('Selected party was not found');
+    }
+    transaction.partyId = new Types.ObjectId(input.partyId);
+  }
+
+  if (input.yarnSpec !== undefined) transaction.yarnSpec = input.yarnSpec;
+  if (input.gatePassNo !== undefined) transaction.gatePassNo = input.gatePassNo;
+  if (input.date !== undefined) transaction.date = new Date(input.date);
+  if (input.remarks !== undefined) transaction.remarks = input.remarks;
+
+  const boxCount = input.boxCount !== undefined ? input.boxCount : transaction.boxCount;
+  const netWeightPerBox = input.netWeightPerBox !== undefined ? input.netWeightPerBox : transaction.netWeightPerBox;
+  const wastagePercent = input.wastagePercent !== undefined ? input.wastagePercent : transaction.wastagePercent;
+
+  if (input.boxCount !== undefined || input.netWeightPerBox !== undefined || input.wastagePercent !== undefined) {
+    const { grossWeightKg, wastageWeightKg, netExpectedFabricKg } = calculateYarnMetrics(
+      boxCount,
+      netWeightPerBox,
+      wastagePercent
+    );
+    transaction.boxCount = boxCount;
+    transaction.netWeightPerBox = netWeightPerBox;
+    transaction.wastagePercent = wastagePercent;
+    transaction.grossWeightKg = grossWeightKg;
+    transaction.wastageWeightKg = wastageWeightKg;
+    transaction.netExpectedFabricKg = netExpectedFabricKg;
+
+    // Recalculate remaining yarn balance based on already received fabric
+    const grossDeduction = Math.round((transaction.receivedFabricKg / (1 - wastagePercent / 100)) * 100) / 100;
+    transaction.remainingYarnBalanceKg = Math.max(0, Math.round((grossWeightKg - grossDeduction) * 100) / 100);
+  }
+
+  await transaction.save();
+  await transaction.populate('partyId', 'code name phone');
+  return transaction;
+}
+
+export async function deleteYarnTransaction(id: string): Promise<void> {
+  const transaction = await YarnTransaction.findById(id);
+  if (!transaction) {
+    throw new NotFoundError('Yarn transaction not found');
+  }
+
+  if (transaction.receivedFabricKg > 0) {
+    throw new BadRequestError(
+      `Cannot delete this yarn transaction because ${transaction.receivedFabricKg} kg of fabric has already been received against it. Please adjust knitted fabric receipts first.`
+    );
+  }
+
+  await YarnTransaction.findByIdAndDelete(id);
+}
+

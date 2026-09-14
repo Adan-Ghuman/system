@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -30,6 +30,7 @@ export function ReceiveKnittedModal({
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -58,6 +59,9 @@ export function ReceiveKnittedModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -89,6 +93,7 @@ export function ReceiveKnittedModal({
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to record fabric receipt');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

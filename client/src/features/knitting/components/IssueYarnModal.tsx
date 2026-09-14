@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -41,6 +41,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -83,6 +84,9 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -121,6 +125,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to log yarn transaction');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

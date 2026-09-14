@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -42,7 +42,9 @@ export function EditVoucherModal({
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const isDeletingRef = useRef(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -80,7 +82,8 @@ export function EditVoucherModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!voucher) return;
+    if (!voucher || isSubmittingRef.current || isLoading || isDeleting) return;
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -113,11 +116,13 @@ export function EditVoucherModal({
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to update voucher');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 
   async function handleDelete() {
-    if (!voucher) return;
+    if (!voucher || isDeletingRef.current || isDeleting || isLoading) return;
+    isDeletingRef.current = true;
     setError(null);
     setIsDeleting(true);
 
@@ -135,6 +140,7 @@ export function EditVoucherModal({
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to delete voucher');
     } finally {
       setIsDeleting(false);
+      isDeletingRef.current = false;
     }
   }
 

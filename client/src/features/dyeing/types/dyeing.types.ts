@@ -58,3 +58,22 @@ export interface SettleBatchPayload {
   igpNo?: string;
   remarks?: string;
 }
+
+export interface UpdateBatchPayload {
+  batchNo?: string;
+  millName?: DyeingMillType;
+  millPartyId?: string;
+  fabricType?: string;
+  yarnSpec?: string;
+  targetColor?: string;
+  ogpNo?: string;
+  igpNo?: string;
+  dateIssued?: string;
+  ecruRollsCount?: number;
+  ecruWeightKg?: number;
+  finishRollsCount?: number;
+  finishWeightKg?: number;
+  allocatedCustomerId?: string | null;
+  remarks?: string;
+}
+

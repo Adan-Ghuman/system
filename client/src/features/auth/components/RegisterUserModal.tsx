@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
@@ -47,9 +47,26 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
     'accounts:write',
     'export:generate'
   ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
+  function handleRoleChange(newRole: 'operator' | 'viewer' | 'admin') {
+    setRole(newRole);
+    if (newRole === 'viewer') {
+      setSelectedPermissions([
+        'parties:read',
+        'knitting:read',
+        'dyeing:read',
+        'inventory:read',
+        'dispatch:read',
+        'accounts:read'
+      ]);
+    } else {
+      setSelectedPermissions(AVAILABLE_PERMISSIONS.map((p) => p.id));
+    }
+  }
 
   function togglePermission(permId: string) {
     if (selectedPermissions.includes(permId)) {
@@ -69,6 +86,9 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -96,6 +116,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
       setError(anyErr.response?.data?.error || 'Failed to create user');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 
@@ -158,7 +179,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
             id="role"
             label="Account Type"
             value={role}
-            onChange={(e) => setRole(e.target.value as 'operator' | 'viewer' | 'admin')}
+            onChange={(e) => handleRoleChange(e.target.value as 'operator' | 'viewer' | 'admin')}
             options={[
               { label: 'Staff / Operator (Standard daily use)', value: 'operator' },
               { label: 'Viewer (Can only view data, no changes)', value: 'viewer' },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -46,6 +46,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -102,6 +103,8 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
     if (!activeStock) {
       setError('Please select a finished dyed fabric stock item to dispatch');
       return;
@@ -112,6 +115,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
       return;
     }
 
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -146,6 +150,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to execute dispatch');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

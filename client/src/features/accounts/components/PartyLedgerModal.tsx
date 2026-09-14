@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -28,6 +28,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
   const [deletingEntry, setDeletingEntry] = useState<PartyLedgerEntryItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data, isLoading, refetch } = useQuery<LedgerStatementResponse>({
@@ -72,7 +73,8 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
-    if (!editingEntry) return;
+    if (!editingEntry || isSubmittingRef.current || isSubmitting) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -96,11 +98,13 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
       setFeedback({ type: 'error', message: anyErr.response?.data?.error || anyErr.message || 'Failed to update entry' });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   }
 
   async function handleDeleteEntry() {
-    if (!deletingEntry) return;
+    if (!deletingEntry || isSubmittingRef.current || isSubmitting) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -120,6 +124,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
       setFeedback({ type: 'error', message: anyErr.response?.data?.error || anyErr.message || 'Failed to delete entry' });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   }
 

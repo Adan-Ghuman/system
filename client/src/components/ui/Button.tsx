@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { ButtonHTMLAttributes, forwardRef, useRef } from 'react';
 import { cn } from '../../lib/cn.js';
 import { ThemedSpinner } from './ThemedSpinner.js';
 
@@ -6,10 +6,49 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  preventDoubleClick?: boolean;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', isLoading = false, children, disabled, ...props }, ref) => {
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      isLoading = false,
+      preventDoubleClick,
+      children,
+      disabled,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
+    const lastClickRef = useRef<number>(0);
+
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      const isSubmit = props.type === 'submit';
+      const shouldThrottle = preventDoubleClick ?? (isSubmit || isLoading);
+
+      if (disabled || isLoading) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      if (shouldThrottle) {
+        const now = Date.now();
+        if (now - lastClickRef.current < 750) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        lastClickRef.current = now;
+      }
+
+      onClick?.(e);
+    };
+
     const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none rounded-md';
 
     const variants = {
@@ -30,6 +69,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={disabled || isLoading}
+        aria-busy={isLoading}
+        onClick={handleClick}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
         {...props}
       >

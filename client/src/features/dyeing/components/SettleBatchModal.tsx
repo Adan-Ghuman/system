@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
@@ -23,6 +23,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -55,8 +56,9 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!batch) return;
+    if (!batch || isSubmittingRef.current || isLoading) return;
 
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -84,6 +86,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to settle dyeing batch');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

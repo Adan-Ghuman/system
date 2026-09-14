@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
@@ -11,6 +11,7 @@ import {
   StockAdjustmentReason,
   CreateAdjustmentPayload
 } from '../types/inventory.types.js';
+import { COMMON_COLORS } from '../../common/constants/colors.js';
 
 export interface AdjustStockModalProps {
   isOpen: boolean;
@@ -39,7 +40,8 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
   const [fabricType, setFabricType] = useState('Fleece 3-Thread');
   const [yarnSpec, setYarnSpec] = useState('75/72 Sim');
-  const [color, setColor] = useState('BLACK');
+  const [color, setColor] = useState(COMMON_COLORS[0]);
+  const [customColor, setCustomColor] = useState('');
   const [adjustmentRolls, setAdjustmentRolls] = useState('1');
   const [adjustmentWeightKg, setAdjustmentWeightKg] = useState('22.50');
   const [reason, setReason] = useState<StockAdjustmentReason>('AUDIT_DISCREPANCY');
@@ -47,22 +49,31 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
 
     try {
+      const activeColor = color === 'OTHER' ? customColor.trim().toUpperCase() : color;
+      if (!activeColor) {
+        throw new Error('Please specify a color');
+      }
+
       const payload: CreateAdjustmentPayload = {
         location,
         state,
         fabricType: fabricType.trim(),
         yarnSpec: yarnSpec.trim(),
-        color: color.trim().toUpperCase(),
+        color: activeColor,
         adjustmentRolls: parseInt(adjustmentRolls, 10),
         adjustmentWeightKg: parseFloat(adjustmentWeightKg),
         reason,
@@ -84,6 +95,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
       setError(anyErr.response?.data?.error || anyErr.message || 'Failed to record adjustment');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 
@@ -148,14 +160,26 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
             required
           />
 
-          <Input
+          <Select
             id="adjustColor"
             label="Color / Shade"
             value={color}
-            onChange={(e) => setColor(e.target.value.toUpperCase())}
-            required
+            onChange={(e) => setColor(e.target.value)}
+            options={COMMON_COLORS.map((c) => ({ label: c, value: c }))}
           />
         </div>
+
+        {color === 'OTHER' && (
+          <Input
+            id="adjustCustomColor"
+            label="Custom Color / Shade"
+            value={customColor}
+            onChange={(e) => setCustomColor(e.target.value.toUpperCase())}
+            required
+            autoFocus
+            placeholder="e.g. SKY BLUE / PALE KHAKI"
+          />
+        )}
 
         <div className="grid grid-cols-3 gap-3">
           <div>

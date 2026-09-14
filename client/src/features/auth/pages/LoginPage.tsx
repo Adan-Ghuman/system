@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, AuthUser } from '../stores/useAuthStore.js';
 import { api } from '../../../lib/api.js';
@@ -15,9 +15,13 @@ export function LoginPage() {
   const [password, setPassword] = useState('12345678');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setIsLoading(true);
 
@@ -37,6 +41,7 @@ export function LoginPage() {
       setError(anyErr.response?.data?.error || 'Failed to login. Please check your credentials.');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
@@ -29,6 +29,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
   const [balanceType, setBalanceType] = useState<'Dr' | 'Cr'>('Dr');
 
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -53,6 +54,9 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmittingRef.current || isLoading) return;
+
+    isSubmittingRef.current = true;
     setError(null);
     setSuccess(null);
     setIsLoading(true);
@@ -92,6 +96,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
       setError(anyErr.response?.data?.error || 'Failed to create party profile');
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }
 

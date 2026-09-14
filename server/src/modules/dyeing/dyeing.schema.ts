@@ -32,6 +32,24 @@ export const settleBatchSchema = z.object({
   remarks: z.string().optional()
 });
 
+export const updateBatchSchema = z.object({
+  batchNo: z.string().trim().toUpperCase().optional(),
+  millName: millNameEnum.optional(),
+  millPartyId: z.string().optional(),
+  fabricType: z.string().min(1).trim().optional(),
+  yarnSpec: z.string().min(1).trim().optional(),
+  targetColor: z.string().min(1).trim().toUpperCase().optional(),
+  ogpNo: z.string().optional(),
+  igpNo: z.string().optional(),
+  dateIssued: z.string().optional(),
+  ecruRollsCount: z.number().int().min(1).optional(),
+  ecruWeightKg: z.number().positive().optional(),
+  finishRollsCount: z.number().int().min(0).optional(),
+  finishWeightKg: z.number().min(0).optional(),
+  allocatedCustomerId: z.string().nullable().optional(),
+  remarks: z.string().optional()
+});
+
 export const queryBatchesSchema = z.object({
   millName: millNameEnum.optional(),
   status: z.enum(['ISSUED', 'IN_PROCESS', 'COMPLETED', 'ACTIVE']).optional(),
@@ -43,5 +61,7 @@ export const queryBatchesSchema = z.object({
 });
 
 export type CreateBatchInput = z.infer<typeof createBatchSchema>;
+export type UpdateBatchInput = z.infer<typeof updateBatchSchema>;
 export type SettleBatchInput = z.infer<typeof settleBatchSchema>;
 export type QueryBatchesInput = z.infer<typeof queryBatchesSchema>;
+

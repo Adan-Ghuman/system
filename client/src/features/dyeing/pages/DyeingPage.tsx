@@ -10,6 +10,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueBatchModal } from '../components/IssueBatchModal.js';
 import { SettleBatchModal } from '../components/SettleBatchModal.js';
+import { EditBatchModal } from '../components/EditBatchModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
@@ -21,7 +22,8 @@ import {
   AlertTriangle,
   Scale,
   Search,
-  CheckCheck
+  CheckCheck,
+  Edit
 } from 'lucide-react';
 
 export function DyeingPage() {
@@ -32,6 +34,7 @@ export function DyeingPage() {
   const [limit, setLimit] = useState(20);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [settlingBatch, setSettlingBatch] = useState<DyeingBatchItem | null>(null);
+  const [editingBatch, setEditingBatch] = useState<DyeingBatchItem | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -383,19 +386,30 @@ export function DyeingPage() {
                     </td>
 
                     <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
-                      {b.status !== 'COMPLETED' ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        {b.status !== 'COMPLETED' ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setSettlingBatch(b)}
+                            className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
+                          >
+                            <CheckCheck className="w-3 h-3" />
+                            Receive Finished
+                          </Button>
+                        ) : (
+                          <span className="text-[10px] text-zinc-500 font-medium mr-1">Reconciled</span>
+                        )}
                         <Button
                           size="sm"
-                          variant="secondary"
-                          onClick={() => setSettlingBatch(b)}
+                          variant="outline"
+                          onClick={() => setEditingBatch(b)}
                           className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
                         >
-                          <CheckCheck className="w-3 h-3" />
-                          Receive Finished
+                          <Edit className="w-3 h-3" />
+                          Edit
                         </Button>
-                      ) : (
-                        <span className="text-[10px] text-zinc-500 font-medium">Reconciled</span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -426,6 +440,14 @@ export function DyeingPage() {
         onClose={() => setSettlingBatch(null)}
         onSuccess={() => refetch()}
       />
+
+      <EditBatchModal
+        batch={editingBatch}
+        isOpen={Boolean(editingBatch)}
+        onClose={() => setEditingBatch(null)}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }
+

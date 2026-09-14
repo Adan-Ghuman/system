@@ -5,7 +5,9 @@ import {
   settleDyeingBatch,
   listDyeingBatches,
   getDyeingMetrics,
-  generateNextBatchNo
+  generateNextBatchNo,
+  updateDyeingBatch,
+  deleteDyeingBatch
 } from './dyeing.service.js';
 
 export async function handleCreateBatch(req: Request, res: Response): Promise<void> {
@@ -32,3 +34,14 @@ export async function handleGetNextBatchNo(_req: Request, res: Response): Promis
   const nextBatchNo = await generateNextBatchNo();
   sendSuccess(res, { nextBatchNo });
 }
+
+export async function handleUpdateBatch(req: Request, res: Response): Promise<void> {
+  const batch = await updateDyeingBatch(req.params.id as string, req.body);
+  sendSuccess(res, batch, 'Dyeing batch updated successfully');
+}
+
+export async function handleDeleteBatch(req: Request, res: Response): Promise<void> {
+  await deleteDyeingBatch(req.params.id as string);
+  sendSuccess(res, null, 'Dyeing batch deleted successfully');
+}
+

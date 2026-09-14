@@ -28,6 +28,50 @@ export const api = axios.create({
   }
 });
 
+// Double-submission protection: deduplicate identical mutating requests
+const inFlightMutations = new Map<string, Promise<any>>();
+const recentMutations = new Map<string, { time: number; response: any }>();
+
+const rawRequest = api.request.bind(api);
+
+(api as any).request = function (config: any): Promise<any> {
+  const method = (config.method || 'get').toUpperCase();
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+  // Skip auth login/refresh or read-only requests
+  if (!isMutation || config.url?.includes('/auth/login') || config.url?.includes('/auth/refresh')) {
+    return rawRequest(config);
+  }
+
+  const signature = `${method}:${config.url || ''}:${JSON.stringify(config.data ?? {})}`;
+
+  // If identical mutation is already in-flight, return the existing active promise
+  if (inFlightMutations.has(signature)) {
+    return inFlightMutations.get(signature)!;
+  }
+
+  // If identical mutation completed less than 1200ms ago, return recent response to avoid duplicate insert
+  const recent = recentMutations.get(signature);
+  if (recent && Date.now() - recent.time < 1200) {
+    return Promise.resolve(recent.response);
+  }
+
+  const promise = rawRequest(config)
+    .then((res: any) => {
+      recentMutations.set(signature, { time: Date.now(), response: res });
+      setTimeout(() => {
+        recentMutations.delete(signature);
+      }, 1500);
+      return res;
+    })
+    .finally(() => {
+      inFlightMutations.delete(signature);
+    });
+
+  inFlightMutations.set(signature, promise);
+  return promise;
+};
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = useAuthStore.getState().accessToken;
   if (token && config.headers) {

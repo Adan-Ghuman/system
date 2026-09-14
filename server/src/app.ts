@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/error.middleware.js';
+import { preventDuplicateSubmissions } from './middleware/idempotency.middleware.js';
 import { NotFoundError } from './utils/errors.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/user.routes.js';
@@ -38,6 +39,7 @@ export function createApp(): express.Application {
   app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(preventDuplicateSubmissions);
 
   app.get('/api/health', (_req, res) => {
     res.json({
