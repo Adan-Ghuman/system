@@ -18,7 +18,7 @@ export function ThemedLoadingScreen({
     <div
       className={cn(
         'flex flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-100 select-none',
-        fullScreen ? 'min-h-screen w-full fixed inset-0 z-50' : 'min-h-[360px] w-full',
+        fullScreen ? 'fixed inset-0 h-full w-full overflow-hidden z-50' : 'min-h-[360px] w-full',
         className
       )}
     >
