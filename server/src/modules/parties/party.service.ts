@@ -94,9 +94,30 @@ export async function listParties(query: QueryPartiesInput): Promise<PaginatedRe
     ];
   }
 
+  if (query.balanceFilter === 'receivable') {
+    filter.currentBalance = { $gt: 0 };
+  } else if (query.balanceFilter === 'payable') {
+    filter.currentBalance = { $lt: 0 };
+  } else if (query.balanceFilter === 'zero') {
+    filter.currentBalance = 0;
+  }
+
+  let sortCriteria: Record<string, 1 | -1> = { createdAt: -1, _id: -1 };
+  if (query.sortBy === 'oldest') {
+    sortCriteria = { createdAt: 1, _id: 1 };
+  } else if (query.sortBy === 'code') {
+    sortCriteria = { code: 1 };
+  } else if (query.sortBy === 'name') {
+    sortCriteria = { name: 1 };
+  } else if (query.sortBy === 'balance_desc') {
+    sortCriteria = { currentBalance: -1, name: 1 };
+  } else if (query.sortBy === 'balance_asc') {
+    sortCriteria = { currentBalance: 1, name: 1 };
+  }
+
   const [items, total] = await Promise.all([
     Party.find(filter)
-      .sort({ code: 1 })
+      .sort(sortCriteria)
       .skip(skip)
       .limit(limit),
     Party.countDocuments(filter)

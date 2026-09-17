@@ -23,6 +23,7 @@ export const queryVouchersSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   search: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()

@@ -9,7 +9,9 @@ export interface IDyeingBatch extends Document {
   millPartyId?: Types.ObjectId;
   fabricType: string;
   yarnSpec: string;
+  yarnSpecs?: string[];
   targetColor: string;
+  customMillName?: string;
   igpNo?: string;
   ogpNo?: string;
   dateIssued: Date;
@@ -58,12 +60,21 @@ const dyeingBatchSchema = new Schema<IDyeingBatch>(
       required: true,
       trim: true
     },
+    yarnSpecs: {
+      type: [String],
+      default: []
+    },
     targetColor: {
       type: String,
       required: true,
       uppercase: true,
       trim: true,
       index: true
+    },
+    customMillName: {
+      type: String,
+      trim: true,
+      default: ''
     },
     igpNo: {
       type: String,

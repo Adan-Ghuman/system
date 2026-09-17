@@ -170,10 +170,12 @@ export async function listPaymentVouchers(query: QueryVouchersInput) {
     ];
   }
 
+  const sortDirection = query.sortOrder === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
     PaymentVoucher.find(filter)
       .populate('partyId', 'code name phone currentBalance')
-      .sort({ date: -1 })
+      .sort({ date: sortDirection, createdAt: sortDirection })
       .skip(skip)
       .limit(limit),
     PaymentVoucher.countDocuments(filter)

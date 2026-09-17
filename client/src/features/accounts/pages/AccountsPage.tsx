@@ -14,7 +14,9 @@ import { CreateVoucherModal } from '../components/CreateVoucherModal.js';
 import { EditVoucherModal } from '../components/EditVoucherModal.js';
 import { PartyLedgerModal } from '../components/PartyLedgerModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatCurrency, formatDateTime } from '../../../lib/formatters.js';
+import { downloadExcelReport } from '../../../lib/reportExport.js';
 import {
   DollarSign,
   RefreshCw,
@@ -24,16 +26,28 @@ import {
   Search,
   BookOpen,
   Receipt,
-  Edit2
+  Edit2,
+  FileSpreadsheet,
+  ArrowUpDown,
+  Filter
 } from 'lucide-react';
 
 export function AccountsPage() {
   const [activeTab, setActiveTab] = useState<'parties' | 'vouchers'>('parties');
+  const [isExportingMaster, setIsExportingMaster] = useState(false);
+
+  // Parties Tab Filters & Sort (Latest First is Default)
   const [searchTerm, setSearchTerm] = useState('');
+  const [partySortBy, setPartySortBy] = useState<string>('latest');
+  const [partyBalanceFilter, setPartyBalanceFilter] = useState<string>('all');
   const [partiesPage, setPartiesPage] = useState(1);
   const [partiesLimit, setPartiesLimit] = useState(20);
 
+  // Vouchers Tab Filters & Sort (Latest First is Default)
   const [voucherSearchTerm, setVoucherSearchTerm] = useState('');
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState<string>('ALL');
+  const [paymentModeFilter, setPaymentModeFilter] = useState<string>('ALL');
+  const [voucherSortOrder, setVoucherSortOrder] = useState<'desc' | 'asc'>('desc');
   const [vouchersPage, setVouchersPage] = useState(1);
   const [vouchersLimit, setVouchersLimit] = useState(20);
 
@@ -47,11 +61,11 @@ export function AccountsPage() {
 
   useEffect(() => {
     setPartiesPage(1);
-  }, [debouncedSearchTerm]);
+  }, [partySortBy, partyBalanceFilter, debouncedSearchTerm]);
 
   useEffect(() => {
     setVouchersPage(1);
-  }, [debouncedVoucherSearchTerm]);
+  }, [voucherTypeFilter, paymentModeFilter, voucherSortOrder, debouncedVoucherSearchTerm]);
 
   const { data: metrics, refetch: refetchMetrics } = useQuery<AccountingMetricsSummary>({
     queryKey: ['accounting-metrics'],
@@ -68,9 +82,14 @@ export function AccountsPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['accounts-parties', debouncedSearchTerm, partiesPage, partiesLimit],
+    queryKey: ['accounts-parties', partySortBy, partyBalanceFilter, debouncedSearchTerm, partiesPage, partiesLimit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page: partiesPage, limit: partiesLimit };
+      const params: Record<string, string | number> = {
+        page: partiesPage,
+        limit: partiesLimit,
+        sortBy: partySortBy,
+        balanceFilter: partyBalanceFilter
+      };
       if (debouncedSearchTerm.trim()) {
         params.search = debouncedSearchTerm.trim();
       }
@@ -91,9 +110,19 @@ export function AccountsPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['accounts-vouchers', debouncedVoucherSearchTerm, vouchersPage, vouchersLimit],
+    queryKey: ['accounts-vouchers', voucherTypeFilter, paymentModeFilter, voucherSortOrder, debouncedVoucherSearchTerm, vouchersPage, vouchersLimit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page: vouchersPage, limit: vouchersLimit };
+      const params: Record<string, string | number> = {
+        page: vouchersPage,
+        limit: vouchersLimit,
+        sortOrder: voucherSortOrder
+      };
+      if (voucherTypeFilter !== 'ALL') {
+        params.voucherType = voucherTypeFilter;
+      }
+      if (paymentModeFilter !== 'ALL') {
+        params.paymentMode = paymentModeFilter;
+      }
       if (debouncedVoucherSearchTerm.trim()) {
         params.search = debouncedVoucherSearchTerm.trim();
       }
@@ -116,23 +145,45 @@ export function AccountsPage() {
     refetchVouchers();
   }
 
+  async function handleExportMasterBalance() {
+    setIsExportingMaster(true);
+    try {
+      await downloadExcelReport('/reports/master-balance/excel', 'Master_Party_Balance_Directory.xlsx');
+    } catch (err) {
+      console.error('Failed to export master balance:', err);
+    } finally {
+      setIsExportingMaster(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-500" />
-            Payments & Account Ledgers
+            <DollarSign className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>Payments & Account Ledgers</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Track who owes you money, whom you owe, record payments, and view party account statements.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh accounts">
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportMasterBalance}
+            disabled={isExportingMaster}
+            className="gap-1.5 whitespace-nowrap shrink-0 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isExportingMaster ? 'Exporting...' : 'Master Balance Sheet (.xlsx)'}</span>
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh accounts" className="gap-1 whitespace-nowrap shrink-0">
             <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+            <span>Refresh</span>
           </Button>
 
           <Button
@@ -141,10 +192,10 @@ export function AccountsPage() {
               setPreselectedPartyForVoucher(undefined);
               setIsVoucherOpen(true);
             }}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Record Payment (Money In / Out)
+            <span>Record Payment / Receipt</span>
           </Button>
         </div>
       </div>
@@ -228,12 +279,44 @@ export function AccountsPage() {
 
       {activeTab === 'parties' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-            <div className="text-xs font-semibold text-zinc-300">
-              Party Account Balances Directory
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
+              {/* Balance Filter */}
+              <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                <select
+                  value={partyBalanceFilter}
+                  onChange={(e) => setPartyBalanceFilter(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Filter balances"
+                >
+                  <option value="all" className="bg-zinc-900 text-zinc-200">All Balances</option>
+                  <option value="receivable" className="bg-zinc-900 text-zinc-200">Receivable (Dr)</option>
+                  <option value="payable" className="bg-zinc-900 text-zinc-200">Payable (Cr)</option>
+                  <option value="zero" className="bg-zinc-900 text-zinc-200">Zero Balance</option>
+                </select>
+              </div>
+
+              {/* Sort By Dropdown (Latest First is Default) */}
+              <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={partySortBy}
+                  onChange={(e) => setPartySortBy(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort order"
+                >
+                  <option value="latest" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
+                  <option value="oldest" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
+                  <option value="balance_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Receivable</option>
+                  <option value="balance_asc" className="bg-zinc-900 text-zinc-200">Sort: Highest Payable</option>
+                  <option value="code" className="bg-zinc-900 text-zinc-200">Sort: Code (A-Z)</option>
+                  <option value="name" className="bg-zinc-900 text-zinc-200">Sort: Name (A-Z)</option>
+                </select>
+              </div>
             </div>
 
-            <div className="w-full md:w-72 relative">
+            <div className="w-full lg:w-72 relative">
               <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
               <Input
                 value={searchTerm}
@@ -245,7 +328,7 @@ export function AccountsPage() {
           </div>
 
           <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-            <div className="overflow-x-auto">
+            <ScrollableTable>
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                   <tr>
@@ -354,7 +437,7 @@ export function AccountsPage() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTable>
             <PaginationControls
               page={partiesPage}
               totalPages={partiesData?.totalPages || 1}
@@ -369,18 +452,64 @@ export function AccountsPage() {
 
       {activeTab === 'vouchers' && (
         <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="p-3 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between gap-3">
-            <div className="relative max-w-sm w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
+              {/* Money Flow Filter */}
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                <select
+                  value={voucherTypeFilter}
+                  onChange={(e) => setVoucherTypeFilter(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Filter money flow"
+                >
+                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Money Flow</option>
+                  <option value="RECEIPT" className="bg-zinc-900 text-zinc-200">Money Received (Receipts)</option>
+                  <option value="PAYMENT" className="bg-zinc-900 text-zinc-200">Money Paid (Payments)</option>
+                </select>
+              </div>
+
+              {/* Payment Mode Filter */}
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <select
+                  value={paymentModeFilter}
+                  onChange={(e) => setPaymentModeFilter(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Filter payment method"
+                >
+                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Methods</option>
+                  <option value="CASH" className="bg-zinc-900 text-zinc-200">Cash in Hand</option>
+                  <option value="BANK_TRANSFER" className="bg-zinc-900 text-zinc-200">Bank Transfer</option>
+                  <option value="CHEQUE" className="bg-zinc-900 text-zinc-200">Bank Cheque</option>
+                </select>
+              </div>
+
+              {/* Sort By Dropdown (Latest First is Default) */}
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={voucherSortOrder}
+                  onChange={(e) => setVoucherSortOrder(e.target.value as 'desc' | 'asc')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort order"
+                >
+                  <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
+                  <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="relative w-full lg:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
               <Input
-                placeholder="Search receipt/payment #, bank, cheque, notes..."
+                placeholder="Search voucher #, bank, cheque, notes..."
                 value={voucherSearchTerm}
                 onChange={(e) => setVoucherSearchTerm(e.target.value)}
                 className="pl-9 h-9 text-xs"
               />
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <ScrollableTable>
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
@@ -484,7 +613,7 @@ export function AccountsPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
           <PaginationControls
             page={vouchersPage}
             totalPages={vouchersData?.totalPages || 1}

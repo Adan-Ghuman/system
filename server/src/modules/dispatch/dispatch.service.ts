@@ -204,10 +204,18 @@ export async function listDispatches(query: QueryDispatchesInput) {
     ];
   }
 
+  if (query.invoiceType) {
+    const matchingInvoices = await Invoice.find({ invoiceType: query.invoiceType }, 'dispatchId');
+    const matchingDispatchIds = matchingInvoices.map((inv) => inv.dispatchId);
+    filter._id = { $in: matchingDispatchIds };
+  }
+
+  const sortDirection = query.sortOrder === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
     Dispatch.find(filter)
       .populate('customerId', 'code name phone currentBalance')
-      .sort({ date: -1 })
+      .sort({ date: sortDirection, createdAt: sortDirection })
       .skip(skip)
       .limit(limit),
     Dispatch.countDocuments(filter)

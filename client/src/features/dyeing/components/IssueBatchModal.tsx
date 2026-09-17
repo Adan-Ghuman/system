@@ -5,10 +5,11 @@ import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
-import { AlertCircle, CheckCircle2, Factory } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Factory, Building2 } from 'lucide-react';
 import { DyeingMillType, CreateBatchPayload } from '../types/dyeing.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
 import { COMMON_COLORS } from '../../common/constants/colors.js';
+import { YarnSpecMultiSelect, STANDARD_YARN_SPECS } from './YarnSpecMultiSelect.js';
 
 export interface IssueBatchModalProps {
   isOpen: boolean;
@@ -30,21 +31,15 @@ const COMMON_FABRIC_TYPES = [
   'Terry Fleece'
 ];
 
-const COMMON_YARN_SPECS = [
-  '75/72 Sim',
-  '100/36 Sim',
-  '150/48 Rotto',
-  '100/144 Micro',
-  '30/1 Cotton',
-  '20/1 Cotton'
-];
-
 export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHUMMAN_DYEING' }: IssueBatchModalProps) {
   const [millName, setMillName] = useState<DyeingMillType>(initialMill);
+  const [customMillName, setCustomMillName] = useState('');
   const [batchNo, setBatchNo] = useState('');
   const [fabricType, setFabricType] = useState(COMMON_FABRIC_TYPES[0]);
   const [customFabricType, setCustomFabricType] = useState('');
-  const [yarnSpec, setYarnSpec] = useState(COMMON_YARN_SPECS[0]);
+  const [selectedYarnSpecs, setSelectedYarnSpecs] = useState<string[]>([STANDARD_YARN_SPECS[0]]);
+  const [customYarnSpec, setCustomYarnSpec] = useState('');
+  const [isOtherYarnActive, setIsOtherYarnActive] = useState(false);
   const [color, setColor] = useState(COMMON_COLORS[0]);
   const [customColor, setCustomColor] = useState('');
   const [ogpNo, setOgpNo] = useState('');
@@ -98,6 +93,18 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
     setIsLoading(true);
 
     try {
+      const allActiveYarnSpecs = [
+        ...selectedYarnSpecs,
+        ...(isOtherYarnActive && customYarnSpec.trim() ? [customYarnSpec.trim()] : [])
+      ];
+      if (allActiveYarnSpecs.length === 0) {
+        throw new Error('Please select or enter at least one yarn specification');
+      }
+
+      if (millName === 'OTHER' && !customMillName.trim()) {
+        throw new Error('Please specify the custom dyeing mill name');
+      }
+
       const activeFabric = fabricType === 'OTHER' ? customFabricType.trim() : fabricType;
       if (!activeFabric) {
         throw new Error('Please specify a fabric variety');
@@ -111,8 +118,10 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       const payload: CreateBatchPayload = {
         batchNo: batchNo.trim().toUpperCase(),
         millName,
+        customMillName: millName === 'OTHER' ? customMillName.trim() : undefined,
         fabricType: activeFabric,
-        yarnSpec,
+        yarnSpecs: allActiveYarnSpecs,
+        yarnSpec: allActiveYarnSpecs.join(' + '),
         targetColor: activeColor,
         ogpNo: ogpNo.trim(),
         dateIssued: new Date(dateIssued).toISOString(),
@@ -124,8 +133,21 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
 
       await api.post('/dyeing/batches', payload);
 
-      setSuccess(`Batch ${batchNo} issued to ${millName === 'GHUMMAN_DYEING' ? 'Ghumman Dyeing' : 'Rajput Dyeing'}`);
+      const millDisplay = millName === 'OTHER'
+        ? (customMillName.trim() || 'Other Mill')
+        : millName === 'GHUMMAN_DYEING'
+        ? 'Ghumman Dyeing'
+        : millName === 'RAJPUT_DYEING'
+        ? 'Rajput Dyeing'
+        : millName === 'HAFIZ_SAAD_DYEING'
+        ? 'Hafiz Saad Dyeing'
+        : 'HB Dyeing';
+
+      setSuccess(`Batch ${batchNo} issued to ${millDisplay}`);
       setCustomColor('');
+      setCustomMillName('');
+      setCustomYarnSpec('');
+      setIsOtherYarnActive(false);
       setOgpNo('');
       setRemarks('');
       onSuccess();
@@ -148,7 +170,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       isOpen={isOpen}
       onClose={onClose}
       title="Send Fabric to Dyeing Mill"
-      description="Create a delivery gate pass to send raw fabric rolls to Ghumman or Rajput Mill for dyeing."
+      description="Create a delivery gate pass to send raw fabric rolls to Ghumman, Rajput, or another mill for dyeing."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -166,9 +188,9 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
           </div>
         )}
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <label className="text-xs font-semibold text-zinc-300">Select Target Processing Mill</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setMillName('GHUMMAN_DYEING')}
@@ -220,7 +242,33 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
               <Factory className="w-4 h-4" />
               <span>HB Dyeing</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setMillName('OTHER')}
+              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
+                millName === 'OTHER'
+                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Other Mill...</span>
+            </button>
           </div>
+
+          {millName === 'OTHER' && (
+            <div className="pt-1">
+              <Input
+                id="customMillName"
+                label="Custom Dyeing Mill Name"
+                value={customMillName}
+                onChange={(e) => setCustomMillName(e.target.value)}
+                placeholder="e.g. Master Dyeing Mill, Ittehad Dyeing..."
+                required
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -251,37 +299,42 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Select
-            id="fabricTypeSelect"
-            label="Fabric Variety"
-            value={fabricType}
-            onChange={(e) => setFabricType(e.target.value)}
-            options={[
-              ...COMMON_FABRIC_TYPES.map((f) => ({ label: f, value: f })),
-              { label: 'Other Fabric Variety...', value: 'OTHER' }
-            ]}
-          />
+        <div className="space-y-3">
+          <div>
+            <Select
+              id="fabricTypeSelect"
+              label="Fabric Variety"
+              value={fabricType}
+              onChange={(e) => setFabricType(e.target.value)}
+              options={[
+                ...COMMON_FABRIC_TYPES.map((f) => ({ label: f, value: f })),
+                { label: 'Other Fabric Variety...', value: 'OTHER' }
+              ]}
+            />
 
-          <Select
-            id="yarnSpecSelect"
-            label="Yarn Specification"
-            value={yarnSpec}
-            onChange={(e) => setYarnSpec(e.target.value)}
-            options={COMMON_YARN_SPECS.map((s) => ({ label: s, value: s }))}
+            {fabricType === 'OTHER' && (
+              <div className="pt-2">
+                <Input
+                  id="customFabric"
+                  label="Custom Fabric Variety"
+                  value={customFabricType}
+                  onChange={(e) => setCustomFabricType(e.target.value)}
+                  required
+                  placeholder="e.g. Spandex Parda"
+                />
+              </div>
+            )}
+          </div>
+
+          <YarnSpecMultiSelect
+            selectedSpecs={selectedYarnSpecs}
+            onChange={setSelectedYarnSpecs}
+            customSpec={customYarnSpec}
+            onCustomSpecChange={setCustomYarnSpec}
+            isOtherActive={isOtherYarnActive}
+            onToggleOther={setIsOtherYarnActive}
           />
         </div>
-
-        {fabricType === 'OTHER' && (
-          <Input
-            id="customFabric"
-            label="Custom Fabric Variety"
-            value={customFabricType}
-            onChange={(e) => setCustomFabricType(e.target.value)}
-            required
-            placeholder="e.g. Spandex Parda"
-          />
-        )}
 
         <div className="grid grid-cols-3 gap-3">
           <Select

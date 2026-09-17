@@ -51,12 +51,19 @@ export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyein
     }
   }
 
+  const yarnSpecs = input.yarnSpecs && input.yarnSpecs.length > 0
+    ? input.yarnSpecs
+    : (input.yarnSpec ? [input.yarnSpec] : []);
+  const yarnSpec = input.yarnSpec || (yarnSpecs.length > 0 ? yarnSpecs.join(' + ') : '');
+
   const batch = await DyeingBatch.create({
     batchNo,
     millName: input.millName,
     millPartyId,
+    customMillName: input.customMillName || '',
     fabricType: input.fabricType,
-    yarnSpec: input.yarnSpec,
+    yarnSpec,
+    yarnSpecs,
     targetColor: input.targetColor.toUpperCase(),
     ogpNo: input.ogpNo || '',
     igpNo: input.igpNo || '',
@@ -163,16 +170,19 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
       { targetColor: searchRegex },
       { fabricType: searchRegex },
       { yarnSpec: searchRegex },
+      { customMillName: searchRegex },
       { ogpNo: searchRegex },
       { igpNo: searchRegex }
     ];
   }
 
+  const sortDirection = query.sortOrder === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
     DyeingBatch.find(filter)
       .populate('millPartyId', 'code name phone')
       .populate('allocatedCustomerId', 'code name')
-      .sort({ dateIssued: -1 })
+      .sort({ dateIssued: sortDirection, createdAt: sortDirection })
       .skip(skip)
       .limit(limit),
     DyeingBatch.countDocuments(filter)
@@ -242,7 +252,11 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
       const newMillName = input.millName ?? batch.millName;
       const newLocation = getBatchLocation(newMillName);
       const newFabricType = input.fabricType ?? batch.fabricType;
-      const newYarnSpec = input.yarnSpec ?? batch.yarnSpec;
+      const newYarnSpecs = input.yarnSpecs !== undefined
+        ? input.yarnSpecs
+        : (input.yarnSpec ? [input.yarnSpec] : (batch.yarnSpecs || []));
+      const newYarnSpec = input.yarnSpec ?? (newYarnSpecs && newYarnSpecs.length > 0 ? newYarnSpecs.join(' + ') : batch.yarnSpec);
+      const newCustomMillName = input.customMillName !== undefined ? input.customMillName : (batch.customMillName || '');
       const newColor = input.targetColor ? input.targetColor.toUpperCase() : batch.targetColor;
       const newEcruRolls = input.ecruRollsCount ?? batch.ecruRollsCount;
       const newEcruWeight = input.ecruWeightKg ?? batch.ecruWeightKg;
@@ -293,8 +307,10 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
 
       if (input.batchNo) batch.batchNo = input.batchNo;
       batch.millName = newMillName;
+      batch.customMillName = newCustomMillName;
       batch.fabricType = newFabricType;
       batch.yarnSpec = newYarnSpec;
+      batch.yarnSpecs = newYarnSpecs;
       batch.targetColor = newColor;
       batch.ecruRollsCount = newEcruRolls;
       batch.ecruWeightKg = newEcruWeight;
@@ -326,9 +342,15 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
   } else {
     if (input.batchNo) batch.batchNo = input.batchNo;
     if (input.millName) batch.millName = input.millName;
+    if (input.customMillName !== undefined) batch.customMillName = input.customMillName;
     if (input.millPartyId) batch.millPartyId = new Types.ObjectId(input.millPartyId);
     if (input.fabricType) batch.fabricType = input.fabricType;
-    if (input.yarnSpec) batch.yarnSpec = input.yarnSpec;
+    const newYarnSpecs = input.yarnSpecs !== undefined
+      ? input.yarnSpecs
+      : (input.yarnSpec ? [input.yarnSpec] : (batch.yarnSpecs || []));
+    const newYarnSpec = input.yarnSpec ?? (newYarnSpecs && newYarnSpecs.length > 0 ? newYarnSpecs.join(' + ') : batch.yarnSpec);
+    batch.yarnSpec = newYarnSpec;
+    batch.yarnSpecs = newYarnSpecs;
     if (input.targetColor) batch.targetColor = input.targetColor.toUpperCase();
     if (input.ogpNo !== undefined) batch.ogpNo = input.ogpNo;
     if (input.igpNo !== undefined) batch.igpNo = input.igpNo;

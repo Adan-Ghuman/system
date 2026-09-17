@@ -5,6 +5,7 @@ export interface DyeingBatchItem {
   _id: string;
   batchNo: string;
   millName: DyeingMillType;
+  customMillName?: string;
   millPartyId?: {
     _id: string;
     code: string;
@@ -13,6 +14,7 @@ export interface DyeingBatchItem {
   };
   fabricType: string;
   yarnSpec: string;
+  yarnSpecs?: string[];
   targetColor: string;
   igpNo?: string;
   ogpNo?: string;
@@ -38,9 +40,11 @@ export interface DyeingBatchItem {
 export interface CreateBatchPayload {
   batchNo?: string;
   millName: DyeingMillType;
+  customMillName?: string;
   millPartyId?: string;
   fabricType: string;
-  yarnSpec: string;
+  yarnSpec?: string;
+  yarnSpecs?: string[];
   targetColor: string;
   ogpNo?: string;
   igpNo?: string;
@@ -62,9 +66,11 @@ export interface SettleBatchPayload {
 export interface UpdateBatchPayload {
   batchNo?: string;
   millName?: DyeingMillType;
+  customMillName?: string;
   millPartyId?: string;
   fabricType?: string;
   yarnSpec?: string;
+  yarnSpecs?: string[];
   targetColor?: string;
   ogpNo?: string;
   igpNo?: string;

@@ -7,9 +7,10 @@ import { Button } from '../../../components/ui/Button.js';
 import { Input } from '../../../components/ui/Input.js';
 import { formatCurrency, formatDate, formatDateTime } from '../../../lib/formatters.js';
 import { exportToCsv } from '../../../lib/csvExport.js';
+import { downloadExcelReport } from '../../../lib/reportExport.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { LedgerStatementResponse, PartyLedgerEntryItem } from '../types/accounts.types.js';
-import { BookOpen, Calendar, Printer, Download, Edit2, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Calendar, Printer, Download, Edit2, Trash2, AlertCircle, CheckCircle2, FileSpreadsheet } from 'lucide-react';
 
 export interface PartyLedgerModalProps {
   partyId: string | null;
@@ -20,6 +21,7 @@ export interface PartyLedgerModalProps {
 
 export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyLedgerModalProps) {
   const [dateFilter, setDateFilter] = useState<'ALL' | 'THIS_MONTH' | 'LAST_30'>('ALL');
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
 
   const [editingEntry, setEditingEntry] = useState<PartyLedgerEntryItem | null>(null);
   const [editAmount, setEditAmount] = useState('');
@@ -69,6 +71,27 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
       ],
       entries
     );
+  }
+
+  async function handleExportExcel() {
+    if (!party) return;
+    setIsExportingExcel(true);
+    try {
+      let url = `/reports/party-ledger/${party._id}/excel`;
+      if (dateFilter === 'THIS_MONTH') {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        url += `?from=${start}`;
+      } else if (dateFilter === 'LAST_30') {
+        const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        url += `?from=${start}`;
+      }
+      await downloadExcelReport(url, `${party.name}_Ledger.xlsx`);
+    } catch (err) {
+      console.error('Failed to export Excel:', err);
+    } finally {
+      setIsExportingExcel(false);
+    }
   }
 
   async function handleSaveEdit(e: FormEvent) {
@@ -309,6 +332,17 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              className="gap-1.5 text-xs h-7 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              {isExportingExcel ? 'Exporting...' : 'Export Excel (.xlsx)'}
+            </Button>
+
             <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-1.5 text-xs h-7">
               <Download className="w-3 h-3" />
               Export CSV

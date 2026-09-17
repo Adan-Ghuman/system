@@ -172,7 +172,7 @@ export async function getKnitterBalances(): Promise<KnitterBalanceSummary[]> {
       }
     },
     {
-      $sort: { partyName: 1, yarnSpec: 1 }
+      $sort: { lastDate: -1, partyName: 1, yarnSpec: 1 }
     }
   ]);
 
@@ -201,10 +201,12 @@ export async function listYarnTransactions(query: QueryTransactionsInput) {
     ];
   }
 
+  const sortDirection = query.sortOrder === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
     YarnTransaction.find(filter)
       .populate('partyId', 'code name phone')
-      .sort({ date: -1 })
+      .sort({ date: sortDirection, createdAt: sortDirection })
       .skip(skip)
       .limit(limit),
     YarnTransaction.countDocuments(filter)

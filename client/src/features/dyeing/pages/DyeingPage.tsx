@@ -11,7 +11,10 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueBatchModal } from '../components/IssueBatchModal.js';
 import { SettleBatchModal } from '../components/SettleBatchModal.js';
 import { EditBatchModal } from '../components/EditBatchModal.js';
+import { GatePassRegisterModal } from '../../reports/components/GatePassRegisterModal.js';
+import { downloadExcelReport } from '../../../lib/reportExport.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
   Palette,
@@ -23,24 +26,31 @@ import {
   Scale,
   Search,
   CheckCheck,
-  Edit
+  Edit,
+  FileSpreadsheet,
+  FileText,
+  ArrowUpDown
 } from 'lucide-react';
 
 export function DyeingPage() {
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [settlingBatch, setSettlingBatch] = useState<DyeingBatchItem | null>(null);
   const [editingBatch, setEditingBatch] = useState<DyeingBatchItem | null>(null);
+  const [isGatePassModalOpen, setIsGatePassModalOpen] = useState(false);
+  const [isExportingDyeingExcel, setIsExportingDyeingExcel] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     setPage(1);
-  }, [selectedMill, statusFilter, debouncedSearchTerm]);
+  }, [selectedMill, statusFilter, sortOrder, debouncedSearchTerm]);
 
   const { data, isLoading, refetch } = useQuery<{
     items: DyeingBatchItem[];
@@ -49,9 +59,9 @@ export function DyeingPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['dyeing-batches', selectedMill, statusFilter, debouncedSearchTerm, page, limit],
+    queryKey: ['dyeing-batches', selectedMill, statusFilter, sortOrder, debouncedSearchTerm, page, limit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number> = { page, limit, sortOrder };
       if (selectedMill !== 'ALL') {
         params.millName = selectedMill;
       }
@@ -102,28 +112,82 @@ export function DyeingPage() {
     return { inProcessKg, inProcessBatches, completedKg, completedBatches, avgShrinkage };
   }, [batches]);
 
+  async function handleExportDyeingExcel() {
+    setIsExportingDyeingExcel(true);
+    setExportError(null);
+    try {
+      let url = '/reports/dyeing-mill/excel';
+      if (selectedMill !== 'ALL') {
+        url += `?millName=${selectedMill}`;
+      }
+      await downloadExcelReport(url, 'Dyeing_Production_Report.xlsx');
+    } catch (err: any) {
+      console.error('Failed to export Dyeing Excel:', err);
+      setExportError(err.message || 'Failed to export Dyeing Report. Please try again.');
+    } finally {
+      setIsExportingDyeingExcel(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {exportError && (
+        <div className="p-3 bg-red-950/50 border border-red-800 text-red-300 text-xs rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <span>{exportError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExportError(null)}
+            className="text-xs text-zinc-400 hover:text-white"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Palette className="w-5 h-5 text-emerald-500" />
-            Multi-Mill Dyeing & Process Loss Engine
+            <Palette className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>Multi-Mill Dyeing & Process Loss Engine</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Coordinate batch allocation and settlement across Ghumman & Rajput Dyeing with live shrinkage loss math.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh batches">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsGatePassModalOpen(true)}
+            className="gap-1.5 whitespace-nowrap shrink-0 text-blue-400 border-blue-900/50 hover:bg-blue-950/40"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>OGP / IGP Registers</span>
           </Button>
 
-          <Button size="sm" onClick={() => setIsIssueOpen(true)} className="gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportDyeingExcel}
+            disabled={isExportingDyeingExcel}
+            className="gap-1.5 whitespace-nowrap shrink-0 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isExportingDyeingExcel ? 'Exporting...' : 'Export Report (.xlsx)'}</span>
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh batches" className="gap-1 whitespace-nowrap shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button size="sm" onClick={() => setIsIssueOpen(true)} className="gap-1.5 whitespace-nowrap shrink-0">
             <Plus className="w-4 h-4" />
-            Send Fabric for Dyeing
+            <span>Send Fabric for Dyeing</span>
           </Button>
         </div>
       </div>
@@ -194,7 +258,8 @@ export function DyeingPage() {
             { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
             { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
             { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
-            { id: 'HB_DYEING', label: 'HB Dyeing Mill' }
+            { id: 'HB_DYEING', label: 'HB Dyeing Mill' },
+            { id: 'OTHER', label: 'Other Mills' }
           ].map((mill) => (
             <button
               key={mill.id}
@@ -211,8 +276,8 @@ export function DyeingPage() {
           ))}
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-          <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
+          <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               { id: 'ALL', label: 'All Batches' },
               { id: 'ACTIVE', label: 'Currently Being Dyed' },
@@ -221,7 +286,7 @@ export function DyeingPage() {
               <button
                 key={st.id}
                 onClick={() => setStatusFilter(st.id as typeof statusFilter)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors select-none ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors select-none whitespace-nowrap ${
                   statusFilter === st.id
                     ? 'bg-zinc-800 text-zinc-100 font-semibold border border-zinc-700'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
@@ -232,20 +297,35 @@ export function DyeingPage() {
             ))}
           </div>
 
-          <div className="w-full md:w-72 relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search batch #, color, fabric..."
-              className="pl-9 h-9 text-xs"
-            />
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+                className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                title="Sort order"
+              >
+                <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest Issued First (Default)</option>
+                <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest Issued First</option>
+              </select>
+            </div>
+
+            <div className="w-full sm:w-64 relative">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search batch #, color, fabric..."
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
           </div>
         </div>
       </div>
 
       <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
@@ -294,14 +374,14 @@ export function DyeingPage() {
                         className="text-[10px] py-0.5"
                       >
                         {b.millName === 'GHUMMAN_DYEING'
-                          ? 'Ghumman'
+                          ? 'Ghuman'
                           : b.millName === 'RAJPUT_DYEING'
                           ? 'Rajput'
                           : b.millName === 'HAFIZ_SAAD_DYEING'
                           ? 'Hafiz Saad'
                           : b.millName === 'HB_DYEING'
                           ? 'HB'
-                          : 'Mill'}
+                          : (b.customMillName || 'Other Mill')}
                       </Badge>
                     </td>
 
@@ -416,7 +496,7 @@ export function DyeingPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
         <PaginationControls
           page={page}
           totalPages={data?.totalPages || 1}
@@ -446,6 +526,12 @@ export function DyeingPage() {
         isOpen={Boolean(editingBatch)}
         onClose={() => setEditingBatch(null)}
         onSuccess={() => refetch()}
+      />
+
+      <GatePassRegisterModal
+        isOpen={isGatePassModalOpen}
+        onClose={() => setIsGatePassModalOpen(false)}
+        defaultType="OGP"
       />
     </div>
   );

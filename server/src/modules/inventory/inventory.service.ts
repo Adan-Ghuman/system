@@ -174,7 +174,7 @@ export async function recordStockAdjustment(input: CreateAdjustmentInput): Promi
   }
 }
 
-export async function listInventoryItems(query: QueryInventoryInput) {
+export async function listInventoryItems(query: Partial<QueryInventoryInput> = {}) {
   const { page, limit, skip } = parsePagination(query, 20);
   const filter: Record<string, unknown> = {
     $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
@@ -201,9 +201,18 @@ export async function listInventoryItems(query: QueryInventoryInput) {
     ];
   }
 
+  let sortCriteria: Record<string, 1 | -1> = { updatedAt: -1, createdAt: -1 };
+  if (query.sortBy === 'fabricType') {
+    sortCriteria = { fabricType: 1, color: 1, location: 1 };
+  } else if (query.sortBy === 'weight_desc') {
+    sortCriteria = { totalWeightKg: -1 };
+  } else if (query.sortBy === 'rolls_desc') {
+    sortCriteria = { totalRolls: -1 };
+  }
+
   const [items, total] = await Promise.all([
     FabricInventory.find(filter)
-      .sort({ fabricType: 1, color: 1, location: 1 })
+      .sort(sortCriteria)
       .skip(skip)
       .limit(limit),
     FabricInventory.countDocuments(filter)
@@ -266,7 +275,7 @@ export async function getInventorySummary(query: InventorySummaryQuery = {}) {
   return result;
 }
 
-export async function listStockTransfers(query: QueryTransfersInput = {}) {
+export async function listStockTransfers(query: Partial<QueryTransfersInput> = {}) {
   const { page, limit, skip } = parsePagination(query, 20);
   const filter: Record<string, unknown> = {};
 
@@ -283,8 +292,20 @@ export async function listStockTransfers(query: QueryTransfersInput = {}) {
     ];
   }
 
+  if (query.fromLocation) {
+    filter.fromLocation = query.fromLocation;
+  }
+  if (query.toLocation) {
+    filter.toLocation = query.toLocation;
+  }
+
+  const sortDirection = query.sortOrder === 'asc' ? 1 : -1;
+
   const [items, total] = await Promise.all([
-    StockTransfer.find(filter).sort({ date: -1 }).skip(skip).limit(limit),
+    StockTransfer.find(filter)
+      .sort({ date: sortDirection, createdAt: sortDirection })
+      .skip(skip)
+      .limit(limit),
     StockTransfer.countDocuments(filter)
   ]);
 

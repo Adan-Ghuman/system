@@ -26,7 +26,9 @@ export const createDispatchSchema = z.object({
 export const queryDispatchesSchema = z.object({
   customerId: z.string().optional(),
   fromLocation: locationEnum.optional(),
+  invoiceType: z.enum(['TAX_18_PERCENT', 'NON_GST']).optional(),
   search: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()

@@ -13,6 +13,7 @@ import dyeingRoutes from './modules/dyeing/dyeing.routes.js';
 import inventoryRoutes from './modules/inventory/inventory.routes.js';
 import dispatchRoutes from './modules/dispatch/dispatch.routes.js';
 import accountsRoutes from './modules/accounts/accounts.routes.js';
+import reportsRoutes from './modules/reports/reports.routes.js';
 
 export function createApp(): express.Application {
   const app = express();
@@ -57,6 +58,7 @@ export function createApp(): express.Application {
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/dispatch', dispatchRoutes);
   app.use('/api/accounts', accountsRoutes);
+  app.use('/api/reports', reportsRoutes);
 
   app.use((_req, _res, next) => {
     next(new NotFoundError('Route not found'));

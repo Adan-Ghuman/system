@@ -119,7 +119,15 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
           <div>
             <div className="text-zinc-500 text-[10px] uppercase">Mill</div>
             <div className="font-semibold text-zinc-200 mt-0.5">
-              {batch.millName === 'GHUMMAN_DYEING' ? 'Ghumman Dyeing' : 'Rajput Dyeing'}
+              {batch.millName === 'GHUMMAN_DYEING'
+                ? 'Ghumman Dyeing'
+                : batch.millName === 'RAJPUT_DYEING'
+                ? 'Rajput Dyeing'
+                : batch.millName === 'HAFIZ_SAAD_DYEING'
+                ? 'Hafiz Saad Dyeing'
+                : batch.millName === 'HB_DYEING'
+                ? 'HB Dyeing'
+                : (batch.customMillName || 'Other Mill')}
             </div>
           </div>
           <div>

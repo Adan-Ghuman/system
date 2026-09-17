@@ -27,6 +27,7 @@ export const queryTransactionsSchema = z.object({
   transactionType: z.enum(['OUTWARD_TO_KNITTER', 'INWARD_FROM_CLIENT']).optional(),
   yarnSpec: z.string().optional(),
   search: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()

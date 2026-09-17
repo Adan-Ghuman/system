@@ -17,6 +17,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { TransferStockModal } from '../components/TransferStockModal.js';
 import { AdjustStockModal } from '../components/AdjustStockModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDate, formatDateTime } from '../../../lib/formatters.js';
 import { exportToCsv } from '../../../lib/csvExport.js';
 import {
@@ -28,18 +29,23 @@ import {
   Wrench,
   Search,
   ArrowRight,
-  Download
+  Download,
+  ArrowUpDown,
+  Filter
 } from 'lucide-react';
 
 export function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'holdings' | 'transfers'>('holdings');
   const [selectedLocation, setSelectedLocation] = useState<InventoryLocation | 'ALL'>('ALL');
   const [selectedState, setSelectedState] = useState<FabricState | 'ALL'>('ALL');
+  const [sortBy, setSortBy] = useState<'latest' | 'fabricType' | 'weight_desc' | 'rolls_desc'>('latest');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
   const [transfersSearchTerm, setTransfersSearchTerm] = useState('');
+  const [transferFromLocation, setTransferFromLocation] = useState<string>('ALL');
+  const [transferSortOrder, setTransferSortOrder] = useState<'desc' | 'asc'>('desc');
   const [transfersPage, setTransfersPage] = useState(1);
   const [transfersLimit, setTransfersLimit] = useState(20);
 
@@ -52,11 +58,11 @@ export function InventoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [selectedLocation, selectedState, debouncedSearchTerm]);
+  }, [selectedLocation, selectedState, sortBy, debouncedSearchTerm]);
 
   useEffect(() => {
     setTransfersPage(1);
-  }, [debouncedTransfersSearchTerm]);
+  }, [transferFromLocation, transferSortOrder, debouncedTransfersSearchTerm]);
 
   const { data: stockData, isLoading: isStockLoading, refetch: refetchStock } = useQuery<{
     items: FabricInventoryItem[];
@@ -65,9 +71,9 @@ export function InventoryPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['inventory-items', selectedLocation, selectedState, debouncedSearchTerm, page, limit],
+    queryKey: ['inventory-items', selectedLocation, selectedState, sortBy, debouncedSearchTerm, page, limit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number> = { page, limit, sortBy };
       if (selectedLocation !== 'ALL') {
         params.location = selectedLocation;
       }
@@ -96,9 +102,16 @@ export function InventoryPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['inventory-transfers', debouncedTransfersSearchTerm, transfersPage, transfersLimit],
+    queryKey: ['inventory-transfers', transferFromLocation, transferSortOrder, debouncedTransfersSearchTerm, transfersPage, transfersLimit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page: transfersPage, limit: transfersLimit };
+      const params: Record<string, string | number> = {
+        page: transfersPage,
+        limit: transfersLimit,
+        sortOrder: transferSortOrder
+      };
+      if (transferFromLocation !== 'ALL') {
+        params.fromLocation = transferFromLocation;
+      }
       if (debouncedTransfersSearchTerm.trim()) {
         params.search = debouncedTransfersSearchTerm.trim();
       }
@@ -191,26 +204,26 @@ export function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Boxes className="w-5 h-5 text-emerald-500" />
-            Fabric Stock & Warehouse
+            <Boxes className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>Fabric Stock & Warehouse</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Live stock of finished dyed fabric and raw grey rolls across ZR Godown and partner mills.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCsv} title="Download CSV spreadsheet" className="gap-1.5">
+        <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0 pb-1">
+          <Button variant="outline" size="sm" onClick={handleExportCsv} title="Download CSV spreadsheet" className="gap-1.5 whitespace-nowrap shrink-0">
             <Download className="w-3.5 h-3.5" />
-            Export CSV
+            <span>Export CSV</span>
           </Button>
 
-          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh inventory">
+          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh inventory" className="gap-1 px-2.5 whitespace-nowrap shrink-0">
             <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+            <span>Refresh</span>
           </Button>
 
           <Button
@@ -219,20 +232,20 @@ export function InventoryPage() {
               setSelectedItemForTransfer(null);
               setIsTransferOpen(true);
             }}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap shrink-0"
           >
             <ArrowRightLeft className="w-4 h-4" />
-            Move Fabric Between Locations
+            <span>Move Fabric</span>
           </Button>
 
           <Button
             size="sm"
             variant="secondary"
             onClick={() => setIsAdjustOpen(true)}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap shrink-0"
           >
             <Wrench className="w-4 h-4" />
-            Add / Adjust Stock
+            <span>Add / Adjust Stock</span>
           </Button>
         </div>
       </div>
@@ -361,19 +374,36 @@ export function InventoryPage() {
               ))}
             </div>
 
-            <div className="w-full md:w-64 relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search fabric, spec, color..."
-                className="pl-9 h-9 text-xs"
-              />
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'latest' | 'fabricType' | 'weight_desc' | 'rolls_desc')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort stock holdings"
+                >
+                  <option value="latest" className="bg-zinc-900 text-zinc-200">Sort: Latest Updated (Default)</option>
+                  <option value="fabricType" className="bg-zinc-900 text-zinc-200">Sort: Fabric Variety (A-Z)</option>
+                  <option value="weight_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Weight (Kg)</option>
+                  <option value="rolls_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Rolls Count</option>
+                </select>
+              </div>
+
+              <div className="w-full sm:w-64 relative">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search fabric, spec, color..."
+                  className="pl-9 h-9 text-xs"
+                />
+              </div>
             </div>
           </div>
 
           <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-            <div className="overflow-x-auto">
+            <ScrollableTable>
               <table className="w-full text-left text-xs">
                 <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                   <tr>
@@ -488,7 +518,7 @@ export function InventoryPage() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTable>
             <PaginationControls
               page={page}
               totalPages={stockData?.totalPages || 1}
@@ -503,18 +533,52 @@ export function InventoryPage() {
 
       {activeTab === 'transfers' && (
         <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="p-3 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between gap-3">
-            <div className="relative max-w-sm w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+              {/* Origin Location Filter */}
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                <select
+                  value={transferFromLocation}
+                  onChange={(e) => setTransferFromLocation(e.target.value)}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Origin location"
+                >
+                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Locations</option>
+                  <option value="ZR_GODOWN" className="bg-zinc-900 text-zinc-200">ZR Godown</option>
+                  <option value="GHUMMAN_DYEING" className="bg-zinc-900 text-zinc-200">Ghumman Mill</option>
+                  <option value="RAJPUT_DYEING" className="bg-zinc-900 text-zinc-200">Rajput Mill</option>
+                  <option value="HAFIZ_SAAD_DYEING" className="bg-zinc-900 text-zinc-200">Hafiz Saad Mill</option>
+                  <option value="HB_DYEING" className="bg-zinc-900 text-zinc-200">HB Dyeing Mill</option>
+                </select>
+              </div>
+
+              {/* Sort Order Dropdown (Latest First Default) */}
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={transferSortOrder}
+                  onChange={(e) => setTransferSortOrder(e.target.value as 'desc' | 'asc')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort order"
+                >
+                  <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
+                  <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
               <Input
-                placeholder="Search transfer #, fabric, color, vehicle..."
+                placeholder="Search transfer #, fabric, color, driver..."
                 value={transfersSearchTerm}
                 onChange={(e) => setTransfersSearchTerm(e.target.value)}
                 className="pl-9 h-9 text-xs"
               />
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <ScrollableTable>
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
@@ -582,7 +646,7 @@ export function InventoryPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
           <PaginationControls
             page={transfersPage}
             totalPages={transfersData?.totalPages || 1}

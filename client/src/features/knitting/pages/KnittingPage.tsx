@@ -12,7 +12,9 @@ import { IssueYarnModal } from '../components/IssueYarnModal.js';
 import { ReceiveKnittedModal } from '../components/ReceiveKnittedModal.js';
 import { EditYarnTransactionModal } from '../components/EditYarnTransactionModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
+import { downloadExcelReport } from '../../../lib/reportExport.js';
 import {
   Layers,
   RefreshCw,
@@ -23,11 +25,15 @@ import {
   Sparkles,
   Inbox,
   Search,
-  Edit
+  Edit,
+  FileSpreadsheet,
+  ArrowUpDown,
+  Filter
 } from 'lucide-react';
 
 export function KnittingPage() {
   const [activeTab, setActiveTab] = useState<'balances' | 'transactions'>('balances');
+  const [isExportingKnitting, setIsExportingKnitting] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [issueType, setIssueType] = useState<YarnTransactionType>('OUTWARD_TO_KNITTER');
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
@@ -35,7 +41,15 @@ export function KnittingPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<YarnTransactionItem | null>(null);
 
+  // Balances Tab Filters & Sort
+  const [balanceSearchTerm, setBalanceSearchTerm] = useState('');
+  const [balanceStatusFilter, setBalanceStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CLEARED'>('ALL');
+  const [balanceSortBy, setBalanceSortBy] = useState<'latest' | 'name' | 'remaining_desc'>('latest');
+
+  // Transactions Tab Filters & Sort (Latest Date First Default)
   const [searchTerm, setSearchTerm] = useState('');
+  const [txTypeFilter, setTxTypeFilter] = useState<'ALL' | 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT'>('ALL');
+  const [txSortOrder, setTxSortOrder] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
@@ -43,7 +57,7 @@ export function KnittingPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchTerm]);
+  }, [txTypeFilter, txSortOrder, debouncedSearchTerm]);
 
   const { data: balances = [], isLoading: isBalancesLoading, refetch: refetchBalances } = useQuery<KnitterBalanceSummary[]>({
     queryKey: ['knitter-balances'],
@@ -60,9 +74,12 @@ export function KnittingPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['yarn-transactions', debouncedSearchTerm, page, limit],
+    queryKey: ['yarn-transactions', txTypeFilter, txSortOrder, debouncedSearchTerm, page, limit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number> = { page, limit, sortOrder: txSortOrder };
+      if (txTypeFilter !== 'ALL') {
+        params.transactionType = txTypeFilter;
+      }
       if (debouncedSearchTerm.trim()) {
         params.search = debouncedSearchTerm.trim();
       }
@@ -107,23 +124,72 @@ export function KnittingPage() {
     };
   }, [balances]);
 
+  const filteredBalances = useMemo(() => {
+    let list = [...balances];
+    if (balanceSearchTerm.trim()) {
+      const q = balanceSearchTerm.trim().toLowerCase();
+      list = list.filter(
+        (b) =>
+          b.partyName.toLowerCase().includes(q) ||
+          b.partyCode.toLowerCase().includes(q) ||
+          b.yarnSpec.toLowerCase().includes(q)
+      );
+    }
+    if (balanceStatusFilter === 'ACTIVE') {
+      list = list.filter((b) => b.remainingYarnKg > 0);
+    } else if (balanceStatusFilter === 'CLEARED') {
+      list = list.filter((b) => b.remainingYarnKg <= 0);
+    }
+
+    if (balanceSortBy === 'name') {
+      list.sort((a, b) => a.partyName.localeCompare(b.partyName));
+    } else if (balanceSortBy === 'remaining_desc') {
+      list.sort((a, b) => b.remainingYarnKg - a.remainingYarnKg);
+    } else {
+      list.sort((a, b) => new Date(b.lastDate || 0).getTime() - new Date(a.lastDate || 0).getTime());
+    }
+    return list;
+  }, [balances, balanceSearchTerm, balanceStatusFilter, balanceSortBy]);
+
+  async function handleExportKnittingExcel() {
+    setIsExportingKnitting(true);
+    try {
+      await downloadExcelReport('/reports/knitting-yarn/excel', 'Knitting_Yarn_Stock_Report.xlsx');
+    } catch (err) {
+      console.error('Failed to export knitting yarn report:', err);
+    } finally {
+      setIsExportingKnitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-emerald-500" />
-            Yarn Job-Work & Knitting Operations
+            <Layers className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>Yarn Job-Work & Knitting Operations</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Two-way contract knitter management with automated 1.0% wastage math and live remaining yarn tracking.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh records">
+        <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0 pb-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportKnittingExcel}
+            disabled={isExportingKnitting}
+            className="gap-1.5 whitespace-nowrap shrink-0 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{isExportingKnitting ? 'Exporting...' : 'Yarn Stock Report (.xlsx)'}</span>
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh records" className="gap-1 px-2.5 shrink-0 whitespace-nowrap">
             <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+            <span>Refresh</span>
           </Button>
 
           <Button
@@ -132,10 +198,10 @@ export function KnittingPage() {
               setIssueType('OUTWARD_TO_KNITTER');
               setIsIssueModalOpen(true);
             }}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap shrink-0"
           >
             <ArrowUpRight className="w-4 h-4" />
-            Send Yarn to Knitter
+            <span>Send Yarn to Knitter</span>
           </Button>
 
           <Button
@@ -145,10 +211,10 @@ export function KnittingPage() {
               setSelectedBalance(null);
               setIsReceiveModalOpen(true);
             }}
-            className="gap-1.5"
+            className="gap-1.5 whitespace-nowrap shrink-0"
           >
             <PackageCheck className="w-4 h-4" />
-            Receive Knitted Fabric
+            <span>Receive Knitted Fabric</span>
           </Button>
 
           <Button
@@ -158,10 +224,10 @@ export function KnittingPage() {
               setIssueType('INWARD_FROM_CLIENT');
               setIsIssueModalOpen(true);
             }}
-            className="gap-1.5 text-zinc-300"
+            className="gap-1.5 text-zinc-300 whitespace-nowrap shrink-0"
           >
             <ArrowDownLeft className="w-4 h-4" />
-            Receive Outside Yarn
+            <span>Receive Outside Yarn</span>
           </Button>
         </div>
       </div>
@@ -246,7 +312,49 @@ export function KnittingPage() {
 
       {activeTab === 'balances' && (
         <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                <select
+                  value={balanceStatusFilter}
+                  onChange={(e) => setBalanceStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'CLEARED')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Filter balances"
+                >
+                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Knitter Balances</option>
+                  <option value="ACTIVE" className="bg-zinc-900 text-zinc-200">Active (Yarn Left &gt; 0)</option>
+                  <option value="CLEARED" className="bg-zinc-900 text-zinc-200">Settled / Cleared (0 Kg)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={balanceSortBy}
+                  onChange={(e) => setBalanceSortBy(e.target.value as 'latest' | 'name' | 'remaining_desc')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort balances"
+                >
+                  <option value="latest" className="bg-zinc-900 text-zinc-200">Sort: Latest Activity First (Default)</option>
+                  <option value="name" className="bg-zinc-900 text-zinc-200">Sort: Knitter Name (A-Z)</option>
+                  <option value="remaining_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Remaining Yarn</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <Input
+                placeholder="Search knitter, code, spec..."
+                value={balanceSearchTerm}
+                onChange={(e) => setBalanceSearchTerm(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <ScrollableTable>
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
@@ -264,15 +372,15 @@ export function KnittingPage() {
               <tbody className="divide-y divide-zinc-800/60">
                 {isBalancesLoading ? (
                   <LoadingState isTableRow colSpan={9} message="Loading knitter yarn balances..." />
-                ) : balances.length === 0 ? (
+                ) : filteredBalances.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-12 text-center text-zinc-500">
                       <Inbox className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
-                      No active knitter yarn balances. Issue yarn outward to populate this ledger.
+                      No knitter yarn balances matching the current filters.
                     </td>
                   </tr>
                 ) : (
-                  balances.map((b) => {
+                  filteredBalances.map((b) => {
                     const percent = b.totalExpectedKg > 0
                       ? Math.min(100, Math.round((b.totalReceivedKg / b.totalExpectedKg) * 100))
                       : 0;
@@ -290,7 +398,7 @@ export function KnittingPage() {
                           {formatDateTime(b.lastDate, true)}
                         </td>
 
-                        <td className="py-2.5 px-3 font-mono font-medium text-emerald-400 whitespace-nowrap">
+                        <td className="py-2.5 px-3 font-mono text-emerald-400 font-medium whitespace-nowrap">
                           {b.yarnSpec}
                         </td>
 
@@ -298,7 +406,7 @@ export function KnittingPage() {
                           {formatWeight(b.totalGrossKg)}
                         </td>
 
-                        <td className="py-2.5 px-3 text-right font-mono text-purple-300 whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-right font-mono text-zinc-300 whitespace-nowrap">
                           {formatWeight(b.totalExpectedKg)}
                         </td>
 
@@ -306,27 +414,26 @@ export function KnittingPage() {
                           {formatWeight(b.totalReceivedKg)}
                         </td>
 
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
-                          {formatWeight(b.remainingYarnKg)}
+                        <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                          <span className={b.remainingYarnKg > 0 ? 'text-amber-400 font-bold' : 'text-zinc-500'}>
+                            {formatWeight(b.remainingYarnKg)}
+                          </span>
                         </td>
 
-                        <td className="py-2.5 px-3 whitespace-nowrap min-w-[140px]">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <div className="w-20 bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full transition-all ${
-                                  percent >= 100 ? 'bg-emerald-400' : 'bg-emerald-600'
-                                }`}
+                                className={`h-full ${percent >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
                                 style={{ width: `${percent}%` }}
                               />
                             </div>
-                            <span className="font-mono text-[11px] font-bold text-zinc-200">{percent}%</span>
+                            <span className="text-[10px] font-mono text-zinc-400">{percent}%</span>
                           </div>
                         </td>
 
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
                           <Button
-                            variant="secondary"
                             size="sm"
                             onClick={() => {
                               setSelectedBalance(b);
@@ -343,15 +450,44 @@ export function KnittingPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
         </Card>
       )}
 
       {activeTab === 'transactions' && (
         <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="p-3 border-b border-zinc-800 bg-zinc-950/40 flex items-center justify-between gap-3">
-            <div className="relative max-w-sm w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                <select
+                  value={txTypeFilter}
+                  onChange={(e) => setTxTypeFilter(e.target.value as 'ALL' | 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Filter transaction type"
+                >
+                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Movement Types</option>
+                  <option value="OUTWARD_TO_KNITTER" className="bg-zinc-900 text-zinc-200">Outward to Knitter</option>
+                  <option value="INWARD_FROM_CLIENT" className="bg-zinc-900 text-zinc-200">Inward from Client</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={txSortOrder}
+                  onChange={(e) => setTxSortOrder(e.target.value as 'desc' | 'asc')}
+                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+                  title="Sort order"
+                >
+                  <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
+                  <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
               <Input
                 placeholder="Search gate pass, spec, remarks..."
                 value={searchTerm}
@@ -360,7 +496,7 @@ export function KnittingPage() {
               />
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <ScrollableTable>
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
                 <tr>
@@ -463,7 +599,7 @@ export function KnittingPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
           <PaginationControls
             page={page}
             totalPages={txData?.totalPages || 1}

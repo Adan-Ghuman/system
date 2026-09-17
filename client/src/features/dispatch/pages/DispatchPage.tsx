@@ -10,7 +10,9 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { CreateDispatchModal } from '../components/CreateDispatchModal.js';
 import { PrintDocumentModal } from '../../export/components/PrintDocumentModal.js';
+import { GatePassRegisterModal } from '../../reports/components/GatePassRegisterModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
+import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatCurrency, formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import {
   Truck,
@@ -20,21 +22,28 @@ import {
   FileCheck,
   Search,
   Inbox,
-  Printer
+  Printer,
+  FileText,
+  ArrowUpDown,
+  Filter
 } from 'lucide-react';
 
 export function DispatchPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [fromLocation, setFromLocation] = useState<string>('ALL');
+  const [invoiceType, setInvoiceType] = useState<string>('ALL');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [printDoc, setPrintDoc] = useState<{ type: 'OGP' | 'INVOICE'; dispatch: DispatchItem } | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearchTerm]);
+  }, [fromLocation, invoiceType, sortOrder, debouncedSearchTerm]);
 
   const { data, isLoading, refetch } = useQuery<{
     items: DispatchItem[];
@@ -43,9 +52,15 @@ export function DispatchPage() {
     limit: number;
     totalPages: number;
   }>({
-    queryKey: ['dispatches', debouncedSearchTerm, page, limit],
+    queryKey: ['dispatches', fromLocation, invoiceType, sortOrder, debouncedSearchTerm, page, limit],
     queryFn: async () => {
-      const params: Record<string, string | number> = { page, limit };
+      const params: Record<string, string | number> = { page, limit, sortOrder };
+      if (fromLocation !== 'ALL') {
+        params.fromLocation = fromLocation;
+      }
+      if (invoiceType !== 'ALL') {
+        params.invoiceType = invoiceType;
+      }
       if (debouncedSearchTerm.trim()) {
         params.search = debouncedSearchTerm.trim();
       }
@@ -86,23 +101,33 @@ export function DispatchPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Truck className="w-5 h-5 text-emerald-500" />
-            Deliveries, Gate Passes & Invoices
+            <Truck className="w-5 h-5 text-emerald-500 shrink-0" />
+            <span>Deliveries, Gate Passes & Invoices</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Create delivery gate passes (OGP), automatically deduct stock, and print bills or 18% GST invoices.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh dispatches">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsRegisterModalOpen(true)}
+            className="gap-1.5 whitespace-nowrap shrink-0 text-blue-400 border-blue-900/50 hover:bg-blue-950/40"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>OGP / IGP Registers</span>
           </Button>
 
-          <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh dispatches" className="gap-1 whitespace-nowrap shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 whitespace-nowrap shrink-0">
             <Plus className="w-4 h-4" />
-            New Delivery (Gate Pass & Bill)
+            <span>New Delivery (Gate Pass & Bill)</span>
           </Button>
         </div>
       </div>
@@ -160,24 +185,68 @@ export function DispatchPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-        <div className="text-xs font-semibold text-zinc-300">
-          Delivery & Gate Pass History ({dispatches.length})
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto">
+          {/* Location Filter */}
+          <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+            <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+            <select
+              value={fromLocation}
+              onChange={(e) => setFromLocation(e.target.value)}
+              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+              title="Origin warehouse / mill"
+            >
+              <option value="ALL" className="bg-zinc-900 text-zinc-200">All Locations</option>
+              <option value="ZR_GODOWN" className="bg-zinc-900 text-zinc-200">ZR Godown (Main)</option>
+              <option value="GHUMMAN_DYEING" className="bg-zinc-900 text-zinc-200">Ghumman Dyeing</option>
+              <option value="RAJPUT_DYEING" className="bg-zinc-900 text-zinc-200">Rajput Dyeing</option>
+              <option value="HAFIZ_SAAD_DYEING" className="bg-zinc-900 text-zinc-200">Hafiz Saad Dyeing</option>
+              <option value="HB_DYEING" className="bg-zinc-900 text-zinc-200">HB Dyeing</option>
+            </select>
+          </div>
+
+          {/* Invoice / Dispatch Type */}
+          <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+            <select
+              value={invoiceType}
+              onChange={(e) => setInvoiceType(e.target.value)}
+              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+              title="Tax invoice type"
+            >
+              <option value="ALL" className="bg-zinc-900 text-zinc-200">All Tax Types</option>
+              <option value="TAX_18_PERCENT" className="bg-zinc-900 text-zinc-200">18% GST (Tax Invoice)</option>
+              <option value="NON_GST" className="bg-zinc-900 text-zinc-200">Non-GST (Commercial)</option>
+            </select>
+          </div>
+
+          {/* Sort By Dropdown (Latest First is Default) */}
+          <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
+            <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
+              title="Sort order"
+            >
+              <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
+              <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
+            </select>
+          </div>
         </div>
 
-        <div className="w-full md:w-72 relative">
+        <div className="w-full lg:w-72 relative">
           <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search dispatch, OGP, invoice, buyer..."
+            placeholder="Search dispatch, OGP, buyer, fabric..."
             className="pl-9 h-9 text-xs"
           />
         </div>
       </div>
 
       <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
               <tr>
@@ -309,7 +378,7 @@ export function DispatchPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
         <PaginationControls
           page={page}
           totalPages={data?.totalPages || 1}
@@ -331,6 +400,12 @@ export function DispatchPage() {
         onClose={() => setPrintDoc(null)}
         type={printDoc?.type || 'OGP'}
         dispatch={printDoc?.dispatch || null}
+      />
+
+      <GatePassRegisterModal
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        defaultType="OGP"
       />
     </div>
   );

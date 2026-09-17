@@ -39,6 +39,8 @@ export const updatePartySchema = z.object({
 export const queryPartiesSchema = z.object({
   search: z.string().optional(),
   tag: z.enum(['isYarnClient', 'isKnitter', 'isFabricBuyer', 'isDyeingMill']).optional(),
+  sortBy: z.enum(['latest', 'oldest', 'code', 'name', 'balance_desc', 'balance_asc']).optional().default('latest'),
+  balanceFilter: z.enum(['all', 'receivable', 'payable', 'zero']).optional().default('all'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()

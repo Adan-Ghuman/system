@@ -12,8 +12,10 @@ export const createBatchSchema = z.object({
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum,
   millPartyId: z.string().optional(),
+  customMillName: z.string().trim().optional().default(''),
   fabricType: z.string().min(1, 'Fabric type is required').trim(),
-  yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
+  yarnSpec: z.string().trim().optional(),
+  yarnSpecs: z.array(z.string().trim()).optional(),
   targetColor: z.string().min(1, 'Target color is required').trim().toUpperCase(),
   ogpNo: z.string().optional().default(''),
   igpNo: z.string().optional().default(''),
@@ -22,7 +24,10 @@ export const createBatchSchema = z.object({
   ecruWeightKg: z.number().positive('Ecru weight must be positive'),
   allocatedCustomerId: z.string().optional(),
   remarks: z.string().optional().default('')
-});
+}).refine(
+  (data) => (data.yarnSpec && data.yarnSpec.length > 0) || (data.yarnSpecs && data.yarnSpecs.length > 0),
+  { message: 'At least one yarn specification is required', path: ['yarnSpec'] }
+);
 
 export const settleBatchSchema = z.object({
   finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
@@ -36,8 +41,10 @@ export const updateBatchSchema = z.object({
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum.optional(),
   millPartyId: z.string().optional(),
+  customMillName: z.string().trim().optional(),
   fabricType: z.string().min(1).trim().optional(),
-  yarnSpec: z.string().min(1).trim().optional(),
+  yarnSpec: z.string().trim().optional(),
+  yarnSpecs: z.array(z.string().trim()).optional(),
   targetColor: z.string().min(1).trim().toUpperCase().optional(),
   ogpNo: z.string().optional(),
   igpNo: z.string().optional(),
@@ -55,6 +62,7 @@ export const queryBatchesSchema = z.object({
   status: z.enum(['ISSUED', 'IN_PROCESS', 'COMPLETED', 'ACTIVE']).optional(),
   fabricType: z.string().optional(),
   search: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()

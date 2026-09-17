@@ -56,13 +56,17 @@ export const queryInventorySchema = z.object({
   fabricType: z.string().optional(),
   color: z.string().optional(),
   search: z.string().optional(),
+  sortBy: z.enum(['latest', 'fabricType', 'weight_desc', 'rolls_desc']).optional().default('latest'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()
 });
 
 export const queryTransfersSchema = z.object({
+  fromLocation: locationEnum.optional(),
+  toLocation: locationEnum.optional(),
   search: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
   skip: z.coerce.number().optional()
