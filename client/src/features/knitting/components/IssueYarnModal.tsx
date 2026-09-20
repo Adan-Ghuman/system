@@ -7,7 +7,7 @@ import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { formatWeight } from '../../../lib/formatters.js';
 import { AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
-import { YarnTransactionType, CreateYarnTransactionPayload } from '../types/knitting.types.js';
+import { YarnTransactionType, CreateYarnTransactionPayload, YarnSpecsResponseData } from '../types/knitting.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
 
 export interface IssueYarnModalProps {
@@ -17,7 +17,7 @@ export interface IssueYarnModalProps {
   initialType?: YarnTransactionType;
 }
 
-const COMMON_YARN_SPECS = [
+const DEFAULT_YARN_SPECS = [
   '75/72 Sim',
   '100/36 Sim',
   '150/48 Rotto',
@@ -31,7 +31,7 @@ const COMMON_YARN_SPECS = [
 export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTWARD_TO_KNITTER' }: IssueYarnModalProps) {
   const [transactionType, setTransactionType] = useState<YarnTransactionType>(initialType);
   const [partyId, setPartyId] = useState('');
-  const [yarnSpec, setYarnSpec] = useState(COMMON_YARN_SPECS[0]);
+  const [yarnSpec, setYarnSpec] = useState(DEFAULT_YARN_SPECS[0]);
   const [customSpec, setCustomSpec] = useState('');
   const [gatePassNo, setGatePassNo] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -44,6 +44,28 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
   const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const { data: specsData } = useQuery<YarnSpecsResponseData>({
+    queryKey: ['yarn-specs'],
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; data: YarnSpecsResponseData }>('/knitting/yarn-specs');
+      return res.data.data;
+    },
+    enabled: isOpen
+  });
+
+  const availableSpecs = useMemo(() => {
+    if (specsData?.catalog && specsData.catalog.length > 0) {
+      return specsData.catalog.filter((s) => s.isActive).map((s) => s.name);
+    }
+    return DEFAULT_YARN_SPECS;
+  }, [specsData]);
+
+  useEffect(() => {
+    if (availableSpecs.length > 0 && !yarnSpec) {
+      setYarnSpec(availableSpecs[0]);
+    }
+  }, [availableSpecs, yarnSpec]);
 
   useEffect(() => {
     setTransactionType(initialType);
@@ -209,7 +231,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
             value={yarnSpec}
             onChange={(e) => setYarnSpec(e.target.value)}
             options={[
-              ...COMMON_YARN_SPECS.map((s) => ({ label: s, value: s })),
+              ...availableSpecs.map((s) => ({ label: s, value: s })),
               { label: 'Other / Custom Count...', value: 'OTHER' }
             ]}
           />

@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { YarnTransaction, IYarnTransaction } from '../../models/YarnTransaction.js';
+import { YarnSpecification, IYarnSpecification, DEFAULT_YARN_SPECIFICATIONS } from '../../models/YarnSpecification.js';
 import { Party } from '../../models/Party.js';
 import { NotFoundError, BadRequestError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult } from '../../utils/pagination.js';
@@ -7,7 +8,10 @@ import {
   CreateYarnTransactionInput,
   UpdateYarnTransactionInput,
   ReceiveFabricInput,
-  QueryTransactionsInput
+  QueryTransactionsInput,
+  CreateYarnSpecInput,
+  UpdateYarnSpecInput,
+  BulkRenameYarnSpecInput
 } from './knitting.schema.js';
 
 export function calculateYarnMetrics(boxCount: number, netWeightPerBox: number, wastagePercent = 1.0) {
@@ -274,5 +278,261 @@ export async function deleteYarnTransaction(id: string): Promise<void> {
   }
 
   await YarnTransaction.findByIdAndDelete(id);
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export async function ensureDefaultYarnSpecs(): Promise<void> {
+  const count = await YarnSpecification.countDocuments();
+  if (count === 0) {
+    await YarnSpecification.insertMany(DEFAULT_YARN_SPECIFICATIONS);
+  }
+}
+
+export interface YarnSpecWithUsage {
+  _id: string;
+  name: string;
+  category: string;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+  transactionCount: number;
+  totalGrossKg: number;
+  remainingYarnKg: number;
+  partiesCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InUseUncatalogedSpec {
+  yarnSpec: string;
+  transactionCount: number;
+  totalGrossKg: number;
+  remainingYarnKg: number;
+  partiesCount: number;
+}
+
+export async function getYarnSpecificationsWithUsage(): Promise<{
+  catalog: YarnSpecWithUsage[];
+  uncataloged: InUseUncatalogedSpec[];
+}> {
+  await ensureDefaultYarnSpecs();
+
+  const [catalogDocs, txMetrics] = await Promise.all([
+    YarnSpecification.find().sort({ sortOrder: 1, name: 1 }),
+    YarnTransaction.aggregate([
+      {
+        $group: {
+          _id: '$yarnSpec',
+          transactionCount: { $sum: 1 },
+          totalGrossKg: { $sum: '$grossWeightKg' },
+          remainingYarnKg: { $sum: '$remainingYarnBalanceKg' },
+          uniqueParties: { $addToSet: '$partyId' }
+        }
+      }
+    ])
+  ]);
+
+  // Create lookup map for transaction metrics by normalized (trimmed lowercase) spec name
+  const metricsMap = new Map<
+    string,
+    {
+      rawName: string;
+      transactionCount: number;
+      totalGrossKg: number;
+      remainingYarnKg: number;
+      partiesCount: number;
+    }
+  >();
+
+  for (const item of txMetrics) {
+    if (typeof item._id === 'string' && item._id.trim()) {
+      const key = item._id.trim().toLowerCase();
+      metricsMap.set(key, {
+        rawName: item._id,
+        transactionCount: item.transactionCount || 0,
+        totalGrossKg: Math.round((item.totalGrossKg || 0) * 100) / 100,
+        remainingYarnKg: Math.round((item.remainingYarnKg || 0) * 100) / 100,
+        partiesCount: Array.isArray(item.uniqueParties) ? item.uniqueParties.length : 0
+      });
+    }
+  }
+
+  const catalogNamesLower = new Set<string>();
+
+  const catalog: YarnSpecWithUsage[] = catalogDocs.map((doc) => {
+    const key = doc.name.trim().toLowerCase();
+    catalogNamesLower.add(key);
+    const metric = metricsMap.get(key);
+
+    return {
+      _id: doc._id.toString(),
+      name: doc.name,
+      category: doc.category,
+      description: doc.description || '',
+      isActive: doc.isActive,
+      sortOrder: doc.sortOrder || 0,
+      transactionCount: metric?.transactionCount || 0,
+      totalGrossKg: metric?.totalGrossKg || 0,
+      remainingYarnKg: metric?.remainingYarnKg || 0,
+      partiesCount: metric?.partiesCount || 0,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt
+    };
+  });
+
+  // Find uncataloged specs present in transactions
+  const uncataloged: InUseUncatalogedSpec[] = [];
+  for (const [key, metric] of metricsMap.entries()) {
+    if (!catalogNamesLower.has(key)) {
+      uncataloged.push({
+        yarnSpec: metric.rawName,
+        transactionCount: metric.transactionCount,
+        totalGrossKg: metric.totalGrossKg,
+        remainingYarnKg: metric.remainingYarnKg,
+        partiesCount: metric.partiesCount
+      });
+    }
+  }
+
+  uncataloged.sort((a, b) => b.transactionCount - a.transactionCount);
+
+  return { catalog, uncataloged };
+}
+
+export async function createYarnSpecification(input: CreateYarnSpecInput): Promise<IYarnSpecification> {
+  const existing = await YarnSpecification.findOne({
+    name: { $regex: new RegExp(`^${escapeRegex(input.name.trim())}$`, 'i') }
+  });
+
+  if (existing) {
+    throw new BadRequestError(`Yarn specification '${input.name}' already exists in catalog.`);
+  }
+
+  const spec = await YarnSpecification.create({
+    name: input.name.trim(),
+    category: input.category || 'Polyester',
+    description: input.description || '',
+    isActive: input.isActive !== undefined ? input.isActive : true,
+    sortOrder: input.sortOrder || 0
+  });
+
+  return spec;
+}
+
+export async function updateYarnSpecification(
+  id: string,
+  input: UpdateYarnSpecInput
+): Promise<{ spec: IYarnSpecification; transactionsUpdated: number }> {
+  const spec = await YarnSpecification.findById(id);
+  if (!spec) {
+    throw new NotFoundError('Yarn specification not found');
+  }
+
+  const oldName = spec.name;
+  let transactionsUpdated = 0;
+
+  if (input.name && input.name.trim().toLowerCase() !== oldName.toLowerCase()) {
+    const existingOther = await YarnSpecification.findOne({
+      _id: { $ne: spec._id },
+      name: { $regex: new RegExp(`^${escapeRegex(input.name.trim())}$`, 'i') }
+    });
+
+    if (existingOther) {
+      throw new BadRequestError(`Another yarn specification already uses the name '${input.name}'.`);
+    }
+
+    spec.name = input.name.trim();
+
+    if (input.propagateToTransactions) {
+      const result = await YarnTransaction.updateMany(
+        { yarnSpec: oldName },
+        { $set: { yarnSpec: input.name.trim() } }
+      );
+      transactionsUpdated = result.modifiedCount;
+    }
+  } else if (input.name) {
+    spec.name = input.name.trim();
+  }
+
+  if (input.category !== undefined) spec.category = input.category;
+  if (input.description !== undefined) spec.description = input.description;
+  if (input.isActive !== undefined) spec.isActive = input.isActive;
+  if (input.sortOrder !== undefined) spec.sortOrder = input.sortOrder;
+
+  await spec.save();
+
+  return { spec, transactionsUpdated };
+}
+
+export async function deleteYarnSpecification(
+  id: string
+): Promise<{ deactivated: boolean; message: string }> {
+  const spec = await YarnSpecification.findById(id);
+  if (!spec) {
+    throw new NotFoundError('Yarn specification not found');
+  }
+
+  const inUseCount = await YarnTransaction.countDocuments({ yarnSpec: spec.name });
+  if (inUseCount > 0) {
+    spec.isActive = false;
+    await spec.save();
+    return {
+      deactivated: true,
+      message: `Specification '${spec.name}' is referenced in ${inUseCount} transaction(s). It has been archived / deactivated from future dropdowns.`
+    };
+  }
+
+  await YarnSpecification.findByIdAndDelete(id);
+  return {
+    deactivated: false,
+    message: `Specification '${spec.name}' has been permanently deleted from the catalog.`
+  };
+}
+
+export async function bulkRenameYarnSpecInTransactions(
+  input: BulkRenameYarnSpecInput
+): Promise<{ modifiedCount: number; oldSpec: string; newSpec: string; catalogCreated: boolean }> {
+  const oldSpec = input.oldSpec.trim();
+  const newSpec = input.newSpec.trim();
+
+  if (oldSpec.toLowerCase() === newSpec.toLowerCase()) {
+    throw new BadRequestError('Old and new specification names cannot be identical.');
+  }
+
+  const count = await YarnTransaction.countDocuments({ yarnSpec: oldSpec });
+  if (count === 0) {
+    throw new NotFoundError(`No yarn transactions found with specification '${oldSpec}'.`);
+  }
+
+  const result = await YarnTransaction.updateMany(
+    { yarnSpec: oldSpec },
+    { $set: { yarnSpec: newSpec } }
+  );
+
+  let catalogCreated = false;
+  if (input.addToCatalogIfMissing) {
+    const existing = await YarnSpecification.findOne({
+      name: { $regex: new RegExp(`^${escapeRegex(newSpec)}$`, 'i') }
+    });
+    if (!existing) {
+      await YarnSpecification.create({
+        name: newSpec,
+        category: input.category || 'Polyester',
+        description: `Imported from bulk rename of '${oldSpec}'`,
+        isActive: true
+      });
+      catalogCreated = true;
+    }
+  }
+
+  return {
+    modifiedCount: result.modifiedCount,
+    oldSpec,
+    newSpec,
+    catalogCreated
+  };
 }
 

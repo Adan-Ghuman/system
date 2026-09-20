@@ -71,3 +71,57 @@ export interface UpdateYarnTransactionPayload {
   remarks?: string;
 }
 
+export type YarnCategory = 'Polyester' | 'Cotton' | 'Spandex' | 'Blended' | 'Viscose' | 'Other';
+
+export interface YarnSpecificationItem {
+  _id: string;
+  name: string;
+  category: YarnCategory;
+  description?: string;
+  isActive: boolean;
+  sortOrder: number;
+  transactionCount: number;
+  totalGrossKg: number;
+  remainingYarnKg: number;
+  partiesCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InUseUncatalogedSpec {
+  yarnSpec: string;
+  transactionCount: number;
+  totalGrossKg: number;
+  remainingYarnKg: number;
+  partiesCount: number;
+}
+
+export interface YarnSpecsResponseData {
+  catalog: YarnSpecificationItem[];
+  uncataloged: InUseUncatalogedSpec[];
+}
+
+export interface CreateYarnSpecPayload {
+  name: string;
+  category?: YarnCategory;
+  description?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateYarnSpecPayload {
+  name?: string;
+  category?: YarnCategory;
+  description?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  propagateToTransactions?: boolean;
+}
+
+export interface BulkRenameYarnSpecPayload {
+  oldSpec: string;
+  newSpec: string;
+  addToCatalogIfMissing?: boolean;
+  category?: YarnCategory;
+}
+

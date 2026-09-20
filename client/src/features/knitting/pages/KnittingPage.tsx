@@ -1,7 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
-import { YarnTransactionItem, KnitterBalanceSummary, YarnTransactionType } from '../types/knitting.types.js';
+import {
+  YarnTransactionItem,
+  KnitterBalanceSummary,
+  YarnTransactionType,
+  YarnSpecsResponseData
+} from '../types/knitting.types.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Badge } from '../../../components/ui/Badge.js';
@@ -11,6 +16,7 @@ import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueYarnModal } from '../components/IssueYarnModal.js';
 import { ReceiveKnittedModal } from '../components/ReceiveKnittedModal.js';
 import { EditYarnTransactionModal } from '../components/EditYarnTransactionModal.js';
+import { YarnSpecificationsTab } from '../components/YarnSpecificationsTab.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
@@ -29,11 +35,12 @@ import {
   FileSpreadsheet,
   ArrowUpDown,
   Filter,
-  X
+  X,
+  Sliders
 } from 'lucide-react';
 
 export function KnittingPage() {
-  const [activeTab, setActiveTab] = useState<'balances' | 'transactions'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'transactions' | 'specs'>('balances');
   const [isExportingKnitting, setIsExportingKnitting] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [issueType, setIssueType] = useState<YarnTransactionType>('OUTWARD_TO_KNITTER');
@@ -96,9 +103,18 @@ export function KnittingPage() {
 
   const transactions = txData?.items || [];
 
+  const { data: specsData, refetch: refetchSpecs } = useQuery<YarnSpecsResponseData>({
+    queryKey: ['yarn-specs'],
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; data: YarnSpecsResponseData }>('/knitting/yarn-specs');
+      return res.data.data;
+    }
+  });
+
   function handleRefetchAll() {
     refetchBalances();
     refetchTransactions();
+    refetchSpecs();
   }
 
   const isBalancesFiltered = Boolean(balanceSearchTerm.trim() || balanceStatusFilter !== 'ALL');
@@ -253,94 +269,98 @@ export function KnittingPage() {
         </div>
       </div>
 
-      {kpis.isFiltered && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <span className="text-zinc-300">
-              Showing Summary for:{' '}
-              <strong className="text-emerald-400 font-semibold">
-                {kpis.singlePartyName || balanceSearchTerm.trim() || 'Filtered Knitters'}
-              </strong>{' '}
-              ({kpis.itemCount} {kpis.itemCount === 1 ? 'yarn specification' : 'yarn specifications'})
-            </span>
+      {activeTab !== 'specs' && (
+        <>
+          {kpis.isFiltered && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="text-zinc-300">
+                  Showing Summary for:{' '}
+                  <strong className="text-emerald-400 font-semibold">
+                    {kpis.singlePartyName || balanceSearchTerm.trim() || 'Filtered Knitters'}
+                  </strong>{' '}
+                  ({kpis.itemCount} {kpis.itemCount === 1 ? 'yarn specification' : 'yarn specifications'})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setBalanceSearchTerm('');
+                  setBalanceStatusFilter('ALL');
+                }}
+                className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-medium whitespace-nowrap"
+              >
+                Reset to All Knitters Summary &rarr;
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-amber-500/40 shadow-sm' : 'border-amber-950/40'}`}>
+              <CardContent className="p-0">
+                <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                  <Scale className="w-3 h-3" />
+                  {kpis.isFiltered && kpis.singlePartyName ? 'Yarn Remaining' : 'Yarn Remaining at Knitters'}
+                </div>
+                <div className="text-lg font-bold font-mono text-amber-400 mt-1">
+                  {formatWeight(kpis.totalRemaining)}
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  {kpis.isFiltered
+                    ? (kpis.singlePartyName ? `For ${kpis.singlePartyName} (${kpis.itemCount} specs)` : `Across ${kpis.activeKnitterCount} filtered knitters`)
+                    : `Across ${kpis.activeKnitterCount} active contract knitters`}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
+              <CardContent className="p-0">
+                <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                  <Layers className="w-3 h-3" />
+                  Total Yarn Sent Out
+                </div>
+                <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
+                  {formatWeight(kpis.totalGross)}
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  {kpis.isFiltered
+                    ? (kpis.singlePartyName ? `All yarn issued to ${kpis.singlePartyName}` : `Issued across ${kpis.totalKnitterCount} knitters`)
+                    : 'All yarn issued to knitters'}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-purple-500/40 shadow-sm' : 'border-purple-950/40'}`}>
+              <CardContent className="p-0">
+                <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Expected Fabric (After 1% Wastage)
+                </div>
+                <div className="text-lg font-bold font-mono text-purple-400 mt-1">
+                  {formatWeight(kpis.totalExpected)}
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">Minus 1.0% standard wastage</div>
+              </CardContent>
+            </Card>
+
+            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
+              <CardContent className="p-0">
+                <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                  <PackageCheck className="w-3 h-3" />
+                  Fabric Received Back
+                </div>
+                <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
+                  {formatWeight(kpis.totalReceived)}
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  {kpis.isFiltered && kpis.singlePartyName ? `Returned from ${kpis.singlePartyName}` : 'Returned knitted rolls'}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setBalanceSearchTerm('');
-              setBalanceStatusFilter('ALL');
-            }}
-            className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-medium whitespace-nowrap"
-          >
-            Reset to All Knitters Summary &rarr;
-          </button>
-        </div>
+        </>
       )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-amber-500/40 shadow-sm' : 'border-amber-950/40'}`}>
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
-              <Scale className="w-3 h-3" />
-              {kpis.isFiltered && kpis.singlePartyName ? 'Yarn Remaining' : 'Yarn Remaining at Knitters'}
-            </div>
-            <div className="text-lg font-bold font-mono text-amber-400 mt-1">
-              {formatWeight(kpis.totalRemaining)}
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">
-              {kpis.isFiltered
-                ? (kpis.singlePartyName ? `For ${kpis.singlePartyName} (${kpis.itemCount} specs)` : `Across ${kpis.activeKnitterCount} filtered knitters`)
-                : `Across ${kpis.activeKnitterCount} active contract knitters`}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-              <Layers className="w-3 h-3" />
-              Total Yarn Sent Out
-            </div>
-            <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-              {formatWeight(kpis.totalGross)}
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">
-              {kpis.isFiltered
-                ? (kpis.singlePartyName ? `All yarn issued to ${kpis.singlePartyName}` : `Issued across ${kpis.totalKnitterCount} knitters`)
-                : 'All yarn issued to knitters'}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-purple-500/40 shadow-sm' : 'border-purple-950/40'}`}>
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Expected Fabric (After 1% Wastage)
-            </div>
-            <div className="text-lg font-bold font-mono text-purple-400 mt-1">
-              {formatWeight(kpis.totalExpected)}
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Minus 1.0% standard wastage</div>
-          </CardContent>
-        </Card>
-
-        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-              <PackageCheck className="w-3 h-3" />
-              Fabric Received Back
-            </div>
-            <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-              {formatWeight(kpis.totalReceived)}
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">
-              {kpis.isFiltered && kpis.singlePartyName ? `Returned from ${kpis.singlePartyName}` : 'Returned knitted rolls'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="flex items-center gap-1 border-b border-zinc-800 pb-2">
         <button
@@ -363,6 +383,35 @@ export function KnittingPage() {
           }`}
         >
           Yarn Movement History ({transactions.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('specs')}
+          className={`px-4 py-2 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+            activeTab === 'specs'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+          }`}
+        >
+          <Sliders className="w-3.5 h-3.5" />
+          <span>Yarn Specifications &amp; Settings</span>
+          {specsData?.catalog && (
+            <span
+              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
+                activeTab === 'specs' ? 'bg-emerald-700 text-white' : 'bg-zinc-800 text-zinc-300'
+              }`}
+            >
+              {specsData.catalog.length}
+            </span>
+          )}
+          {specsData?.uncataloged && specsData.uncataloged.length > 0 && (
+            <span
+              className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/40"
+              title={`${specsData.uncataloged.length} uncataloged specification(s) found in transactions`}
+            >
+              {specsData.uncataloged.length} alert
+            </span>
+          )}
         </button>
       </div>
 
@@ -683,6 +732,8 @@ export function KnittingPage() {
           />
         </Card>
       )}
+
+      {activeTab === 'specs' && <YarnSpecificationsTab />}
 
       <IssueYarnModal
         isOpen={isIssueModalOpen}

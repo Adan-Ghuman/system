@@ -44,8 +44,35 @@ export const updateYarnTransactionSchema = z.object({
   remarks: z.string().optional()
 });
 
+export const createYarnSpecSchema = z.object({
+  name: z.string().min(1, 'Specification name is required').trim(),
+  category: z.enum(['Polyester', 'Cotton', 'Spandex', 'Blended', 'Viscose', 'Other']).optional().default('Polyester'),
+  description: z.string().optional().default(''),
+  isActive: z.boolean().optional().default(true),
+  sortOrder: z.number().optional().default(0)
+});
+
+export const updateYarnSpecSchema = z.object({
+  name: z.string().min(1, 'Specification name cannot be empty').trim().optional(),
+  category: z.enum(['Polyester', 'Cotton', 'Spandex', 'Blended', 'Viscose', 'Other']).optional(),
+  description: z.string().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().optional(),
+  propagateToTransactions: z.boolean().optional().default(false)
+});
+
+export const bulkRenameYarnSpecSchema = z.object({
+  oldSpec: z.string().min(1, 'Old specification name is required').trim(),
+  newSpec: z.string().min(1, 'New specification name is required').trim(),
+  addToCatalogIfMissing: z.boolean().optional().default(true),
+  category: z.enum(['Polyester', 'Cotton', 'Spandex', 'Blended', 'Viscose', 'Other']).optional().default('Polyester')
+});
+
 export type CreateYarnTransactionInput = z.infer<typeof createYarnTransactionSchema>;
 export type UpdateYarnTransactionInput = z.infer<typeof updateYarnTransactionSchema>;
 export type ReceiveFabricInput = z.infer<typeof receiveFabricSchema>;
 export type QueryTransactionsInput = z.infer<typeof queryTransactionsSchema>;
+export type CreateYarnSpecInput = z.infer<typeof createYarnSpecSchema>;
+export type UpdateYarnSpecInput = z.infer<typeof updateYarnSpecSchema>;
+export type BulkRenameYarnSpecInput = z.infer<typeof bulkRenameYarnSpecSchema>;
 
