@@ -6,7 +6,8 @@ import {
   listInventoryItems,
   getInventorySummary,
   listStockTransfers,
-  generateNextTransferNo
+  generateNextTransferNo,
+  updateInventoryItem
 } from './inventory.service.js';
 
 export async function handleCreateTransfer(req: Request, res: Response): Promise<void> {
@@ -38,3 +39,10 @@ export async function handleGetNextTransferNo(_req: Request, res: Response): Pro
   const nextTransferNo = await generateNextTransferNo();
   sendSuccess(res, { nextTransferNo });
 }
+
+export async function handleUpdateInventoryItem(req: Request, res: Response): Promise<void> {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string);
+  const item = await updateInventoryItem(id, req.body);
+  sendSuccess(res, item, 'Fabric inventory updated successfully');
+}
+

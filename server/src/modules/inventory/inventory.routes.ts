@@ -5,6 +5,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import {
   createTransferSchema,
   createAdjustmentSchema,
+  updateInventoryItemSchema,
   queryInventorySchema,
   queryTransfersSchema
 } from './inventory.schema.js';
@@ -14,7 +15,8 @@ import {
   handleListInventory,
   handleGetSummary,
   handleListTransfers,
-  handleGetNextTransferNo
+  handleGetNextTransferNo,
+  handleUpdateInventoryItem
 } from './inventory.controller.js';
 
 const router = Router();
@@ -27,5 +29,6 @@ router.get('/transfers', requirePermission('inventory:read'), validateQuery(quer
 router.get('/transfers/next-no', requirePermission('inventory:read'), asyncHandler(handleGetNextTransferNo));
 router.post('/transfers', requirePermission('inventory:write'), validateBody(createTransferSchema), asyncHandler(handleCreateTransfer));
 router.post('/adjustments', requirePermission('inventory:write'), validateBody(createAdjustmentSchema), asyncHandler(handleCreateAdjustment));
+router.put('/items/:id', requirePermission('inventory:write'), validateBody(updateInventoryItemSchema), asyncHandler(handleUpdateInventoryItem));
 
 export default router;

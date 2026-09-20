@@ -7,6 +7,7 @@ import { parsePagination, formatPaginatedResult } from '../../utils/pagination.j
 import {
   CreateTransferInput,
   CreateAdjustmentInput,
+  UpdateInventoryItemInput,
   QueryInventoryInput,
   QueryTransfersInput
 } from './inventory.schema.js';
@@ -311,3 +312,50 @@ export async function listStockTransfers(query: Partial<QueryTransfersInput> = {
 
   return formatPaginatedResult(items, total, page, limit);
 }
+
+export async function updateInventoryItem(id: string, input: UpdateInventoryItemInput): Promise<IFabricInventory> {
+  const item = await FabricInventory.findById(id);
+  if (!item) {
+    throw new NotFoundError('Fabric inventory record not found');
+  }
+
+  const newFabricType = input.fabricType !== undefined ? input.fabricType.trim() : item.fabricType;
+  const newYarnSpec = input.yarnSpec !== undefined ? input.yarnSpec.trim() : item.yarnSpec;
+  const newState = input.state !== undefined ? input.state : item.state;
+  const newColor = input.color !== undefined ? input.color.trim().toUpperCase() : item.color;
+  const newLocation = input.location !== undefined ? input.location : item.location;
+  const newRolls = input.totalRolls !== undefined ? input.totalRolls : item.totalRolls;
+  const newWeight = input.totalWeightKg !== undefined ? Math.round(input.totalWeightKg * 100) / 100 : item.totalWeightKg;
+
+  // Check if target compound key already exists on a different document
+  const existingConflict = await FabricInventory.findOne({
+    _id: { $ne: item._id },
+    fabricType: newFabricType,
+    yarnSpec: newYarnSpec,
+    state: newState,
+    color: newColor,
+    location: newLocation
+  });
+
+  if (existingConflict) {
+    existingConflict.totalRolls += newRolls;
+    existingConflict.totalWeightKg = Math.round((existingConflict.totalWeightKg + newWeight) * 100) / 100;
+    existingConflict.updatedAt = new Date();
+    await existingConflict.save();
+    await item.deleteOne();
+    return existingConflict;
+  }
+
+  item.fabricType = newFabricType;
+  item.yarnSpec = newYarnSpec;
+  item.state = newState;
+  item.color = newColor;
+  item.location = newLocation;
+  item.totalRolls = newRolls;
+  item.totalWeightKg = newWeight;
+  item.updatedAt = new Date();
+  await item.save();
+
+  return item;
+}
+

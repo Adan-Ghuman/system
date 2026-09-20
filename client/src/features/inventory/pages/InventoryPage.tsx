@@ -16,6 +16,7 @@ import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { TransferStockModal } from '../components/TransferStockModal.js';
 import { AdjustStockModal } from '../components/AdjustStockModal.js';
+import { EditStockModal } from '../components/EditStockModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDate, formatDateTime } from '../../../lib/formatters.js';
@@ -31,7 +32,8 @@ import {
   ArrowRight,
   Download,
   ArrowUpDown,
-  Filter
+  Filter,
+  Edit
 } from 'lucide-react';
 
 export function InventoryPage() {
@@ -42,6 +44,9 @@ export function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+
+  const [selectedItemForEdit, setSelectedItemForEdit] = useState<FabricInventoryItem | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const [transfersSearchTerm, setTransfersSearchTerm] = useState('');
   const [transferFromLocation, setTransferFromLocation] = useState<string>('ALL');
@@ -499,18 +504,35 @@ export function InventoryPage() {
                           </td>
 
                           <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedItemForTransfer(item);
-                                setIsTransferOpen(true);
-                              }}
-                              className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
-                            >
-                              <ArrowRightLeft className="w-3 h-3" />
-                              Move Location
-                            </Button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItemForEdit(item);
+                                  setIsEditOpen(true);
+                                }}
+                                className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap text-zinc-300 hover:text-emerald-400 hover:border-emerald-500/50"
+                                title="Edit rolls, weight, color, or variety"
+                              >
+                                <Edit className="w-3 h-3" />
+                                Edit
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItemForTransfer(item);
+                                  setIsTransferOpen(true);
+                                }}
+                                className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
+                                title="Move to another location"
+                              >
+                                <ArrowRightLeft className="w-3 h-3" />
+                                Move Location
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -672,6 +694,16 @@ export function InventoryPage() {
         isOpen={isAdjustOpen}
         onClose={() => setIsAdjustOpen(false)}
         onSuccess={handleRefetchAll}
+      />
+
+      <EditStockModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setSelectedItemForEdit(null);
+        }}
+        onSuccess={handleRefetchAll}
+        item={selectedItemForEdit}
       />
     </div>
   );

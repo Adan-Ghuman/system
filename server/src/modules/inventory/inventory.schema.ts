@@ -72,7 +72,19 @@ export const queryTransfersSchema = z.object({
   skip: z.coerce.number().optional()
 });
 
+export const updateInventoryItemSchema = z.object({
+  fabricType: z.string().min(1, 'Fabric type is required').trim().optional(),
+  yarnSpec: z.string().min(1, 'Yarn spec is required').trim().optional(),
+  state: stateEnum.optional(),
+  color: z.string().min(1, 'Color is required').trim().toUpperCase().optional(),
+  location: locationEnum.optional(),
+  totalRolls: z.number().int().min(0, 'Rolls count cannot be negative').optional(),
+  totalWeightKg: z.number().min(0, 'Total weight cannot be negative').optional()
+});
+
 export type CreateTransferInput = z.infer<typeof createTransferSchema>;
 export type CreateAdjustmentInput = z.infer<typeof createAdjustmentSchema>;
+export type UpdateInventoryItemInput = z.infer<typeof updateInventoryItemSchema>;
 export type QueryInventoryInput = z.infer<typeof queryInventorySchema>;
 export type QueryTransfersInput = z.infer<typeof queryTransfersSchema>;
+

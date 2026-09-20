@@ -6,7 +6,7 @@ export const STANDARD_YARN_SPECS = [
   '150/48 Rotto',
   '100/144 Micro',
   '100/36 Sim',
-  '76/72 Sim',
+  '75/72 Sim',
   '75/36 Sim',
   '30/1 Cotton',
   '20/1 Cotton',

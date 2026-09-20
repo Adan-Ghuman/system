@@ -96,3 +96,14 @@ export interface InventorySummaryGroup {
   totalWeightKg: number;
   uniqueVarieties: number;
 }
+
+export interface UpdateFabricInventoryPayload {
+  fabricType?: string;
+  yarnSpec?: string;
+  state?: FabricState;
+  color?: string;
+  location?: InventoryLocation;
+  totalRolls?: number;
+  totalWeightKg?: number;
+}
+
