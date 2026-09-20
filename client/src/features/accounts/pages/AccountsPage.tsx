@@ -223,7 +223,7 @@ export function AccountsPage() {
             <div className="text-lg font-bold font-mono text-amber-400 mt-1">
               {formatCurrency(metrics?.totalPayables || 0)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Pending to knitters, mills & suppliers</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Pending to knitters, units & suppliers</div>
           </CardContent>
         </Card>
 

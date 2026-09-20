@@ -102,7 +102,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       }
 
       if (millName === 'OTHER' && !customMillName.trim()) {
-        throw new Error('Please specify the custom dyeing mill name');
+        throw new Error('Please specify the custom dyeing unit name');
       }
 
       const activeFabric = fabricType === 'OTHER' ? customFabricType.trim() : fabricType;
@@ -134,7 +134,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       await api.post('/dyeing/batches', payload);
 
       const millDisplay = millName === 'OTHER'
-        ? (customMillName.trim() || 'Other Mill')
+        ? (customMillName.trim() || 'Other Unit')
         : millName === 'GHUMMAN_DYEING'
         ? 'Ghumman Dyeing'
         : millName === 'RAJPUT_DYEING'

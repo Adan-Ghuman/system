@@ -271,7 +271,7 @@ export class ReportsService {
 
     const items: MasterBalanceItem[] = parties.map((p, idx) => {
       let category = 'Fabric Buyer';
-      if (p.tags?.isDyeingMill) category = 'Dyeing Mill';
+      if (p.tags?.isDyeingMill) category = 'Dyeing Unit';
       else if (p.tags?.isKnitter) category = 'Contract Knitter';
       else if (p.tags?.isYarnClient) category = 'Yarn Supplier';
 

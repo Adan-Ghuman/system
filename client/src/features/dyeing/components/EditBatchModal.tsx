@@ -156,7 +156,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
       }
 
       if (millName === 'OTHER' && !customMillName.trim()) {
-        throw new Error('Please specify the custom dyeing mill name');
+        throw new Error('Please specify the custom dyeing unit name');
       }
 
       const activeFabric = fabricType === 'OTHER' ? customFabricType.trim() : fabricType;

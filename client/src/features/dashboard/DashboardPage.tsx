@@ -136,7 +136,7 @@ export function DashboardPage() {
   const modules = [
     {
       title: 'Parties & Contacts',
-      description: 'Manage Yarn Clients, Knitters, Fabric Buyers & Dyeing Mills and view their balances.',
+      description: 'Manage Yarn Clients, Knitters, Fabric Buyers & Dyeing Units and view their balances.',
       to: '/parties',
       icon: Users,
       badge: `${totalParties} Total Contacts`
@@ -302,7 +302,7 @@ export function DashboardPage() {
                   <Warehouse className="w-4 h-4 text-emerald-400" />
                   Inventory Holding by Location
                 </CardTitle>
-                <CardDescription className="text-xs">Live physical stock across ZR Godown and partner mills</CardDescription>
+                <CardDescription className="text-xs">Live physical stock across ZR Godown and partner units</CardDescription>
               </div>
               <Link to="/inventory">
                 <Button variant="ghost" size="sm" className="text-xs text-emerald-400 hover:text-emerald-300">
@@ -327,7 +327,7 @@ export function DashboardPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-200">Ghumman Dyeing Mill</span>
+                <span className="font-medium text-zinc-200">Ghumman Dyeing Unit</span>
                 <span className="text-zinc-400">{ghummanRolls} rolls • {Math.round(ghummanKg).toLocaleString()} Kg</span>
               </div>
               <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
@@ -340,7 +340,7 @@ export function DashboardPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-200">Rajput Dyeing Mill</span>
+                <span className="font-medium text-zinc-200">Rajput Dyeing Unit</span>
                 <span className="text-zinc-400">{rajputRolls} rolls • {Math.round(rajputKg).toLocaleString()} Kg</span>
               </div>
               <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
@@ -388,8 +388,8 @@ export function DashboardPage() {
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-zinc-200">Ghumman Dyeing Mill</div>
-                  <div className="text-[11px] text-zinc-400">Daska Road • Primary Processing Mill</div>
+                  <div className="text-xs font-semibold text-zinc-200">Ghumman Dyeing Unit</div>
+                  <div className="text-[11px] text-zinc-400">Daska Road • Primary Processing Unit</div>
                 </div>
               </div>
               <div className="text-right">
@@ -405,8 +405,8 @@ export function DashboardPage() {
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-zinc-200">Rajput Dyeing Mill</div>
-                  <div className="text-[11px] text-zinc-400">Kashmir Road • Secondary Processing Mill</div>
+                  <div className="text-xs font-semibold text-zinc-200">Rajput Dyeing Unit</div>
+                  <div className="text-[11px] text-zinc-400">Kashmir Road • Secondary Processing Unit</div>
                 </div>
               </div>
               <div className="text-right">
