@@ -6,7 +6,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { formatWeight } from '../../../lib/formatters.js';
-import { AlertCircle, CheckCircle2, Calculator, ArrowRight } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { YarnTransactionType, CreateYarnTransactionPayload } from '../types/knitting.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
 
@@ -37,7 +37,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [boxCount, setBoxCount] = useState<string>('10');
   const [netWeightPerBox, setNetWeightPerBox] = useState<string>('33.33');
-  const [wastagePercent, setWastagePercent] = useState<string>('1.0');
+  const wastagePercent = '1.0';
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -70,17 +70,11 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
     }
   }, [parties, partyId]);
 
-  const calculations = useMemo(() => {
+  const totalWeightKg = useMemo(() => {
     const boxes = parseInt(boxCount, 10) || 0;
     const netPerBox = parseFloat(netWeightPerBox) || 0;
-    const wastageP = parseFloat(wastagePercent) || 0;
-
-    const gross = Math.round(boxes * netPerBox * 100) / 100;
-    const wastage = Math.round(gross * (wastageP / 100) * 100) / 100;
-    const expected = Math.round((gross - wastage) * 100) / 100;
-
-    return { gross, wastage, expected };
-  }, [boxCount, netWeightPerBox, wastagePercent]);
+    return Math.round(boxes * netPerBox * 100) / 100;
+  }, [boxCount, netWeightPerBox]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -134,7 +128,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
       isOpen={isOpen}
       onClose={onClose}
       title={transactionType === 'OUTWARD_TO_KNITTER' ? 'Send Yarn to Knitter (Outward Gate Pass)' : 'Receive Outside Yarn from Supplier'}
-      description="Record yarn delivery with automatic 1.0% wastage calculation."
+      description="Record yarn delivery to knitter or outside supplier."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -232,7 +226,7 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
           />
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Input
             id="boxCount"
             type="number"
@@ -255,51 +249,15 @@ export function IssueYarnModal({ isOpen, onClose, onSuccess, initialType = 'OUTW
             required
             placeholder="45.36"
           />
-
-          <Input
-            id="wastagePercent"
-            type="number"
-            step="0.1"
-            min="0"
-            max="10"
-            label="Wastage Allowance (%)"
-            value={wastagePercent}
-            onChange={(e) => setWastagePercent(e.target.value)}
-            required
-            placeholder="1.0"
-          />
         </div>
 
-        <div className="p-3.5 rounded-lg bg-emerald-950/20 border border-emerald-500/30 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
-            <span className="flex items-center gap-1.5">
-              <Calculator className="w-3.5 h-3.5" />
-              Automated 1% Standard Wastage Engine
-            </span>
-            <span className="text-[11px] text-zinc-400">Tolerance Rule</span>
+        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between">
+          <div className="text-xs">
+            <span className="text-zinc-400">Total Dispatched Yarn Weight:</span>
+            <span className="text-zinc-500 text-[11px] ml-1.5">({boxCount || 0} boxes × {netWeightPerBox || 0} Kg)</span>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-400 uppercase">Gross Yarn</div>
-              <div className="text-sm font-bold font-mono text-zinc-100 mt-0.5">
-                {formatWeight(calculations.gross)}
-              </div>
-            </div>
-
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-400 uppercase">1.0% Wastage</div>
-              <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">
-                {formatWeight(calculations.wastage)}
-              </div>
-            </div>
-
-            <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-400 uppercase">Expected Ecru</div>
-              <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
-                {formatWeight(calculations.expected)}
-              </div>
-            </div>
+          <div className="text-base font-bold font-mono text-emerald-400">
+            {formatWeight(totalWeightKg)}
           </div>
         </div>
 

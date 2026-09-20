@@ -6,7 +6,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { formatWeight } from '../../../lib/formatters.js';
-import { AlertCircle, CheckCircle2, Trash2, Calculator } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import { YarnTransactionItem, UpdateYarnTransactionPayload } from '../types/knitting.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
 
@@ -257,7 +257,7 @@ export function EditYarnTransactionModal({
           />
         )}
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Input
             id="editTxDate"
             type="date"
@@ -287,38 +287,15 @@ export function EditYarnTransactionModal({
             onChange={(e) => setNetWeightPerBox(e.target.value)}
             required
           />
-
-          <Input
-            id="editWastagePercent"
-            type="number"
-            step="0.1"
-            min="0"
-            max="10"
-            label="Wastage %"
-            value={wastagePercent}
-            onChange={(e) => setWastagePercent(e.target.value)}
-            required
-          />
         </div>
 
-        <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400">
-            <Calculator className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Recalculated Running Metrics</span>
+        <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg flex items-center justify-between">
+          <div className="text-xs">
+            <span className="text-zinc-400">Total Dispatched Yarn Weight:</span>
+            <span className="text-zinc-500 text-[11px] ml-1.5">({boxCount || 0} boxes × {netWeightPerBox || 0} Kg)</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-              <span className="text-[10px] text-zinc-500 block">Gross Weight</span>
-              <strong className="text-zinc-200 font-mono text-sm">{formatWeight(calculations.gross)}</strong>
-            </div>
-            <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-              <span className="text-[10px] text-zinc-500 block">Allowed Wastage</span>
-              <strong className="text-amber-400 font-mono text-sm">{formatWeight(calculations.wastage)}</strong>
-            </div>
-            <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-              <span className="text-[10px] text-zinc-500 block">Expected Fabric</span>
-              <strong className="text-emerald-400 font-mono text-sm">{formatWeight(calculations.expected)}</strong>
-            </div>
+          <div className="text-base font-bold font-mono text-emerald-400">
+            {formatWeight(calculations.gross)}
           </div>
         </div>
 

@@ -28,7 +28,8 @@ import {
   Edit,
   FileSpreadsheet,
   ArrowUpDown,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 
 export function KnittingPage() {
@@ -100,40 +101,28 @@ export function KnittingPage() {
     refetchTransactions();
   }
 
-  const kpis = useMemo(() => {
-    let totalGross = 0;
-    let totalExpected = 0;
-    let totalReceived = 0;
-    let totalRemaining = 0;
-
-    balances.forEach((b) => {
-      totalGross += b.totalGrossKg;
-      totalExpected += b.totalExpectedKg;
-      totalReceived += b.totalReceivedKg;
-      totalRemaining += b.remainingYarnKg;
-    });
-
-    const activeKnitterIds = new Set(balances.filter((b) => b.remainingYarnKg > 0).map((b) => b.partyId));
-
-    return {
-      totalGross,
-      totalExpected,
-      totalReceived,
-      totalRemaining,
-      activeKnitterCount: activeKnitterIds.size
-    };
-  }, [balances]);
+  const isBalancesFiltered = Boolean(balanceSearchTerm.trim() || balanceStatusFilter !== 'ALL');
 
   const filteredBalances = useMemo(() => {
     let list = [...balances];
     if (balanceSearchTerm.trim()) {
       const q = balanceSearchTerm.trim().toLowerCase();
-      list = list.filter(
-        (b) =>
-          b.partyName.toLowerCase().includes(q) ||
-          b.partyCode.toLowerCase().includes(q) ||
-          b.yarnSpec.toLowerCase().includes(q)
-      );
+      list = list.filter((b) => {
+        const partyName = b.partyName.toLowerCase();
+        const partyCode = b.partyCode.toLowerCase();
+        // Match party name or party code
+        if (partyName.includes(q) || partyCode.includes(q)) return true;
+
+        const specLower = b.yarnSpec.toLowerCase();
+        // If search query has digits, slashes, or hyphens (e.g. '30/1', '75/36', '100'), test substring
+        if ((q.includes('/') || q.includes('-') || !isNaN(Number(q))) && specLower.includes(q)) {
+          return true;
+        }
+
+        // Word-boundary / prefix match so 'star' does NOT match 'mistari'
+        const words = specLower.split(/[\s/\-_,]+/);
+        return words.some((w) => w.startsWith(q));
+      });
     }
     if (balanceStatusFilter === 'ACTIVE') {
       list = list.filter((b) => b.remainingYarnKg > 0);
@@ -150,6 +139,38 @@ export function KnittingPage() {
     }
     return list;
   }, [balances, balanceSearchTerm, balanceStatusFilter, balanceSortBy]);
+
+  const kpis = useMemo(() => {
+    const isPartyView = activeTab === 'balances' && isBalancesFiltered;
+    const sourceList = isPartyView ? filteredBalances : balances;
+    let totalGross = 0;
+    let totalExpected = 0;
+    let totalReceived = 0;
+    let totalRemaining = 0;
+
+    sourceList.forEach((b) => {
+      totalGross += b.totalGrossKg;
+      totalExpected += b.totalExpectedKg;
+      totalReceived += b.totalReceivedKg;
+      totalRemaining += b.remainingYarnKg;
+    });
+
+    const activeKnitterIds = new Set(sourceList.filter((b) => b.remainingYarnKg > 0).map((b) => b.partyId));
+    const allKnitterNames = Array.from(new Set(sourceList.map((b) => b.partyName)));
+    const singlePartyName = allKnitterNames.length === 1 ? allKnitterNames[0] : null;
+
+    return {
+      totalGross,
+      totalExpected,
+      totalReceived,
+      totalRemaining,
+      activeKnitterCount: activeKnitterIds.size,
+      totalKnitterCount: allKnitterNames.length,
+      itemCount: sourceList.length,
+      singlePartyName,
+      isFiltered: isPartyView
+    };
+  }, [activeTab, isBalancesFiltered, filteredBalances, balances]);
 
   async function handleExportKnittingExcel() {
     setIsExportingKnitting(true);
@@ -232,21 +253,50 @@ export function KnittingPage() {
         </div>
       </div>
 
+      {kpis.isFiltered && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-zinc-300">
+              Showing Summary for:{' '}
+              <strong className="text-emerald-400 font-semibold">
+                {kpis.singlePartyName || balanceSearchTerm.trim() || 'Filtered Knitters'}
+              </strong>{' '}
+              ({kpis.itemCount} {kpis.itemCount === 1 ? 'yarn specification' : 'yarn specifications'})
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setBalanceSearchTerm('');
+              setBalanceStatusFilter('ALL');
+            }}
+            className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-medium whitespace-nowrap"
+          >
+            Reset to All Knitters Summary &rarr;
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-zinc-900/80 border-amber-950/40 p-3">
+        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-amber-500/40 shadow-sm' : 'border-amber-950/40'}`}>
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
               <Scale className="w-3 h-3" />
-              Yarn Remaining at Knitters
+              {kpis.isFiltered && kpis.singlePartyName ? 'Yarn Remaining' : 'Yarn Remaining at Knitters'}
             </div>
             <div className="text-lg font-bold font-mono text-amber-400 mt-1">
               {formatWeight(kpis.totalRemaining)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Across {kpis.activeKnitterCount} active contract knitters</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">
+              {kpis.isFiltered
+                ? (kpis.singlePartyName ? `For ${kpis.singlePartyName} (${kpis.itemCount} specs)` : `Across ${kpis.activeKnitterCount} filtered knitters`)
+                : `Across ${kpis.activeKnitterCount} active contract knitters`}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-emerald-950/40 p-3">
+        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Layers className="w-3 h-3" />
@@ -255,11 +305,15 @@ export function KnittingPage() {
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.totalGross)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">All yarn issued to knitters</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">
+              {kpis.isFiltered
+                ? (kpis.singlePartyName ? `All yarn issued to ${kpis.singlePartyName}` : `Issued across ${kpis.totalKnitterCount} knitters`)
+                : 'All yarn issued to knitters'}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-purple-950/40 p-3">
+        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-purple-500/40 shadow-sm' : 'border-purple-950/40'}`}>
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
@@ -272,7 +326,7 @@ export function KnittingPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-emerald-950/40 p-3">
+        <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <PackageCheck className="w-3 h-3" />
@@ -281,7 +335,9 @@ export function KnittingPage() {
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.totalReceived)}
             </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Returned knitted rolls</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">
+              {kpis.isFiltered && kpis.singlePartyName ? `Returned from ${kpis.singlePartyName}` : 'Returned knitted rolls'}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -349,8 +405,18 @@ export function KnittingPage() {
                 placeholder="Search knitter, code, spec..."
                 value={balanceSearchTerm}
                 onChange={(e) => setBalanceSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-xs"
+                className="pl-9 pr-8 h-9 text-xs"
               />
+              {balanceSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setBalanceSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5 rounded transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -388,7 +454,14 @@ export function KnittingPage() {
                     return (
                       <tr key={`${b.partyId}-${b.yarnSpec}`} className="group hover:bg-zinc-800/40 transition-colors">
                         <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className="font-semibold text-zinc-100">{b.partyName}</span>
+                          <button
+                            type="button"
+                            onClick={() => setBalanceSearchTerm(b.partyName)}
+                            className="text-left font-semibold text-zinc-100 hover:text-emerald-400 transition-colors cursor-pointer"
+                            title={`Click to view summary for ${b.partyName}`}
+                          >
+                            {b.partyName}
+                          </button>
                           <span className="text-[10px] font-mono text-zinc-400 ml-2 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
                             {b.partyCode}
                           </span>
