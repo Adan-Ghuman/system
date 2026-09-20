@@ -67,7 +67,7 @@ export function GatePassRegisterModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Gate Pass Register Generator (OGP & IGP)"
-      description="Generate formatted Excel workbooks and printable registers matching official mill delivery records."
+      description="Generate formatted Excel workbooks and printable registers matching official unit delivery records."
       className="max-w-2xl"
     >
       <div className="space-y-4">
@@ -119,7 +119,7 @@ export function GatePassRegisterModal({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Dyeing Mill Location</label>
+            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Dyeing Unit Location</label>
             <Select
               value={selectedMill}
               onChange={(e) => setSelectedMill(e.target.value)}
@@ -129,7 +129,7 @@ export function GatePassRegisterModal({
                 { label: 'Rajput Dyeing', value: 'RAJPUT_DYEING' },
                 { label: 'Hafiz Saad Dyeing', value: 'HAFIZ_SAAD_DYEING' },
                 { label: 'HB Dyeing', value: 'HB_DYEING' },
-                { label: 'All Mills', value: 'ALL' }
+                { label: 'All Units', value: 'ALL' }
               ]}
             />
           </div>

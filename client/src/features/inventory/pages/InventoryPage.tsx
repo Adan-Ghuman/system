@@ -211,7 +211,7 @@ export function InventoryPage() {
             <span>Fabric Stock & Warehouse</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Live stock of finished dyed fabric and raw grey rolls across ZR Godown and partner mills.
+            Live stock of finished dyed fabric and raw grey rolls across ZR Godown and partner units.
           </p>
         </div>
 
@@ -268,7 +268,7 @@ export function InventoryPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Factory className="w-3 h-3" />
-              Stock at Dyeing Mills
+              Stock at Dyeing Units
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.millKg)}
@@ -334,10 +334,10 @@ export function InventoryPage() {
               {[
                 { id: 'ALL', label: 'All' },
                 { id: 'ZR_GODOWN', label: 'ZR Godown' },
-                { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
-                { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
-                { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
-                { id: 'HB_DYEING', label: 'HB Dyeing Mill' }
+                { id: 'GHUMMAN_DYEING', label: 'Ghuman Unit' },
+                { id: 'RAJPUT_DYEING', label: 'Rajput Unit' },
+                { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Unit' },
+                { id: 'HB_DYEING', label: 'HB Dyeing Unit' }
               ].map((loc) => (
                 <button
                   key={loc.id}
@@ -475,14 +475,14 @@ export function InventoryPage() {
                               {item.location === 'ZR_GODOWN'
                                 ? 'ZR Godown'
                                 : item.location === 'GHUMMAN_DYEING'
-                                ? 'Ghumman Mill'
+                                ? 'Ghuman Unit'
                                 : item.location === 'RAJPUT_DYEING'
-                                ? 'Rajput Mill'
+                                ? 'Rajput Unit'
                                 : item.location === 'HAFIZ_SAAD_DYEING'
-                                ? 'Hafiz Saad Mill'
+                                ? 'Hafiz Saad Unit'
                                 : item.location === 'HB_DYEING'
-                                ? 'HB Mill'
-                                : 'Mill'}
+                                ? 'HB Unit'
+                                : 'Unit'}
                             </Badge>
                           </td>
 
@@ -546,10 +546,10 @@ export function InventoryPage() {
                 >
                   <option value="ALL" className="bg-zinc-900 text-zinc-200">All Locations</option>
                   <option value="ZR_GODOWN" className="bg-zinc-900 text-zinc-200">ZR Godown</option>
-                  <option value="GHUMMAN_DYEING" className="bg-zinc-900 text-zinc-200">Ghumman Mill</option>
-                  <option value="RAJPUT_DYEING" className="bg-zinc-900 text-zinc-200">Rajput Mill</option>
-                  <option value="HAFIZ_SAAD_DYEING" className="bg-zinc-900 text-zinc-200">Hafiz Saad Mill</option>
-                  <option value="HB_DYEING" className="bg-zinc-900 text-zinc-200">HB Dyeing Mill</option>
+                  <option value="GHUMMAN_DYEING" className="bg-zinc-900 text-zinc-200">Ghuman Unit</option>
+                  <option value="RAJPUT_DYEING" className="bg-zinc-900 text-zinc-200">Rajput Unit</option>
+                  <option value="HAFIZ_SAAD_DYEING" className="bg-zinc-900 text-zinc-200">Hafiz Saad Unit</option>
+                  <option value="HB_DYEING" className="bg-zinc-900 text-zinc-200">HB Dyeing Unit</option>
                 </select>
               </div>
 

@@ -22,10 +22,10 @@ export interface TransferStockModalProps {
 
 const LOCATIONS: { label: string; value: InventoryLocation }[] = [
   { label: 'ZR Godown (Main Depot)', value: 'ZR_GODOWN' },
-  { label: 'Ghumman Dyeing Mill', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Mill', value: 'RAJPUT_DYEING' },
-  { label: 'Hafiz Saad Dyeing Mill', value: 'HAFIZ_SAAD_DYEING' },
-  { label: 'HB Dyeing Mill', value: 'HB_DYEING' }
+  { label: 'Ghumman Dyeing Unit', value: 'GHUMMAN_DYEING' },
+  { label: 'Rajput Dyeing Unit', value: 'RAJPUT_DYEING' },
+  { label: 'Hafiz Saad Dyeing Unit', value: 'HAFIZ_SAAD_DYEING' },
+  { label: 'HB Dyeing Unit', value: 'HB_DYEING' }
 ];
 
 export function TransferStockModal({
@@ -133,7 +133,7 @@ export function TransferStockModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Move Fabric Between Locations"
-      description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Mill."
+      description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Unit."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">

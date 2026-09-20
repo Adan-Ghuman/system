@@ -383,7 +383,7 @@ export function AccountsPage() {
                             )}
                             {p.tags.isDyeingMill && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                Mill
+                                Unit
                               </span>
                             )}
                             {p.tags.isYarnClient && (

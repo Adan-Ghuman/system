@@ -194,7 +194,7 @@ export function DispatchPage() {
               value={fromLocation}
               onChange={(e) => setFromLocation(e.target.value)}
               className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-              title="Origin warehouse / mill"
+              title="Origin warehouse / unit"
             >
               <option value="ALL" className="bg-zinc-900 text-zinc-200">All Locations</option>
               <option value="ZR_GODOWN" className="bg-zinc-900 text-zinc-200">ZR Godown (Main)</option>
@@ -316,8 +316,14 @@ export function DispatchPage() {
                         {d.fromLocation === 'ZR_GODOWN'
                           ? 'ZR Godown'
                           : d.fromLocation === 'GHUMMAN_DYEING'
-                          ? 'Ghumman Mill'
-                          : 'Rajput Mill'}
+                          ? 'Ghuman Unit'
+                          : d.fromLocation === 'RAJPUT_DYEING'
+                          ? 'Rajput Unit'
+                          : d.fromLocation === 'HAFIZ_SAAD_DYEING'
+                          ? 'Hafiz Saad Unit'
+                          : d.fromLocation === 'HB_DYEING'
+                          ? 'HB Unit'
+                          : 'Unit'}
                       </Badge>
                     </td>
 

@@ -198,7 +198,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
                 onChange={() => handleTagToggle('isDyeingMill')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Dyeing Mill (Dyes raw fabric)</span>
+              <span>Dyeing Unit (Dyes raw fabric)</span>
             </label>
           </div>
         </div>

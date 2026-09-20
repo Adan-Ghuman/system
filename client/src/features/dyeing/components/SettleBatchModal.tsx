@@ -97,7 +97,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
       isOpen={isOpen}
       onClose={onClose}
       title={`Receive Dyed Fabric: ${batch.batchNo}`}
-      description="Enter finished rolls and weight received back from the mill to calculate weight loss and add to stock."
+      description="Enter finished rolls and weight received back from the unit to calculate weight loss and add to stock."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -117,7 +117,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
 
         <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 grid grid-cols-4 gap-2 text-xs">
           <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Mill</div>
+            <div className="text-zinc-500 text-[10px] uppercase">Unit</div>
             <div className="font-semibold text-zinc-200 mt-0.5">
               {batch.millName === 'GHUMMAN_DYEING'
                 ? 'Ghumman Dyeing'
@@ -127,7 +127,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
                 ? 'Hafiz Saad Dyeing'
                 : batch.millName === 'HB_DYEING'
                 ? 'HB Dyeing'
-                : (batch.customMillName || 'Other Mill')}
+                : (batch.customMillName || 'Other Unit')}
             </div>
           </div>
           <div>

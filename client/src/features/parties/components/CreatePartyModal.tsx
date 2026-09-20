@@ -104,8 +104,8 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Add Customer, Knitter or Mill"
-      description="Register a customer, outside knitter, yarn client, or dyeing mill."
+      title="Add Customer, Knitter or Unit"
+      description="Register a customer, outside knitter, yarn client, or dyeing unit."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -222,7 +222,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
                 onChange={() => handleTagToggle('isDyeingMill')}
                 className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
               />
-              <span>Dyeing Mill (Dyes raw fabric)</span>
+              <span>Dyeing Unit (Dyes raw fabric)</span>
             </label>
           </div>
         </div>

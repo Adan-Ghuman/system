@@ -150,14 +150,14 @@ export function DashboardPage() {
     },
     {
       title: 'Dyeing Batches',
-      description: 'Track fabric sent to Ghumman & Rajput mills, target colors, and weight loss.',
+      description: 'Track fabric sent to Ghumman & Rajput units, target colors, and weight loss.',
       to: '/dyeing',
       icon: Palette,
       badge: `${activeGhummanBatches + activeRajputBatches} In Process`
     },
     {
       title: 'Fabric Stock',
-      description: 'Live stock of ready dyed fabric and raw grey rolls across ZR Godown and partner mills.',
+      description: 'Live stock of ready dyed fabric and raw grey rolls across ZR Godown and partner units.',
       to: '/inventory',
       icon: Boxes,
       badge: `${totalRolls} Rolls (${Math.round(totalWeightKg).toLocaleString()} Kg)`
@@ -226,7 +226,7 @@ export function DashboardPage() {
               <span>•</span>
               <span>{knittersCount} Knitters</span>
               <span>•</span>
-              <span>{millsCount} Mills</span>
+              <span>{millsCount} Units</span>
             </div>
           </CardContent>
         </Card>

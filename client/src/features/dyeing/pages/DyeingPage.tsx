@@ -151,7 +151,7 @@ export function DyeingPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
             <Palette className="w-5 h-5 text-emerald-500 shrink-0" />
-            <span>Multi-Mill Dyeing & Process Loss Engine</span>
+            <span>Multi-Unit Dyeing & Process Loss Engine</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
             Coordinate batch allocation and settlement across Ghumman & Rajput Dyeing with live shrinkage loss math.
@@ -197,7 +197,7 @@ export function DyeingPage() {
           <CardContent className="p-0">
             <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
               <Factory className="w-3 h-3" />
-              Fabric Currently at Mills
+              Fabric Currently at Units
             </div>
             <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
               {formatWeight(kpis.inProcessKg)}
@@ -254,12 +254,12 @@ export function DyeingPage() {
       <div className="space-y-3">
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
           {[
-            { id: 'ALL', label: 'All Dyeing Mills' },
-            { id: 'GHUMMAN_DYEING', label: 'Ghuman Mill' },
-            { id: 'RAJPUT_DYEING', label: 'Rajput Mill' },
-            { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Mill' },
-            { id: 'HB_DYEING', label: 'HB Dyeing Mill' },
-            { id: 'OTHER', label: 'Other Mills' }
+            { id: 'ALL', label: 'All Dyeing Units' },
+            { id: 'GHUMMAN_DYEING', label: 'Ghuman Unit' },
+            { id: 'RAJPUT_DYEING', label: 'Rajput Unit' },
+            { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Unit' },
+            { id: 'HB_DYEING', label: 'HB Dyeing Unit' },
+            { id: 'OTHER', label: 'Other Units' }
           ].map((mill) => (
             <button
               key={mill.id}
@@ -331,7 +331,7 @@ export function DyeingPage() {
               <tr>
                 <th className="py-3 px-4 whitespace-nowrap">Batch #</th>
                 <th className="py-3 px-4 whitespace-nowrap">Date Issued</th>
-                <th className="py-3 px-4 whitespace-nowrap">Mill</th>
+                <th className="py-3 px-4 whitespace-nowrap">Unit</th>
                 <th className="py-3 px-4 whitespace-nowrap">Fabric Variety & Count</th>
                 <th className="py-3 px-4 whitespace-nowrap">Target Color</th>
                 <th className="py-3 px-4 text-right whitespace-nowrap">Ecru Issued</th>
@@ -381,7 +381,7 @@ export function DyeingPage() {
                           ? 'Hafiz Saad'
                           : b.millName === 'HB_DYEING'
                           ? 'HB'
-                          : (b.customMillName || 'Other Mill')}
+                          : (b.customMillName || 'Other Unit')}
                       </Badge>
                     </td>
 

@@ -108,7 +108,7 @@ export function PartiesPage() {
             <span>Customers & Suppliers (Parties)</span>
           </h1>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Manage customers, knitters, yarn suppliers, and dyeing mills and view their running balances.
+            Manage customers, knitters, yarn suppliers, and dyeing units and view their running balances.
           </p>
         </div>
 
@@ -151,7 +151,7 @@ export function PartiesPage() {
               Contract Knitters
             </div>
             <div className="text-lg font-bold text-purple-400 mt-1">{metrics.knitters}</div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Outside knitting mills</div>
+            <div className="text-[10px] text-zinc-500 mt-0.5">Outside knitting units</div>
           </CardContent>
         </Card>
 
@@ -173,7 +173,7 @@ export function PartiesPage() {
               We Owe Them (Payable)
             </div>
             <div className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(metrics.totalCr)}</div>
-            <div className="text-[10px] text-amber-600 mt-0.5">Balance to pay to mills & knitters</div>
+            <div className="text-[10px] text-amber-600 mt-0.5">Balance to pay to units & knitters</div>
           </CardContent>
         </Card>
       </div>
@@ -185,7 +185,7 @@ export function PartiesPage() {
             { id: 'isFabricBuyer', label: 'Fabric Buyers' },
             { id: 'isKnitter', label: 'Contract Knitters' },
             { id: 'isYarnClient', label: 'Yarn Clients' },
-            { id: 'isDyeingMill', label: 'Dyeing Mills' }
+            { id: 'isDyeingMill', label: 'Dyeing Units' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -305,7 +305,7 @@ export function PartiesPage() {
                         {party.tags.isDyeingMill && (
                           <Badge variant="warning" className="gap-1">
                             <Palette className="w-2.5 h-2.5" />
-                            Dyeing Mill
+                            Dyeing Unit
                           </Badge>
                         )}
                       </div>

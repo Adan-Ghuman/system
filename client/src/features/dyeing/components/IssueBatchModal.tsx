@@ -169,8 +169,8 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Send Fabric to Dyeing Mill"
-      description="Create a delivery gate pass to send raw fabric rolls to Ghumman, Rajput, or another mill for dyeing."
+      title="Send Fabric to Dyeing Unit"
+      description="Create a delivery gate pass to send raw fabric rolls to Ghumman, Rajput, or another unit for dyeing."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -189,7 +189,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
         )}
 
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-zinc-300">Select Target Processing Mill</label>
+          <label className="text-xs font-semibold text-zinc-300">Select Target Processing Unit</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               type="button"
@@ -253,7 +253,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Other Mill...</span>
+              <span>Other Unit...</span>
             </button>
           </div>
 
@@ -261,10 +261,10 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             <div className="pt-1">
               <Input
                 id="customMillName"
-                label="Custom Dyeing Mill Name"
+                label="Custom Dyeing Unit Name"
                 value={customMillName}
                 onChange={(e) => setCustomMillName(e.target.value)}
-                placeholder="e.g. Master Dyeing Mill, Ittehad Dyeing..."
+                placeholder="e.g. Master Dyeing Unit, Ittehad Dyeing..."
                 required
               />
             </div>

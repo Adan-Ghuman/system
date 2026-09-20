@@ -242,7 +242,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
       isOpen={isOpen}
       onClose={onClose}
       title={`Edit Batch: ${batch.batchNo}`}
-      description="Update batch details, mill allocation, weights, or delete batch with atomic inventory synchronization."
+      description="Update batch details, unit allocation, weights, or delete batch with atomic inventory synchronization."
       className="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -267,13 +267,13 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
               <span>Batch Completed & Settled in Warehouse Inventory</span>
             </div>
             <p className="text-zinc-400">
-              Changes to finished weight, color, or mill will automatically synchronize with live finished fabric inventory stock.
+              Changes to finished weight, color, or unit will automatically synchronize with live finished fabric inventory stock.
             </p>
           </div>
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300">Processing Mill</label>
+          <label className="text-xs font-semibold text-zinc-300">Processing Unit</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               type="button"
@@ -337,7 +337,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Other Mill...</span>
+              <span>Other Unit...</span>
             </button>
           </div>
 
@@ -345,10 +345,10 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             <div className="pt-1">
               <Input
                 id="editCustomMillName"
-                label="Custom Dyeing Mill Name"
+                label="Custom Dyeing Unit Name"
                 value={customMillName}
                 onChange={(e) => setCustomMillName(e.target.value)}
-                placeholder="e.g. Master Dyeing Mill, Ittehad Dyeing..."
+                placeholder="e.g. Master Dyeing Unit, Ittehad Dyeing..."
                 required
               />
             </div>

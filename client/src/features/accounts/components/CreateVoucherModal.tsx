@@ -172,7 +172,7 @@ export function CreateVoucherModal({
             }`}
           >
             <ArrowUpRight className="w-4 h-4" />
-            <span>Money Paid (To Knitter / Mill / Supplier)</span>
+            <span>Money Paid (To Knitter / Unit / Supplier)</span>
           </button>
         </div>
 
