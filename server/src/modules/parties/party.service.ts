@@ -77,7 +77,7 @@ export async function getPartyById(id: string): Promise<IParty> {
 }
 
 export async function listParties(query: QueryPartiesInput): Promise<PaginatedResult<IParty>> {
-  const { page, limit, skip } = parsePagination(query, 20);
+  const { page, limit, skip } = parsePagination(query, 20, 500);
   const filter: Record<string, unknown> = {};
 
   if (query.tag) {

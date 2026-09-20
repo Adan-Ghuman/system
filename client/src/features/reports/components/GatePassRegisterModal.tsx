@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -7,6 +7,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { FileSpreadsheet, Printer, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { downloadExcelReport } from '../../../lib/reportExport.js';
+import { PartyItem } from '../../parties/types/party.types.js';
 
 export interface GatePassRegisterModalProps {
   isOpen: boolean;
@@ -27,16 +28,22 @@ export function GatePassRegisterModal({
   const [isExporting, setIsExporting] = useState(false);
 
   // Fetch parties for selector
-  const { data: partiesData } = useQuery({
+  const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
     queryKey: ['parties-for-register'],
     queryFn: async () => {
-      const res = await api.get('/parties?limit=100');
-      return res.data?.data?.parties || [];
+      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
+        params: { limit: 500 }
+      });
+      return res.data.data;
     },
     enabled: isOpen
   });
 
-  const parties = partiesData || [];
+  const parties = partiesData?.items || [];
+
+  const sortedParties = useMemo(() => {
+    return [...parties].sort((a, b) => a.name.localeCompare(b.name));
+  }, [parties]);
 
   async function handleExportExcel() {
     setIsExporting(true);
@@ -110,10 +117,17 @@ export function GatePassRegisterModal({
               className="text-xs"
               options={[
                 { label: 'All Parties (Combined)', value: 'ALL' },
-                ...parties.map((p: any) => ({
-                  label: `${p.name} (${p.code})`,
-                  value: p._id
-                }))
+                ...sortedParties.map((p) => {
+                  let roleTag = '';
+                  if (p.tags?.isFabricBuyer) roleTag = ' [Client]';
+                  else if (p.tags?.isDyeingMill) roleTag = ' [Dyeing Unit]';
+                  else if (p.tags?.isKnitter) roleTag = ' [Knitter]';
+                  else if (p.tags?.isYarnClient) roleTag = ' [Yarn Supplier]';
+                  return {
+                    label: `${p.name} (${p.code})${roleTag}`,
+                    value: p._id
+                  };
+                })
               ]}
             />
           </div>
