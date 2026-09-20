@@ -68,8 +68,33 @@ export const queryBatchesSchema = z.object({
   skip: z.coerce.number().optional()
 });
 
+export const createDyeingUnitSchema = z.object({
+  code: z.string().min(1, 'Unit code is required').trim().toUpperCase(),
+  name: z.string().min(1, 'Unit name is required').trim(),
+  shortName: z.string().min(1, 'Short display label is required').trim(),
+  type: z.enum(['DYEING_MILL', 'GODOWN', 'OTHER']).optional().default('DYEING_MILL'),
+  partyId: z.string().optional(),
+  address: z.string().optional().default(''),
+  contactPhone: z.string().optional().default(''),
+  isActive: z.boolean().optional().default(true),
+  sortOrder: z.number().optional().default(0)
+});
+
+export const updateDyeingUnitSchema = z.object({
+  name: z.string().min(1, 'Unit name cannot be empty').trim().optional(),
+  shortName: z.string().min(1, 'Short display label cannot be empty').trim().optional(),
+  type: z.enum(['DYEING_MILL', 'GODOWN', 'OTHER']).optional(),
+  partyId: z.string().nullable().optional(),
+  address: z.string().optional(),
+  contactPhone: z.string().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().optional()
+});
+
 export type CreateBatchInput = z.infer<typeof createBatchSchema>;
 export type UpdateBatchInput = z.infer<typeof updateBatchSchema>;
 export type SettleBatchInput = z.infer<typeof settleBatchSchema>;
 export type QueryBatchesInput = z.infer<typeof queryBatchesSchema>;
+export type CreateDyeingUnitInput = z.infer<typeof createDyeingUnitSchema>;
+export type UpdateDyeingUnitInput = z.infer<typeof updateDyeingUnitSchema>;
 

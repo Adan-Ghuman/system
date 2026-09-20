@@ -83,3 +83,49 @@ export interface UpdateBatchPayload {
   remarks?: string;
 }
 
+export type DyeingUnitType = 'DYEING_MILL' | 'GODOWN' | 'OTHER';
+
+export interface DyeingUnitItem {
+  _id: string;
+  code: string;
+  name: string;
+  shortName: string;
+  type: DyeingUnitType;
+  partyId?: string;
+  address?: string;
+  contactPhone?: string;
+  isActive: boolean;
+  sortOrder: number;
+  isSystemDefault: boolean;
+  activeBatchesCount: number;
+  totalBatchesCount: number;
+  totalEcruWeightKg: number;
+  inventoryWeightKg: number;
+  inventoryRollsCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateDyeingUnitPayload {
+  code: string;
+  name: string;
+  shortName: string;
+  type?: DyeingUnitType;
+  partyId?: string;
+  address?: string;
+  contactPhone?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
+export interface UpdateDyeingUnitPayload {
+  name?: string;
+  shortName?: string;
+  type?: DyeingUnitType;
+  partyId?: string | null;
+  address?: string;
+  contactPhone?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+

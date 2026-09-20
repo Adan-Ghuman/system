@@ -7,7 +7,11 @@ import {
   getDyeingMetrics,
   generateNextBatchNo,
   updateDyeingBatch,
-  deleteDyeingBatch
+  deleteDyeingBatch,
+  getDyeingUnitsWithMetrics,
+  createDyeingUnit,
+  updateDyeingUnit,
+  deleteDyeingUnit
 } from './dyeing.service.js';
 
 export async function handleCreateBatch(req: Request, res: Response): Promise<void> {
@@ -43,5 +47,25 @@ export async function handleUpdateBatch(req: Request, res: Response): Promise<vo
 export async function handleDeleteBatch(req: Request, res: Response): Promise<void> {
   await deleteDyeingBatch(req.params.id as string);
   sendSuccess(res, null, 'Dyeing batch deleted successfully');
+}
+
+export async function handleGetDyeingUnits(_req: Request, res: Response): Promise<void> {
+  const units = await getDyeingUnitsWithMetrics();
+  sendSuccess(res, units);
+}
+
+export async function handleCreateDyeingUnit(req: Request, res: Response): Promise<void> {
+  const unit = await createDyeingUnit(req.body);
+  sendCreated(res, unit, 'Dyeing unit added successfully');
+}
+
+export async function handleUpdateDyeingUnit(req: Request, res: Response): Promise<void> {
+  const unit = await updateDyeingUnit(req.params.id as string, req.body);
+  sendSuccess(res, unit, 'Dyeing unit updated successfully');
+}
+
+export async function handleDeleteDyeingUnit(req: Request, res: Response): Promise<void> {
+  const result = await deleteDyeingUnit(req.params.id as string);
+  sendSuccess(res, result, result.message);
 }
 

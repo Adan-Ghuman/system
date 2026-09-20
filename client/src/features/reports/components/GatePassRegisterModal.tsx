@@ -8,6 +8,7 @@ import { Select } from '../../../components/ui/Select.js';
 import { FileSpreadsheet, Printer, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { downloadExcelReport } from '../../../lib/reportExport.js';
 import { PartyItem } from '../../parties/types/party.types.js';
+import { DyeingUnitItem } from '../../dyeing/types/dyeing.types.js';
 
 export interface GatePassRegisterModalProps {
   isOpen: boolean;
@@ -44,6 +45,35 @@ export function GatePassRegisterModal({
   const sortedParties = useMemo(() => {
     return [...parties].sort((a, b) => a.name.localeCompare(b.name));
   }, [parties]);
+
+  const { data: unitsData = [] } = useQuery<DyeingUnitItem[]>({
+    queryKey: ['dyeing-units'],
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; data: DyeingUnitItem[] }>('/dyeing/units');
+      return res.data.data;
+    },
+    enabled: isOpen
+  });
+
+  const millOptions = useMemo(() => {
+    const activeMills = unitsData.filter((u) => u.isActive && u.type === 'DYEING_MILL');
+    if (activeMills.length > 0) {
+      return [
+        ...activeMills.map((u) => ({
+          label: `${u.name} (${u.shortName})`,
+          value: u.code
+        })),
+        { label: 'All Units', value: 'ALL' }
+      ];
+    }
+    return [
+      { label: 'Ghumman Dyeing (Default)', value: 'GHUMMAN_DYEING' },
+      { label: 'Rajput Dyeing', value: 'RAJPUT_DYEING' },
+      { label: 'Hafiz Saad Dyeing', value: 'HAFIZ_SAAD_DYEING' },
+      { label: 'HB Dyeing', value: 'HB_DYEING' },
+      { label: 'All Units', value: 'ALL' }
+    ];
+  }, [unitsData]);
 
   async function handleExportExcel() {
     setIsExporting(true);
@@ -138,13 +168,7 @@ export function GatePassRegisterModal({
               value={selectedMill}
               onChange={(e) => setSelectedMill(e.target.value)}
               className="text-xs"
-              options={[
-                { label: 'Ghumman Dyeing (Default)', value: 'GHUMMAN_DYEING' },
-                { label: 'Rajput Dyeing', value: 'RAJPUT_DYEING' },
-                { label: 'Hafiz Saad Dyeing', value: 'HAFIZ_SAAD_DYEING' },
-                { label: 'HB Dyeing', value: 'HB_DYEING' },
-                { label: 'All Units', value: 'ALL' }
-              ]}
+              options={millOptions}
             />
           </div>
 

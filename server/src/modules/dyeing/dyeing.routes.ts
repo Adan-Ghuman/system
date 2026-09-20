@@ -6,7 +6,9 @@ import {
   createBatchSchema,
   updateBatchSchema,
   settleBatchSchema,
-  queryBatchesSchema
+  queryBatchesSchema,
+  createDyeingUnitSchema,
+  updateDyeingUnitSchema
 } from './dyeing.schema.js';
 import {
   handleCreateBatch,
@@ -15,7 +17,11 @@ import {
   handleGetMetrics,
   handleGetNextBatchNo,
   handleUpdateBatch,
-  handleDeleteBatch
+  handleDeleteBatch,
+  handleGetDyeingUnits,
+  handleCreateDyeingUnit,
+  handleUpdateDyeingUnit,
+  handleDeleteDyeingUnit
 } from './dyeing.controller.js';
 
 const router = Router();
@@ -29,6 +35,12 @@ router.put('/batches/:id', requirePermission('dyeing:write'), validateBody(updat
 router.delete('/batches/:id', requirePermission('dyeing:write'), asyncHandler(handleDeleteBatch));
 router.put('/batches/:id/settle', requirePermission('dyeing:write'), validateBody(settleBatchSchema), asyncHandler(handleSettleBatch));
 router.get('/metrics', requirePermission('dyeing:read'), asyncHandler(handleGetMetrics));
+
+// Dyeing Units & Locations Management Endpoints
+router.get('/units', requirePermission('dyeing:read'), asyncHandler(handleGetDyeingUnits));
+router.post('/units', requirePermission('dyeing:write'), validateBody(createDyeingUnitSchema), asyncHandler(handleCreateDyeingUnit));
+router.put('/units/:id', requirePermission('dyeing:write'), validateBody(updateDyeingUnitSchema), asyncHandler(handleUpdateDyeingUnit));
+router.delete('/units/:id', requirePermission('dyeing:write'), asyncHandler(handleDeleteDyeingUnit));
 
 
 export default router;

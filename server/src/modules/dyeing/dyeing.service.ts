@@ -1,10 +1,18 @@
 import mongoose, { Types } from 'mongoose';
 import { DyeingBatch, IDyeingBatch } from '../../models/DyeingBatch.js';
+import { DyeingUnit, IDyeingUnit, DEFAULT_DYEING_UNITS } from '../../models/DyeingUnit.js';
 import { FabricInventory } from '../../models/FabricInventory.js';
 import { Party } from '../../models/Party.js';
 import { NotFoundError, BadRequestError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult } from '../../utils/pagination.js';
-import { CreateBatchInput, UpdateBatchInput, SettleBatchInput, QueryBatchesInput } from './dyeing.schema.js';
+import {
+  CreateBatchInput,
+  UpdateBatchInput,
+  SettleBatchInput,
+  QueryBatchesInput,
+  CreateDyeingUnitInput,
+  UpdateDyeingUnitInput
+} from './dyeing.schema.js';
 
 export function calculateBatchSettlement(ecruWeightKg: number, finishWeightKg: number) {
   const shortageWeightKg = Math.round((ecruWeightKg - finishWeightKg) * 100) / 100;
@@ -414,5 +422,192 @@ export async function deleteDyeingBatch(id: string): Promise<void> {
   } else {
     await DyeingBatch.findByIdAndDelete(id);
   }
+}
+
+export interface DyeingUnitWithMetrics {
+  _id: string;
+  code: string;
+  name: string;
+  shortName: string;
+  type: string;
+  partyId?: string;
+  address?: string;
+  contactPhone?: string;
+  isActive: boolean;
+  sortOrder: number;
+  isSystemDefault: boolean;
+  activeBatchesCount: number;
+  totalBatchesCount: number;
+  totalEcruWeightKg: number;
+  inventoryWeightKg: number;
+  inventoryRollsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function ensureDefaultDyeingUnits(): Promise<void> {
+  const count = await DyeingUnit.countDocuments();
+  if (count === 0) {
+    await DyeingUnit.insertMany(DEFAULT_DYEING_UNITS);
+  }
+}
+
+export async function getDyeingUnitsWithMetrics(): Promise<DyeingUnitWithMetrics[]> {
+  await ensureDefaultDyeingUnits();
+
+  const [units, batchMetrics, inventoryMetrics] = await Promise.all([
+    DyeingUnit.find().sort({ sortOrder: 1, name: 1 }),
+    DyeingBatch.aggregate([
+      {
+        $group: {
+          _id: '$millName',
+          totalBatches: { $sum: 1 },
+          activeBatches: {
+            $sum: { $cond: [{ $in: ['$status', ['ISSUED', 'IN_PROCESS']] }, 1, 0] }
+          },
+          totalEcruWeightKg: { $sum: '$ecruWeightKg' }
+        }
+      }
+    ]),
+    FabricInventory.aggregate([
+      {
+        $group: {
+          _id: '$location',
+          totalWeightKg: { $sum: '$totalWeightKg' },
+          totalRolls: { $sum: '$totalRolls' }
+        }
+      }
+    ])
+  ]);
+
+  const batchMap = new Map(batchMetrics.map((b) => [String(b._id), b]));
+  const invMap = new Map(inventoryMetrics.map((i) => [String(i._id), i]));
+
+  return units.map((u) => {
+    const b = batchMap.get(u.code);
+    const inv = invMap.get(u.code);
+
+    return {
+      _id: u._id.toString(),
+      code: u.code,
+      name: u.name,
+      shortName: u.shortName,
+      type: u.type,
+      partyId: u.partyId?.toString(),
+      address: u.address || '',
+      contactPhone: u.contactPhone || '',
+      isActive: u.isActive,
+      sortOrder: u.sortOrder || 0,
+      isSystemDefault: u.isSystemDefault || false,
+      activeBatchesCount: b?.activeBatches || 0,
+      totalBatchesCount: b?.totalBatches || 0,
+      totalEcruWeightKg: Math.round((b?.totalEcruWeightKg || 0) * 100) / 100,
+      inventoryWeightKg: Math.round((inv?.totalWeightKg || 0) * 100) / 100,
+      inventoryRollsCount: inv?.totalRolls || 0,
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt
+    };
+  });
+}
+
+export async function createDyeingUnit(input: CreateDyeingUnitInput): Promise<IDyeingUnit> {
+  const existingCode = await DyeingUnit.findOne({ code: input.code.trim().toUpperCase() });
+  if (existingCode) {
+    throw new BadRequestError(`Unit with code '${input.code}' already exists.`);
+  }
+
+  const existingName = await DyeingUnit.findOne({
+    name: { $regex: new RegExp(`^${input.name.trim()}$`, 'i') }
+  });
+  if (existingName) {
+    throw new BadRequestError(`Unit with name '${input.name}' already exists.`);
+  }
+
+  const unit = await DyeingUnit.create({
+    code: input.code.trim().toUpperCase(),
+    name: input.name.trim(),
+    shortName: input.shortName.trim(),
+    type: input.type || 'DYEING_MILL',
+    partyId: input.partyId ? new Types.ObjectId(input.partyId) : undefined,
+    address: input.address?.trim() || '',
+    contactPhone: input.contactPhone?.trim() || '',
+    isActive: input.isActive !== undefined ? input.isActive : true,
+    sortOrder: input.sortOrder || 0,
+    isSystemDefault: false
+  });
+
+  return unit;
+}
+
+export async function updateDyeingUnit(
+  id: string,
+  input: UpdateDyeingUnitInput
+): Promise<IDyeingUnit> {
+  const unit = await DyeingUnit.findById(id);
+  if (!unit) {
+    throw new NotFoundError('Dyeing unit not found');
+  }
+
+  if (input.name && input.name.trim().toLowerCase() !== unit.name.toLowerCase()) {
+    const existingOther = await DyeingUnit.findOne({
+      _id: { $ne: unit._id },
+      name: { $regex: new RegExp(`^${input.name.trim()}$`, 'i') }
+    });
+    if (existingOther) {
+      throw new BadRequestError(`Another unit already uses the name '${input.name}'.`);
+    }
+    unit.name = input.name.trim();
+  }
+
+  if (input.shortName !== undefined) unit.shortName = input.shortName.trim();
+  if (input.type !== undefined) unit.type = input.type;
+  if (input.partyId !== undefined) {
+    unit.partyId = input.partyId ? new Types.ObjectId(input.partyId) : undefined;
+  }
+  if (input.address !== undefined) unit.address = input.address.trim();
+  if (input.contactPhone !== undefined) unit.contactPhone = input.contactPhone.trim();
+  if (input.isActive !== undefined) unit.isActive = input.isActive;
+  if (input.sortOrder !== undefined) unit.sortOrder = input.sortOrder;
+
+  await unit.save();
+  return unit;
+}
+
+export async function deleteDyeingUnit(
+  id: string
+): Promise<{ archived: boolean; message: string }> {
+  const unit = await DyeingUnit.findById(id);
+  if (!unit) {
+    throw new NotFoundError('Dyeing unit not found');
+  }
+
+  if (unit.isSystemDefault) {
+    unit.isActive = false;
+    await unit.save();
+    return {
+      archived: true,
+      message: `System unit '${unit.name}' cannot be permanently deleted. It has been deactivated/archived from future selectors.`
+    };
+  }
+
+  const [inUseBatches, inUseInventory] = await Promise.all([
+    DyeingBatch.countDocuments({ millName: unit.code }),
+    FabricInventory.countDocuments({ location: unit.code })
+  ]);
+
+  if (inUseBatches > 0 || inUseInventory > 0) {
+    unit.isActive = false;
+    await unit.save();
+    return {
+      archived: true,
+      message: `Unit '${unit.name}' has historical batches or stock records. It has been archived from future selectors.`
+    };
+  }
+
+  await DyeingUnit.findByIdAndDelete(id);
+  return {
+    archived: false,
+    message: `Unit '${unit.name}' deleted successfully.`
+  };
 }
 

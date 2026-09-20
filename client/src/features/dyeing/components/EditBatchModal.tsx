@@ -6,7 +6,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { AlertCircle, CheckCircle2, Factory, Trash2, Calculator, Building2 } from 'lucide-react';
-import { DyeingMillType, DyeingBatchItem, UpdateBatchPayload } from '../types/dyeing.types.js';
+import { DyeingMillType, DyeingBatchItem, UpdateBatchPayload, DyeingUnitItem } from '../types/dyeing.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
 import { COMMON_COLORS } from '../../common/constants/colors.js';
 import { formatWeight } from '../../../lib/formatters.js';
@@ -124,6 +124,26 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
   });
 
   const buyers = buyersData?.items || [];
+
+  const { data: unitsData = [] } = useQuery<DyeingUnitItem[]>({
+    queryKey: ['dyeing-units'],
+    queryFn: async () => {
+      const res = await api.get<{ success: boolean; data: DyeingUnitItem[] }>('/dyeing/units');
+      return res.data.data;
+    },
+    enabled: isOpen
+  });
+
+  const activeMills = useMemo(() => {
+    const list = unitsData.filter((u) => u.isActive && u.type === 'DYEING_MILL');
+    if (list.length > 0) return list;
+    return [
+      { code: 'GHUMMAN_DYEING', shortName: 'Ghumman Dyeing' },
+      { code: 'RAJPUT_DYEING', shortName: 'Rajput Dyeing' },
+      { code: 'HAFIZ_SAAD_DYEING', shortName: 'Hafiz Saad Dyeing' },
+      { code: 'HB_DYEING', shortName: 'HB Dyeing' }
+    ] as DyeingUnitItem[];
+  }, [unitsData]);
 
   const settlementMetrics = useMemo(() => {
     const ecru = parseFloat(ecruWeightKg) || 0;
@@ -275,57 +295,21 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-zinc-300">Processing Unit</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setMillName('GHUMMAN_DYEING')}
-              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
-                millName === 'GHUMMAN_DYEING'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-              }`}
-            >
-              <Factory className="w-4 h-4" />
-              <span>Ghumman Dyeing</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMillName('RAJPUT_DYEING')}
-              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
-                millName === 'RAJPUT_DYEING'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-              }`}
-            >
-              <Factory className="w-4 h-4" />
-              <span>Rajput Dyeing</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMillName('HAFIZ_SAAD_DYEING')}
-              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
-                millName === 'HAFIZ_SAAD_DYEING'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-              }`}
-            >
-              <Factory className="w-4 h-4" />
-              <span>Hafiz Saad Dyeing</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMillName('HB_DYEING')}
-              className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
-                millName === 'HB_DYEING'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-              }`}
-            >
-              <Factory className="w-4 h-4" />
-              <span>HB Dyeing</span>
-            </button>
+            {activeMills.map((unit) => (
+              <button
+                key={unit.code}
+                type="button"
+                onClick={() => setMillName(unit.code as DyeingMillType)}
+                className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
+                  millName === unit.code
+                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                }`}
+              >
+                <Factory className="w-4 h-4" />
+                <span>{unit.shortName}</span>
+              </button>
+            ))}
 
             <button
               type="button"
