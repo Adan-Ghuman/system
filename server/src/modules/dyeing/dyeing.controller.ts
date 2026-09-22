@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import { sendCreated, sendSuccess } from '../../utils/response.js';
 import {
   createDyeingBatch,
+  createGatePassBatches,
   settleDyeingBatch,
+  settleGatePassBatches,
   listDyeingBatches,
   getDyeingMetrics,
   generateNextBatchNo,
@@ -19,9 +21,19 @@ export async function handleCreateBatch(req: Request, res: Response): Promise<vo
   sendCreated(res, batch, 'Dyeing batch issued successfully');
 }
 
+export async function handleCreateGatePass(req: Request, res: Response): Promise<void> {
+  const batches = await createGatePassBatches(req.body);
+  sendCreated(res, batches, `Gate pass ${req.body.ogpNo} with ${batches.length} item(s) created successfully`);
+}
+
 export async function handleSettleBatch(req: Request, res: Response): Promise<void> {
   const batch = await settleDyeingBatch(req.params.id as string, req.body);
   sendSuccess(res, batch, 'Dyeing batch settled and finished inventory credited');
+}
+
+export async function handleSettleGatePass(req: Request, res: Response): Promise<void> {
+  const batches = await settleGatePassBatches(req.body);
+  sendSuccess(res, batches, `Inward gate pass ${req.body.igpNo} with ${batches.length} item(s) settled successfully`);
 }
 
 export async function handleListBatches(req: Request, res: Response): Promise<void> {

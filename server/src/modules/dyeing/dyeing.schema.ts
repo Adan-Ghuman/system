@@ -19,6 +19,11 @@ export const createBatchSchema = z.object({
   targetColor: z.string().min(1, 'Target color is required').trim().toUpperCase(),
   ogpNo: z.string().optional().default(''),
   igpNo: z.string().optional().default(''),
+  machineNo: z.string().trim().optional().default(''),
+  driverName: z.string().trim().optional().default(''),
+  vehicleNo: z.string().trim().optional().default(''),
+  width: z.string().trim().optional().default(''),
+  gsm: z.string().trim().optional().default(''),
   dateIssued: z.string().datetime().optional().default(() => new Date().toISOString()),
   ecruRollsCount: z.number().int().min(1, 'Ecru roll count must be at least 1'),
   ecruWeightKg: z.number().positive('Ecru weight must be positive'),
@@ -28,6 +33,51 @@ export const createBatchSchema = z.object({
   (data) => (data.yarnSpec && data.yarnSpec.length > 0) || (data.yarnSpecs && data.yarnSpecs.length > 0),
   { message: 'At least one yarn specification is required', path: ['yarnSpec'] }
 );
+
+export const gatePassEntryItemSchema = z.object({
+  machineNo: z.string().trim().optional().default(''),
+  fabricType: z.string().min(1, 'Fabric variety is required').trim(),
+  yarnSpec: z.string().trim().optional(),
+  yarnSpecs: z.array(z.string().trim()).optional(),
+  targetColor: z.string().min(1, 'Target color is required').trim().toUpperCase(),
+  width: z.string().trim().optional().default(''),
+  gsm: z.string().trim().optional().default(''),
+  ecruRollsCount: z.number().int().min(1, 'Roll count must be at least 1'),
+  ecruWeightKg: z.number().positive('Ecru weight must be positive'),
+  allocatedCustomerId: z.string().optional(),
+  remarks: z.string().optional().default('')
+}).refine(
+  (data) => (data.yarnSpec && data.yarnSpec.length > 0) || (data.yarnSpecs && data.yarnSpecs.length > 0),
+  { message: 'At least one yarn specification is required', path: ['yarnSpec'] }
+);
+
+export const createGatePassSchema = z.object({
+  ogpNo: z.string().min(1, 'OGP number is required').trim(),
+  dateIssued: z.string().datetime().optional().default(() => new Date().toISOString()),
+  millName: millNameEnum,
+  millPartyId: z.string().optional(),
+  customMillName: z.string().trim().optional().default(''),
+  driverName: z.string().trim().optional().default(''),
+  vehicleNo: z.string().trim().optional().default(''),
+  remarks: z.string().optional().default(''),
+  entries: z.array(gatePassEntryItemSchema).min(1, 'At least one line entry is required')
+});
+
+export const receiveGatePassItemSchema = z.object({
+  batchId: z.string().min(1, 'Batch ID is required'),
+  finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
+  finishWeightKg: z.number().positive('Finished weight must be positive'),
+  remarks: z.string().optional()
+});
+
+export const receiveGatePassSchema = z.object({
+  igpNo: z.string().min(1, 'IGP number is required').trim(),
+  dateReceived: z.string().datetime().optional().default(() => new Date().toISOString()),
+  driverName: z.string().trim().optional().default(''),
+  vehicleNo: z.string().trim().optional().default(''),
+  remarks: z.string().optional().default(''),
+  items: z.array(receiveGatePassItemSchema).min(1, 'At least one batch must be received')
+});
 
 export const settleBatchSchema = z.object({
   finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
@@ -48,6 +98,11 @@ export const updateBatchSchema = z.object({
   targetColor: z.string().min(1).trim().toUpperCase().optional(),
   ogpNo: z.string().optional(),
   igpNo: z.string().optional(),
+  machineNo: z.string().trim().optional(),
+  driverName: z.string().trim().optional(),
+  vehicleNo: z.string().trim().optional(),
+  width: z.string().trim().optional(),
+  gsm: z.string().trim().optional(),
   dateIssued: z.string().optional(),
   ecruRollsCount: z.number().int().min(1).optional(),
   ecruWeightKg: z.number().positive().optional(),
@@ -97,4 +152,6 @@ export type SettleBatchInput = z.infer<typeof settleBatchSchema>;
 export type QueryBatchesInput = z.infer<typeof queryBatchesSchema>;
 export type CreateDyeingUnitInput = z.infer<typeof createDyeingUnitSchema>;
 export type UpdateDyeingUnitInput = z.infer<typeof updateDyeingUnitSchema>;
+export type CreateGatePassInput = z.infer<typeof createGatePassSchema>;
+export type ReceiveGatePassInput = z.infer<typeof receiveGatePassSchema>;
 

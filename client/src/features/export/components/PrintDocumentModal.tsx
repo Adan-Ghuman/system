@@ -19,8 +19,8 @@ export function PrintDocumentModal({ isOpen, onClose, type, dispatch }: PrintDoc
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden print:m-0 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:h-auto print:max-h-none print:bg-white print:rounded-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden print:static print:m-0 print:p-0 print:border-none print:shadow-none print:max-w-none print:w-full print:h-auto print:max-h-none print:bg-white print:rounded-none print:overflow-visible print:block">
         <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-950/80 print:hidden">
           <div>
             <h2 className="text-sm font-bold text-white">
@@ -43,7 +43,7 @@ export function PrintDocumentModal({ isOpen, onClose, type, dispatch }: PrintDoc
           </div>
         </div>
 
-        <div id="print-area" className="flex-1 overflow-y-auto p-4 bg-zinc-950 print:p-0 print:overflow-visible print:bg-white">
+        <div id="print-area" className="flex-1 overflow-y-auto p-4 bg-zinc-950 print:p-0 print:m-0 print:overflow-visible print:bg-white print:block">
           {type === 'OGP' ? (
             <OgpChallanDocument dispatch={dispatch} />
           ) : (

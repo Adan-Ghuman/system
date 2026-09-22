@@ -4,6 +4,8 @@ import { validateBody, validateQuery } from '../../middleware/validate.middlewar
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import {
   createBatchSchema,
+  createGatePassSchema,
+  receiveGatePassSchema,
   updateBatchSchema,
   settleBatchSchema,
   queryBatchesSchema,
@@ -12,7 +14,9 @@ import {
 } from './dyeing.schema.js';
 import {
   handleCreateBatch,
+  handleCreateGatePass,
   handleSettleBatch,
+  handleSettleGatePass,
   handleListBatches,
   handleGetMetrics,
   handleGetNextBatchNo,
@@ -31,6 +35,8 @@ router.use(authenticate);
 router.get('/batches', requirePermission('dyeing:read'), validateQuery(queryBatchesSchema), asyncHandler(handleListBatches));
 router.get('/batches/next-no', requirePermission('dyeing:read'), asyncHandler(handleGetNextBatchNo));
 router.post('/batches', requirePermission('dyeing:write'), validateBody(createBatchSchema), asyncHandler(handleCreateBatch));
+router.post('/gate-passes', requirePermission('dyeing:write'), validateBody(createGatePassSchema), asyncHandler(handleCreateGatePass));
+router.post('/gate-passes/receive', requirePermission('dyeing:write'), validateBody(receiveGatePassSchema), asyncHandler(handleSettleGatePass));
 router.put('/batches/:id', requirePermission('dyeing:write'), validateBody(updateBatchSchema), asyncHandler(handleUpdateBatch));
 router.delete('/batches/:id', requirePermission('dyeing:write'), asyncHandler(handleDeleteBatch));
 router.put('/batches/:id/settle', requirePermission('dyeing:write'), validateBody(settleBatchSchema), asyncHandler(handleSettleBatch));

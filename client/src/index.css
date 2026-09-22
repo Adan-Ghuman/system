@@ -52,31 +52,52 @@ body {
 }
 
 @media print {
-  body {
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset layout constraints on ancestors when printing */
+  .fixed,
+  .overflow-hidden,
+  .overflow-y-auto {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
   }
 
   body * {
     visibility: hidden;
   }
 
-  #print-area, #print-area * {
-    visibility: visible;
+  #print-area,
+  #print-area * {
+    visibility: visible !important;
   }
 
   #print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: static !important;
+    display: block !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
+    overflow: visible !important;
   }
 
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 10mm;
+  }
+
+  tr, .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }

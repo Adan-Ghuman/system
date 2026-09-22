@@ -163,6 +163,7 @@ export async function runIngestion(): Promise<void> {
     tags: { isFabricBuyer: boolean; isKnitter: boolean; isDyeingMill: boolean; isYarnClient: boolean };
     linkedFile?: string;
   }>();
+  const linkedFileToPartyKey = new Map<string, string>();
 
   if (fs.existsSync(masterFile)) {
     const wb = new ExcelJS.Workbook();
@@ -174,19 +175,20 @@ export async function runIngestion(): Promise<void> {
         const vals = Array.isArray(row.values) ? row.values : [];
         const rawName = vals[2];
         const nameText = parseText(rawName);
-        if (!nameText || nameText.toUpperCase() === 'TOTALL AMOUNT') return;
+        if (!nameText || nameText.toUpperCase().includes('TOTALL')) return;
 
         const phone = parseText(vals[3]);
         const debit = parseNumber(vals[4]);
         const credit = parseNumber(vals[5]);
-        const netOpening = Math.round((debit - credit) * 100) / 100;
+        // Credit amounts in 112233 are negative (e.g. -11939200). Calculate true net balance.
+        const netOpening = Math.round((debit + (credit < 0 ? credit : -Math.abs(credit))) * 100) / 100;
 
         let linkedFile = '';
         if (typeof rawName === 'object' && rawName !== null && 'hyperlink' in rawName) {
-          linkedFile = decodeURIComponent(String((rawName as { hyperlink: string }).hyperlink || ''));
+          linkedFile = decodeURIComponent(String((rawName as { hyperlink: string }).hyperlink || '')).trim();
         }
 
-        const upper = nameText.toUpperCase();
+        const upper = nameText.toUpperCase().replace(/\s+/g, ' ').trim();
         const isDyeing = upper.includes('DYEING');
         const isKnt = upper.includes('KNITTING') || upper.includes('KNT') || upper.includes('HOSIERY');
         const isYarn = upper.includes('YARN') || upper.includes('TRADER');
@@ -205,11 +207,17 @@ export async function runIngestion(): Promise<void> {
           },
           linkedFile
         });
+
+        if (linkedFile) {
+          linkedFileToPartyKey.set(linkedFile.toUpperCase(), upper);
+          linkedFileToPartyKey.set(path.basename(linkedFile).toUpperCase(), upper);
+          linkedFileToPartyKey.set(path.basename(linkedFile, path.extname(linkedFile)).toUpperCase(), upper);
+        }
       }
     });
   }
 
-  // Update with jan 26 to till.xlsx closing balances if available
+  // Update with jan 26 to till.xlsx ONLY if party was completely missing from 112233.xlsx
   if (fs.existsSync(jan26File)) {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(jan26File);
@@ -219,14 +227,11 @@ export async function runIngestion(): Promise<void> {
       if (r > 2) {
         const vals = Array.isArray(row.values) ? row.values : [];
         const nameText = parseText(vals[2]);
-        if (!nameText || nameText.toUpperCase() === 'TOTALL AMOUNT') return;
+        if (!nameText || nameText.toUpperCase().includes('TOTALL')) return;
 
-        const debit = parseNumber(vals[4]);
-        const upper = nameText.toUpperCase();
-        const existing = partiesMap.get(upper);
-        if (existing) {
-          existing.closingBalance = Math.round(debit * 100) / 100;
-        } else {
+        const upper = nameText.toUpperCase().replace(/\s+/g, ' ').trim();
+        if (!partiesMap.has(upper)) {
+          const debit = parseNumber(vals[4]);
           const isDyeing = upper.includes('DYEING');
           const isKnt = upper.includes('KNITTING') || upper.includes('KNT') || upper.includes('HOSIERY');
           const isYarn = upper.includes('YARN') || upper.includes('TRADER');
@@ -252,11 +257,13 @@ export async function runIngestion(): Promise<void> {
     'AWAIS KNITTING', 'BARYAR KNITTING', 'BASIT KNITTING', 'HB KNITTING',
     'K.B KNITTING', 'MISTRI IRFAN SB KNT', 'ROZIN KNITTING', 'SHAMAS KNT',
     'SMART KNT WEAR', 'AJ KNITTING', 'AYUN FABRICS', 'MADNI FABRICS',
-    'MALIK RIZWAN KNT', 'MASTER USMAN KNITTING', 'REHMAN HOSIERY'
+    'MALIK RIZWAN KNT', 'MASTER USMAN KNITTING', 'REHMAN HOSIERY',
+    'BABER KNITTING LHR', 'CITY SPORTS KNT LHR'
   ];
   for (const k of knitterList) {
-    if (!partiesMap.has(k)) {
-      partiesMap.set(k, {
+    const upK = k.toUpperCase().replace(/\s+/g, ' ').trim();
+    if (!partiesMap.has(upK)) {
+      partiesMap.set(upK, {
         name: k,
         phone: '0300-5544332',
         openingBalance: 0,
@@ -269,6 +276,8 @@ export async function runIngestion(): Promise<void> {
   // Save all parties to MongoDB
   console.log(`Saving ${partiesMap.size} parties to MongoDB...`);
   const partyDocsByName = new Map<string, any>();
+  const linkedFileToPartyDoc = new Map<string, any>();
+
   partyDocsByName.set('GHUMMAN DYEING MILL', ghummanMill);
   partyDocsByName.set('GHUMMAN DYEING', ghummanMill);
   partyDocsByName.set('RAJPUT DYEING MILL', rajputMill);
@@ -293,21 +302,65 @@ export async function runIngestion(): Promise<void> {
       currentBalance: pData.closingBalance,
       isActive: true
     });
+
     partyDocsByName.set(upper, doc);
+    const normalized = pData.name.toUpperCase().replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!partyDocsByName.has(normalized)) partyDocsByName.set(normalized, doc);
+
     const firstWord = pData.name.split(' ')[0].toUpperCase();
     if (!partyDocsByName.has(firstWord)) {
       partyDocsByName.set(firstWord, doc);
     }
+
+    if (pData.linkedFile) {
+      linkedFileToPartyDoc.set(pData.linkedFile.toUpperCase(), doc);
+      linkedFileToPartyDoc.set(path.basename(pData.linkedFile).toUpperCase(), doc);
+      linkedFileToPartyDoc.set(path.basename(pData.linkedFile, path.extname(pData.linkedFile)).toUpperCase(), doc);
+    }
   }
 
-  console.log(`Total parties saved: ${await Party.countDocuments()}`);
+  // Pre-sort party entries by key length descending for reliable substring matching
+  const sortedPartyEntries = Array.from(partyDocsByName.entries()).sort((a, b) => b[0].length - a[0].length);
+
+  // Common aliases for legacy or misspelled files
+  const fileAliases: Record<string, string> = {
+    'MGH INTERNATIONAL.XLSX': 'M.G.H INTERNATIONAL',
+    'MGH INTERNATIONAL': 'M.G.H INTERNATIONAL',
+    'N&S (ROZAIN).XLSX': 'NIZAM & SON (ROZAIN)',
+    'NIZAM & SONS (Z.R).XLSX': 'NIZAM & SON (ROZAIN)',
+    'BABA AKTHAR HOSIERY.XLSX': 'BABA AKHTAR HOSIERY',
+    'HAFIZ JANAHZAIB YARN.XLSX': 'HAFIZ JAHANZAIB YARN',
+    'SHAHI HOSEIRY.XLSX': 'SHAHI HOSIERY',
+    'ROZIN KNITTING.XLSX': 'ROZIN KNITTING',
+    'AWAIS KNITTING.XLSX': 'AWAIS KNITTING',
+    'MISTRI IRFAN SB KNT.XLSX': 'MISTRI IRFAN SB KNT',
+    'SHAMAS KNT.XLSX': 'SHAMAS KNT'
+  };
 
   function findParty(str: string): any {
     if (!str) return null;
-    const clean = str.toUpperCase().trim();
-    if (partyDocsByName.has(clean)) return partyDocsByName.get(clean);
-    for (const [key, doc] of partyDocsByName) {
-      if (clean.includes(key) || key.includes(clean)) return doc;
+    const rawUpper = str.toUpperCase().trim();
+    const upperNoExt = rawUpper.replace(/\.XLSX$/i, '').trim();
+
+    if (fileAliases[rawUpper] && partyDocsByName.has(fileAliases[rawUpper])) {
+      return partyDocsByName.get(fileAliases[rawUpper]);
+    }
+    if (fileAliases[upperNoExt] && partyDocsByName.has(fileAliases[upperNoExt])) {
+      return partyDocsByName.get(fileAliases[upperNoExt]);
+    }
+
+    if (linkedFileToPartyDoc.has(rawUpper)) return linkedFileToPartyDoc.get(rawUpper);
+    if (linkedFileToPartyDoc.has(upperNoExt)) return linkedFileToPartyDoc.get(upperNoExt);
+    if (partyDocsByName.has(rawUpper)) return partyDocsByName.get(rawUpper);
+    if (partyDocsByName.has(upperNoExt)) return partyDocsByName.get(upperNoExt);
+
+    const norm = upperNoExt.replace(/[^A-Z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (partyDocsByName.has(norm)) return partyDocsByName.get(norm);
+
+    for (const [key, doc] of sortedPartyEntries) {
+      if (key.length >= 4 && (upperNoExt.includes(key) || key.includes(upperNoExt) || norm.includes(key) || key.includes(norm))) {
+        return doc;
+      }
     }
     return null;
   }
@@ -464,6 +517,11 @@ export async function runIngestion(): Promise<void> {
       if (['MAIN SHEET', 'SAMPLE'].includes(sheet.name.toUpperCase())) continue;
 
       let matchingParty = findParty(sheet.name) || knitterDocs[0];
+      let yarnSpec = '150/48';
+      const specMatch = sheet.name.match(/(\d+[\s\/-]+\d+(?:[\s\/-]+\d+)?)/);
+      if (specMatch) {
+        yarnSpec = specMatch[1].replace(/-/g, '/');
+      }
 
       sheet.eachRow((row, r) => {
         if (r > 4) {
@@ -471,29 +529,55 @@ export async function runIngestion(): Promise<void> {
           const dateVal = vals[1];
           const desc = parseText(vals[2]);
           const igpOgp = parseText(vals[3]);
-          const grossKg = parseNumber(vals[6]) || parseNumber(vals[5]) || parseNumber(vals[4]);
+          const grossKg = parseNumber(vals[6]);
+          const issWeight = parseNumber(vals[9]);
+          const ogpNo = parseText(vals[7]);
+          const rollsCount = parseNumber(vals[8]);
 
+          // Inward Yarn Receipt (Col 3-6)
           if (grossKg > 0.05 && matchingParty) {
             const boxes = Math.max(1, Math.round(parseNumber(vals[4]) || 1));
-            const nw = Math.max(0.01, Math.round((grossKg / boxes) * 100) / 100);
-            const wastageKg = Math.round(grossKg * 0.01 * 100) / 100;
-            const netExpected = Math.max(0, Math.round((grossKg - wastageKg) * 100) / 100);
+            const nw = Math.max(0.01, parseNumber(vals[5]) || Math.round((grossKg / boxes) * 100) / 100);
 
             yarnTransactions.push({
-              transactionType: 'OUTWARD_TO_KNITTER',
+              transactionType: 'INWARD_FROM_CLIENT',
               partyId: matchingParty._id,
-              yarnSpec: desc || sheet.name,
-              gatePassNo: igpOgp ? `OGP-KNT-${igpOgp}` : `OGP-KNT-${r}`,
+              yarnSpec: desc || yarnSpec,
+              gatePassNo: igpOgp ? `IGP-KNT-${igpOgp}` : `IGP-KNT-${r}`,
               date: parseDate(dateVal, 40),
               boxCount: boxes,
               netWeightPerBox: nw,
               grossWeightKg: grossKg,
+              wastagePercent: 0,
+              wastageWeightKg: 0,
+              netExpectedFabricKg: grossKg,
+              receivedFabricKg: 0,
+              remainingYarnBalanceKg: grossKg,
+              remarks: desc ? `Yarn received: ${desc}` : `Yarn inward for knitting (${sheet.name})`
+            });
+          }
+
+          // Outward Knitted Fabric Dispatch (Col 7-9)
+          if (issWeight > 0.05 && matchingParty) {
+            const rolls = Math.max(1, Math.round(rollsCount || 1));
+            const nw = Math.max(0.01, Math.round((issWeight / rolls) * 100) / 100);
+            const wastageKg = Math.round(issWeight * 0.01 * 100) / 100;
+
+            yarnTransactions.push({
+              transactionType: 'OUTWARD_TO_KNITTER',
+              partyId: matchingParty._id,
+              yarnSpec: desc || yarnSpec,
+              gatePassNo: ogpNo ? `OGP-KNT-${ogpNo}` : `OGP-KNT-${r}`,
+              date: parseDate(dateVal, 30),
+              boxCount: rolls,
+              netWeightPerBox: nw,
+              grossWeightKg: issWeight,
               wastagePercent: 1.0,
               wastageWeightKg: wastageKg,
-              netExpectedFabricKg: netExpected,
-              receivedFabricKg: 0,
-              remainingYarnBalanceKg: netExpected,
-              remarks: `Yarn issue from sheet ${sheet.name}`
+              netExpectedFabricKg: issWeight,
+              receivedFabricKg: issWeight,
+              remainingYarnBalanceKg: 0,
+              remarks: `Knitted fabric dispatched (OGP: ${ogpNo || r}, Rolls: ${rolls})`
             });
           }
         }
@@ -527,13 +611,13 @@ export async function runIngestion(): Promise<void> {
       f === 'DYEING FORMET.xlsx' ||
       f.includes('DYEING REPORT') ||
       f === 'IN ROZAIN KNITTING.xlsx' ||
-      f === 'YARN IN ZR KNT.xlsx'
+      f === 'YARN IN ZR KNT.xlsx' ||
+      f.includes('backup')
     ) {
       continue;
     }
 
-    const partyNameFromFile = f.replace(/\.xlsx$/i, '').trim();
-    const party = findParty(partyNameFromFile);
+    const party = findParty(f) || findParty(f.replace(/\.xlsx$/i, '').trim());
     if (!party) continue;
 
     const wb = new ExcelJS.Workbook();

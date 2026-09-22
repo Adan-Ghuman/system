@@ -11,7 +11,9 @@ import {
   SettleBatchInput,
   QueryBatchesInput,
   CreateDyeingUnitInput,
-  UpdateDyeingUnitInput
+  UpdateDyeingUnitInput,
+  CreateGatePassInput,
+  ReceiveGatePassInput
 } from './dyeing.schema.js';
 
 export function calculateBatchSettlement(ecruWeightKg: number, finishWeightKg: number) {
@@ -41,6 +43,26 @@ export async function generateNextBatchNo(): Promise<string> {
 
   const nextNumber = parseInt(match[1], 10) + 1;
   return `BATCH-${nextNumber.toString().padStart(3, '0')}`;
+}
+
+export async function generateNextBatchNumbers(count: number, session?: mongoose.ClientSession): Promise<string[]> {
+  const query = DyeingBatch.findOne({ batchNo: /^BATCH-\d+$/ }).sort({ batchNo: -1 });
+  if (session) query.session(session);
+  const lastBatch = await query;
+  
+  let nextNumber = 1;
+  if (lastBatch) {
+    const match = lastBatch.batchNo.match(/^BATCH-(\d+)$/);
+    if (match) {
+      nextNumber = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  const batchNumbers: string[] = [];
+  for (let i = 0; i < count; i++) {
+    batchNumbers.push(`BATCH-${(nextNumber + i).toString().padStart(3, '0')}`);
+  }
+  return batchNumbers;
 }
 
 export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyeingBatch> {
@@ -75,6 +97,11 @@ export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyein
     targetColor: input.targetColor.toUpperCase(),
     ogpNo: input.ogpNo || '',
     igpNo: input.igpNo || '',
+    machineNo: input.machineNo || '',
+    driverName: input.driverName || '',
+    vehicleNo: input.vehicleNo || '',
+    width: input.width || '',
+    gsm: input.gsm || '',
     dateIssued: new Date(input.dateIssued),
     ecruRollsCount: input.ecruRollsCount,
     ecruWeightKg: input.ecruWeightKg,
@@ -84,6 +111,134 @@ export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyein
   });
 
   return batch;
+}
+
+export async function createGatePassBatches(input: CreateGatePassInput): Promise<IDyeingBatch[]> {
+  let millPartyId = input.millPartyId ? new Types.ObjectId(input.millPartyId) : undefined;
+  if (!millPartyId) {
+    const defaultParty = await Party.findOne({
+      code: input.millName === 'GHUMMAN_DYEING' ? 'PRT-001' : input.millName === 'RAJPUT_DYEING' ? 'PRT-002' : undefined
+    });
+    if (defaultParty) {
+      millPartyId = defaultParty._id as Types.ObjectId;
+    }
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const count = input.entries.length;
+    const batchNumbers = await generateNextBatchNumbers(count, session);
+
+    const docsToCreate = input.entries.map((entry, index) => {
+      const yarnSpecs = entry.yarnSpecs && entry.yarnSpecs.length > 0
+        ? entry.yarnSpecs
+        : (entry.yarnSpec ? [entry.yarnSpec] : []);
+      const yarnSpec = entry.yarnSpec || (yarnSpecs.length > 0 ? yarnSpecs.join(' + ') : '');
+
+      return {
+        batchNo: batchNumbers[index],
+        millName: input.millName,
+        millPartyId,
+        customMillName: input.customMillName || '',
+        ogpNo: input.ogpNo.trim(),
+        driverName: input.driverName?.trim() || '',
+        vehicleNo: input.vehicleNo?.trim() || '',
+        machineNo: entry.machineNo?.trim() || '',
+        fabricType: entry.fabricType.trim(),
+        yarnSpec,
+        yarnSpecs,
+        targetColor: entry.targetColor.toUpperCase().trim(),
+        width: entry.width?.trim() || '',
+        gsm: entry.gsm?.trim() || '',
+        ecruRollsCount: entry.ecruRollsCount,
+        ecruWeightKg: entry.ecruWeightKg,
+        dateIssued: new Date(input.dateIssued),
+        allocatedCustomerId: entry.allocatedCustomerId ? new Types.ObjectId(entry.allocatedCustomerId) : undefined,
+        status: 'ISSUED' as const,
+        remarks: entry.remarks?.trim() || input.remarks?.trim() || ''
+      };
+    });
+
+    const createdBatches = await DyeingBatch.create(docsToCreate, { session });
+    await session.commitTransaction();
+    return createdBatches;
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+}
+
+export async function settleGatePassBatches(input: ReceiveGatePassInput): Promise<IDyeingBatch[]> {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const settled: IDyeingBatch[] = [];
+
+    for (const item of input.items) {
+      const batch = await DyeingBatch.findById(item.batchId).session(session);
+      if (!batch) {
+        throw new NotFoundError(`Batch ${item.batchId} not found`);
+      }
+      if (batch.status === 'COMPLETED') {
+        throw new BadRequestError(`Batch ${batch.batchNo} is already marked as completed`);
+      }
+
+      const { shortageWeightKg, shortagePercent } = calculateBatchSettlement(
+        batch.ecruWeightKg,
+        item.finishWeightKg
+      );
+
+      batch.finishRollsCount = item.finishRollsCount;
+      batch.finishWeightKg = item.finishWeightKg;
+      batch.shortageWeightKg = shortageWeightKg;
+      batch.shortagePercent = shortagePercent;
+      batch.dateReceived = new Date(input.dateReceived);
+      batch.status = 'COMPLETED';
+      batch.igpNo = input.igpNo.trim();
+      if (input.driverName) batch.driverName = input.driverName.trim();
+      if (input.vehicleNo) batch.vehicleNo = input.vehicleNo.trim();
+      if (item.remarks || input.remarks) {
+        batch.remarks = [batch.remarks, item.remarks, input.remarks].filter(Boolean).join(' | ');
+      }
+
+      await batch.save({ session });
+
+      const location = getBatchLocation(batch.millName);
+
+      await FabricInventory.findOneAndUpdate(
+        {
+          fabricType: batch.fabricType,
+          yarnSpec: batch.yarnSpec,
+          state: 'FINISHED_DYED',
+          color: batch.targetColor,
+          location
+        },
+        {
+          $inc: {
+            totalRolls: item.finishRollsCount,
+            totalWeightKg: item.finishWeightKg
+          },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true, session }
+      );
+
+      settled.push(batch);
+    }
+
+    await session.commitTransaction();
+    return settled;
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
 }
 
 export async function settleDyeingBatch(id: string, input: SettleBatchInput): Promise<IDyeingBatch> {
@@ -180,7 +335,10 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
       { yarnSpec: searchRegex },
       { customMillName: searchRegex },
       { ogpNo: searchRegex },
-      { igpNo: searchRegex }
+      { igpNo: searchRegex },
+      { machineNo: searchRegex },
+      { driverName: searchRegex },
+      { vehicleNo: searchRegex }
     ];
   }
 
@@ -329,6 +487,11 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
 
       if (input.ogpNo !== undefined) batch.ogpNo = input.ogpNo;
       if (input.igpNo !== undefined) batch.igpNo = input.igpNo;
+      if (input.machineNo !== undefined) batch.machineNo = input.machineNo;
+      if (input.driverName !== undefined) batch.driverName = input.driverName;
+      if (input.vehicleNo !== undefined) batch.vehicleNo = input.vehicleNo;
+      if (input.width !== undefined) batch.width = input.width;
+      if (input.gsm !== undefined) batch.gsm = input.gsm;
       if (input.dateIssued) batch.dateIssued = new Date(input.dateIssued);
       if (input.allocatedCustomerId !== undefined) {
         batch.allocatedCustomerId = input.allocatedCustomerId ? new Types.ObjectId(input.allocatedCustomerId) : undefined;
@@ -362,6 +525,11 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
     if (input.targetColor) batch.targetColor = input.targetColor.toUpperCase();
     if (input.ogpNo !== undefined) batch.ogpNo = input.ogpNo;
     if (input.igpNo !== undefined) batch.igpNo = input.igpNo;
+    if (input.machineNo !== undefined) batch.machineNo = input.machineNo;
+    if (input.driverName !== undefined) batch.driverName = input.driverName;
+    if (input.vehicleNo !== undefined) batch.vehicleNo = input.vehicleNo;
+    if (input.width !== undefined) batch.width = input.width;
+    if (input.gsm !== undefined) batch.gsm = input.gsm;
     if (input.dateIssued) batch.dateIssued = new Date(input.dateIssued);
     if (input.ecruRollsCount !== undefined) batch.ecruRollsCount = input.ecruRollsCount;
     if (input.ecruWeightKg !== undefined) batch.ecruWeightKg = input.ecruWeightKg;

@@ -9,6 +9,9 @@ import { Input } from '../../../components/ui/Input.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueBatchModal } from '../components/IssueBatchModal.js';
+import { CreateGatePassModal } from '../components/CreateGatePassModal.js';
+import { ReceiveGatePassModal } from '../components/ReceiveGatePassModal.js';
+import { ReceivedDyeingTab } from '../components/ReceivedDyeingTab.js';
 import { SettleBatchModal } from '../components/SettleBatchModal.js';
 import { EditBatchModal } from '../components/EditBatchModal.js';
 import { DyeingUnitsTab } from '../components/DyeingUnitsTab.js';
@@ -30,11 +33,13 @@ import {
   Edit,
   FileSpreadsheet,
   FileText,
-  ArrowUpDown
+  ArrowUpDown,
+  PackageCheck,
+  Truck
 } from 'lucide-react';
 
 export function DyeingPage() {
-  const [mainTab, setMainTab] = useState<'batches' | 'units'>('batches');
+  const [mainTab, setMainTab] = useState<'batches' | 'received' | 'units'>('batches');
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -42,6 +47,8 @@ export function DyeingPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
+  const [isMultiGatePassOpen, setIsMultiGatePassOpen] = useState(false);
+  const [isReceiveGatePassOpen, setIsReceiveGatePassOpen] = useState(false);
   const [settlingBatch, setSettlingBatch] = useState<DyeingBatchItem | null>(null);
   const [editingBatch, setEditingBatch] = useState<DyeingBatchItem | null>(null);
   const [isGatePassModalOpen, setIsGatePassModalOpen] = useState(false);
@@ -217,20 +224,44 @@ export function DyeingPage() {
             <span>{isExportingDyeingExcel ? 'Exporting...' : 'Export Report (.xlsx)'}</span>
           </Button>
 
-          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh batches" className="gap-1 whitespace-nowrap shrink-0">
+          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh batches" className="p-2 h-8 w-8 whitespace-nowrap shrink-0 text-zinc-400 hover:text-zinc-200">
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
           </Button>
 
-          <Button size="sm" onClick={() => setIsIssueOpen(true)} className="gap-1.5 whitespace-nowrap shrink-0">
-            <Plus className="w-4 h-4" />
-            <span>Send Fabric for Dyeing</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsReceiveGatePassOpen(true)}
+            className="gap-1.5 whitespace-nowrap shrink-0 text-emerald-400 border-emerald-800/60 hover:bg-emerald-950/40 font-semibold"
+          >
+            <PackageCheck className="w-3.5 h-3.5" />
+            <span>Receive Delivery (IGP)</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsMultiGatePassOpen(true)}
+            className="gap-1.5 whitespace-nowrap shrink-0 bg-emerald-600 hover:bg-emerald-500 font-bold text-white shadow-xs"
+          >
+            <Truck className="w-4 h-4" />
+            <span>New Gate Pass (OGP)</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsIssueOpen(true)}
+            className="gap-1 whitespace-nowrap shrink-0 text-zinc-400 hover:text-zinc-200"
+            title="Send single batch"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Single Batch</span>
           </Button>
         </div>
       </div>
 
       {/* Primary Sub-Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setMainTab('batches')}
@@ -241,7 +272,7 @@ export function DyeingPage() {
           }`}
         >
           <Palette className="w-4 h-4" />
-          <span>Dyeing Batches & Operations</span>
+          <span>Active Batches & In-Process</span>
           {data?.total !== undefined && (
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded-full ${
@@ -251,6 +282,19 @@ export function DyeingPage() {
               {data.total}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab('received')}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+            mainTab === 'received'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+          }`}
+        >
+          <PackageCheck className="w-4 h-4" />
+          <span>Received Dyeing (IGP)</span>
         </button>
 
         <button
@@ -278,6 +322,8 @@ export function DyeingPage() {
 
       {mainTab === 'units' ? (
         <DyeingUnitsTab />
+      ) : mainTab === 'received' ? (
+        <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} />
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -581,6 +627,20 @@ export function DyeingPage() {
           </Card>
         </>
       )}
+
+      <CreateGatePassModal
+        isOpen={isMultiGatePassOpen}
+        initialMill={selectedMill === 'ALL' ? 'GHUMMAN_DYEING' : selectedMill}
+        onClose={() => setIsMultiGatePassOpen(false)}
+        onSuccess={() => refetch()}
+      />
+
+      <ReceiveGatePassModal
+        isOpen={isReceiveGatePassOpen}
+        initialMill={selectedMill === 'ALL' ? 'GHUMMAN_DYEING' : selectedMill}
+        onClose={() => setIsReceiveGatePassOpen(false)}
+        onSuccess={() => refetch()}
+      />
 
       <IssueBatchModal
         isOpen={isIssueOpen}

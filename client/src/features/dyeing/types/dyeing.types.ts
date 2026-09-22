@@ -18,6 +18,11 @@ export interface DyeingBatchItem {
   targetColor: string;
   igpNo?: string;
   ogpNo?: string;
+  machineNo?: string;
+  driverName?: string;
+  vehicleNo?: string;
+  width?: string;
+  gsm?: string;
   dateIssued: string;
   dateReceived?: string;
   ecruRollsCount: number;
@@ -48,11 +53,67 @@ export interface CreateBatchPayload {
   targetColor: string;
   ogpNo?: string;
   igpNo?: string;
+  machineNo?: string;
+  driverName?: string;
+  vehicleNo?: string;
+  width?: string;
+  gsm?: string;
   dateIssued?: string;
   ecruRollsCount: number;
   ecruWeightKg: number;
   allocatedCustomerId?: string;
   remarks?: string;
+}
+
+export interface GatePassEntryItem {
+  id: string;
+  machineNo: string;
+  fabricType: string;
+  yarnSpec: string;
+  targetColor: string;
+  width?: string;
+  gsm?: string;
+  ecruRollsCount: string | number;
+  ecruWeightKg: string | number;
+  allocatedCustomerId?: string;
+  remarks?: string;
+}
+
+export interface CreateGatePassPayload {
+  ogpNo: string;
+  dateIssued?: string;
+  millName: DyeingMillType;
+  customMillName?: string;
+  millPartyId?: string;
+  driverName?: string;
+  vehicleNo?: string;
+  remarks?: string;
+  entries: {
+    machineNo?: string;
+    fabricType: string;
+    yarnSpec: string;
+    targetColor: string;
+    width?: string;
+    gsm?: string;
+    ecruRollsCount: number;
+    ecruWeightKg: number;
+    allocatedCustomerId?: string;
+    remarks?: string;
+  }[];
+}
+
+export interface ReceiveGatePassPayload {
+  igpNo: string;
+  dateReceived?: string;
+  driverName?: string;
+  vehicleNo?: string;
+  remarks?: string;
+  items: {
+    batchId: string;
+    finishRollsCount: number;
+    finishWeightKg: number;
+    remarks?: string;
+  }[];
 }
 
 export interface SettleBatchPayload {

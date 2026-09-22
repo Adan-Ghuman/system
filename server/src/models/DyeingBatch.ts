@@ -14,6 +14,11 @@ export interface IDyeingBatch extends Document {
   customMillName?: string;
   igpNo?: string;
   ogpNo?: string;
+  machineNo?: string;
+  driverName?: string;
+  vehicleNo?: string;
+  width?: string;
+  gsm?: string;
   dateIssued: Date;
   dateReceived?: Date;
   ecruRollsCount: number;
@@ -82,6 +87,31 @@ const dyeingBatchSchema = new Schema<IDyeingBatch>(
       default: ''
     },
     ogpNo: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    machineNo: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    driverName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    vehicleNo: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    width: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    gsm: {
       type: String,
       trim: true,
       default: ''
