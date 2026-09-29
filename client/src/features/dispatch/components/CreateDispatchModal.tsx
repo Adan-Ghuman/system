@@ -5,6 +5,7 @@ import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
+import { PartyCombobox } from '../../../components/ui/PartyCombobox.js';
 import { LoadingOverlay } from '../../../components/ui/LoadingOverlay.js';
 import { formatCurrency, formatWeight } from '../../../lib/formatters.js';
 import { RapidGridEntry } from './RapidGridEntry.js';
@@ -179,15 +180,14 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Select
+          <PartyCombobox
             id="dispatchCustomer"
             label="Customer (Buyer)"
             value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            options={buyers.map((b) => ({
-              label: `${b.code} - ${b.name} (Bal: ${formatCurrency(b.currentBalance)})`,
-              value: b._id
-            }))}
+            parties={buyers}
+            placeholder="Search buyer name or code..."
+            onChange={(val) => setCustomerId(val)}
+            className="text-xs"
           />
 
           <Select

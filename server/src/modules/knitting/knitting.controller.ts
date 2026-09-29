@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { sendCreated, sendSuccess } from '../../utils/response.js';
 import {
   recordYarnTransaction,
+  recordBulkYarnTransactions,
   recordKnittedFabricReceipt,
   getKnitterBalances,
   listYarnTransactions,
@@ -17,6 +18,11 @@ import {
 export async function handleCreateTransaction(req: Request, res: Response): Promise<void> {
   const transaction = await recordYarnTransaction(req.body);
   sendCreated(res, transaction, 'Yarn transaction logged successfully');
+}
+
+export async function handleCreateBulkTransactions(req: Request, res: Response): Promise<void> {
+  const result = await recordBulkYarnTransactions(req.body);
+  sendCreated(res, result, `${result.count} yarn items logged under Gate Pass ${req.body.gatePassNo}`);
 }
 
 export async function handleReceiveFabric(req: Request, res: Response): Promise<void> {

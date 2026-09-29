@@ -14,6 +14,8 @@ if (process.platform === 'win32') {
 
 let memoryReplSet: { stop: () => Promise<boolean> } | null = null;
 
+export { mongoose };
+
 export async function connectDatabase(): Promise<string> {
   if (mongoose.connection.readyState >= 1) {
     return env.MONGODB_URI;

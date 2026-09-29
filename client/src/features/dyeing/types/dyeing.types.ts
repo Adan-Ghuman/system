@@ -102,18 +102,31 @@ export interface CreateGatePassPayload {
   }[];
 }
 
+export interface ReceiveGatePassItem {
+  batchId?: string;
+  lotNo?: string;
+  fabricType?: string;
+  yarnSpec?: string;
+  targetColor?: string;
+  gsm?: string;
+  width?: string;
+  ecruRollsCount?: number;
+  ecruWeightKg?: number;
+  finishRollsCount: number;
+  finishWeightKg: number;
+  remarks?: string;
+}
+
 export interface ReceiveGatePassPayload {
   igpNo: string;
   dateReceived?: string;
+  millName?: DyeingMillType;
+  customMillName?: string;
+  millPartyId?: string;
   driverName?: string;
   vehicleNo?: string;
   remarks?: string;
-  items: {
-    batchId: string;
-    finishRollsCount: number;
-    finishWeightKg: number;
-    remarks?: string;
-  }[];
+  items: ReceiveGatePassItem[];
 }
 
 export interface SettleBatchPayload {

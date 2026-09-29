@@ -4,6 +4,7 @@ import { validateBody, validateQuery } from '../../middleware/validate.middlewar
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import {
   createYarnTransactionSchema,
+  createBulkYarnTransactionSchema,
   updateYarnTransactionSchema,
   receiveFabricSchema,
   queryTransactionsSchema,
@@ -13,6 +14,7 @@ import {
 } from './knitting.schema.js';
 import {
   handleCreateTransaction,
+  handleCreateBulkTransactions,
   handleReceiveFabric,
   handleGetBalances,
   handleListTransactions,
@@ -31,6 +33,7 @@ router.use(authenticate);
 
 router.get('/transactions', requirePermission('knitting:read'), validateQuery(queryTransactionsSchema), asyncHandler(handleListTransactions));
 router.post('/transactions', requirePermission('knitting:write'), validateBody(createYarnTransactionSchema), asyncHandler(handleCreateTransaction));
+router.post('/transactions/bulk', requirePermission('knitting:write'), validateBody(createBulkYarnTransactionSchema), asyncHandler(handleCreateBulkTransactions));
 router.put('/transactions/:id', requirePermission('knitting:write'), validateBody(updateYarnTransactionSchema), asyncHandler(handleUpdateTransaction));
 router.delete('/transactions/:id', requirePermission('knitting:write'), asyncHandler(handleDeleteTransaction));
 router.get('/balances', requirePermission('knitting:read'), asyncHandler(handleGetBalances));

@@ -38,6 +38,31 @@ export interface KnitterBalanceSummary {
   remainingYarnKg: number;
 }
 
+export interface YarnGatePassLineItem {
+  id: string;
+  yarnSpec: string;
+  customSpec?: string;
+  boxCount: string;
+  netWeightPerBox: string;
+  wastagePercent?: string;
+  remarks?: string;
+}
+
+export interface BulkCreateYarnTransactionPayload {
+  transactionType: YarnTransactionType;
+  partyId: string;
+  gatePassNo: string;
+  date?: string;
+  remarks?: string;
+  items: Array<{
+    yarnSpec: string;
+    boxCount: number;
+    netWeightPerBox: number;
+    wastagePercent?: number;
+    remarks?: string;
+  }>;
+}
+
 export interface CreateYarnTransactionPayload {
   transactionType: YarnTransactionType;
   partyId: string;
@@ -50,14 +75,24 @@ export interface CreateYarnTransactionPayload {
   remarks?: string;
 }
 
-export interface ReceiveFabricPayload {
-  partyId: string;
+export interface ReceiveFabricLineItem {
+  fabricType?: string;
   yarnSpec: string;
   rollsCount: number;
   weightKg: number;
+  remarks?: string;
+}
+
+export interface ReceiveFabricPayload {
+  partyId: string;
+  partyName?: string;
   date?: string;
   gatePassNo?: string;
   remarks?: string;
+  yarnSpec?: string;
+  rollsCount?: number;
+  weightKg?: number;
+  items?: ReceiveFabricLineItem[];
 }
 
 export interface UpdateYarnTransactionPayload {

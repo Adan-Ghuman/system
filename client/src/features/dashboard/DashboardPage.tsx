@@ -19,7 +19,8 @@ import {
   Warehouse,
   Scale,
   Building2,
-  ShieldCheck
+  ShieldCheck,
+  PackageCheck
 } from 'lucide-react';
 import { InventorySummaryGroup } from '../inventory/types/inventory.types.js';
 
@@ -194,11 +195,23 @@ export function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleRefreshAll} isLoading={isFetchingParties}>
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Refresh</span>
           </Button>
+          <Link to="/dyeing">
+            <Button size="sm" variant="outline" className="border-emerald-600/80 text-emerald-400 hover:bg-emerald-950/40 font-semibold gap-1.5">
+              <PackageCheck className="w-3.5 h-3.5" />
+              <span>Receive Dyeing (Challan)</span>
+            </Button>
+          </Link>
+          <Link to="/knitting">
+            <Button size="sm" variant="outline" className="border-emerald-600/80 text-emerald-400 hover:bg-emerald-950/40 font-semibold gap-1.5">
+              <Layers className="w-3.5 h-3.5" />
+              <span>Receive Knitted (Challan)</span>
+            </Button>
+          </Link>
           <Link to="/dispatch">
             <Button size="sm">
               <Truck className="w-3.5 h-3.5" />

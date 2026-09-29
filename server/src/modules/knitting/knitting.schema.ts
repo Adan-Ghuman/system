@@ -12,15 +12,31 @@ export const createYarnTransactionSchema = z.object({
   remarks: z.string().optional().default('')
 });
 
-export const receiveFabricSchema = z.object({
-  partyId: z.string().min(1, 'Party ID is required'),
+export const receiveFabricItemSchema = z.object({
+  fabricType: z.string().trim().optional().default('Single Jersey'),
   yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
   rollsCount: z.number().int().min(1, 'Roll count must be at least 1'),
   weightKg: z.number().positive('Received weight must be positive'),
-  date: z.string().datetime().optional().default(() => new Date().toISOString()),
-  gatePassNo: z.string().optional().default(''),
   remarks: z.string().optional().default('')
 });
+
+export const receiveFabricSchema = z.object({
+  partyId: z.string().min(1, 'Party is required'),
+  partyName: z.string().optional(),
+  date: z.string().datetime().optional().default(() => new Date().toISOString()),
+  gatePassNo: z.string().optional().default(''),
+  remarks: z.string().optional().default(''),
+  // Single-item fallback fields for backwards compatibility
+  yarnSpec: z.string().trim().optional(),
+  fabricType: z.string().trim().optional(),
+  rollsCount: z.number().int().min(1).optional(),
+  weightKg: z.number().positive().optional(),
+  // Multi-item array
+  items: z.array(receiveFabricItemSchema).optional()
+}).refine(
+  (data) => (data.items && data.items.length > 0) || (data.yarnSpec && data.weightKg),
+  { message: 'At least one fabric line item is required', path: ['items'] }
+);
 
 export const queryTransactionsSchema = z.object({
   partyId: z.string().optional(),
@@ -68,7 +84,26 @@ export const bulkRenameYarnSpecSchema = z.object({
   category: z.enum(['Polyester', 'Cotton', 'Spandex', 'Blended', 'Viscose', 'Other']).optional().default('Polyester')
 });
 
+export const yarnLineItemSchema = z.object({
+  yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
+  boxCount: z.number().int().min(1, 'Box count must be at least 1'),
+  netWeightPerBox: z.number().positive('Net weight per box must be positive'),
+  wastagePercent: z.number().min(0).max(10).optional().default(1.0),
+  remarks: z.string().optional().default('')
+});
+
+export const createBulkYarnTransactionSchema = z.object({
+  transactionType: z.enum(['OUTWARD_TO_KNITTER', 'INWARD_FROM_CLIENT']),
+  partyId: z.string().min(1, 'Party ID is required'),
+  gatePassNo: z.string().min(1, 'Gate Pass number is required').trim(),
+  date: z.string().optional().default(() => new Date().toISOString()),
+  remarks: z.string().optional().default(''),
+  items: z.array(yarnLineItemSchema).min(1, 'At least one yarn item is required')
+});
+
 export type CreateYarnTransactionInput = z.infer<typeof createYarnTransactionSchema>;
+export type CreateBulkYarnTransactionInput = z.infer<typeof createBulkYarnTransactionSchema>;
+export type YarnLineItemInput = z.infer<typeof yarnLineItemSchema>;
 export type UpdateYarnTransactionInput = z.infer<typeof updateYarnTransactionSchema>;
 export type ReceiveFabricInput = z.infer<typeof receiveFabricSchema>;
 export type QueryTransactionsInput = z.infer<typeof queryTransactionsSchema>;

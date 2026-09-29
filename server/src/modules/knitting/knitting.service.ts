@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { YarnTransaction, IYarnTransaction } from '../../models/YarnTransaction.js';
 import { YarnSpecification, IYarnSpecification, DEFAULT_YARN_SPECIFICATIONS } from '../../models/YarnSpecification.js';
 import { Party } from '../../models/Party.js';
@@ -6,6 +6,7 @@ import { NotFoundError, BadRequestError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult } from '../../utils/pagination.js';
 import {
   CreateYarnTransactionInput,
+  CreateBulkYarnTransactionInput,
   UpdateYarnTransactionInput,
   ReceiveFabricInput,
   QueryTransactionsInput,
@@ -27,9 +28,25 @@ export function calculateYarnMetrics(boxCount: number, netWeightPerBox: number, 
 }
 
 export async function recordYarnTransaction(input: CreateYarnTransactionInput): Promise<IYarnTransaction> {
-  const party = await Party.findById(input.partyId);
+  let party = null;
+  if (Types.ObjectId.isValid(input.partyId)) {
+    party = await Party.findById(input.partyId);
+  }
   if (!party) {
-    throw new NotFoundError('Selected party was not found');
+    party = await Party.findOne({ name: new RegExp(`^${input.partyId.trim()}$`, 'i') });
+    if (!party) {
+      const isKnitter = input.transactionType === 'OUTWARD_TO_KNITTER';
+      const count = await Party.countDocuments();
+      const code = `${isKnitter ? 'KNT' : 'YRN'}-${String(count + 1).padStart(3, '0')}`;
+      party = await Party.create({
+        name: input.partyId.trim(),
+        code,
+        isKnitter,
+        isYarnClient: !isKnitter,
+        isActive: true,
+        currentBalance: 0
+      });
+    }
   }
 
   const { grossWeightKg, wastageWeightKg, netExpectedFabricKg } = calculateYarnMetrics(
@@ -40,7 +57,7 @@ export async function recordYarnTransaction(input: CreateYarnTransactionInput): 
 
   const transaction = await YarnTransaction.create({
     transactionType: input.transactionType,
-    partyId: new Types.ObjectId(input.partyId),
+    partyId: party._id,
     yarnSpec: input.yarnSpec,
     gatePassNo: input.gatePassNo,
     date: new Date(input.date),
@@ -58,47 +75,203 @@ export async function recordYarnTransaction(input: CreateYarnTransactionInput): 
   return transaction;
 }
 
+export async function recordBulkYarnTransactions(input: CreateBulkYarnTransactionInput): Promise<{
+  transactions: IYarnTransaction[];
+  count: number;
+  totalBoxes: number;
+  totalGrossKg: number;
+}> {
+  let party = null;
+  if (Types.ObjectId.isValid(input.partyId)) {
+    party = await Party.findById(input.partyId);
+  }
+  if (!party) {
+    party = await Party.findOne({ name: new RegExp(`^${input.partyId.trim()}$`, 'i') });
+    if (!party) {
+      const isKnitter = input.transactionType === 'OUTWARD_TO_KNITTER';
+      const count = await Party.countDocuments();
+      const code = `${isKnitter ? 'KNT' : 'YRN'}-${String(count + 1).padStart(3, '0')}`;
+      party = await Party.create({
+        name: input.partyId.trim(),
+        code,
+        isKnitter,
+        isYarnClient: !isKnitter,
+        isActive: true,
+        currentBalance: 0
+      });
+    }
+  }
+
+  if (!input.items || input.items.length === 0) {
+    throw new BadRequestError('At least one yarn item is required');
+  }
+
+  const txDate = input.date ? new Date(input.date) : new Date();
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const docsToCreate = input.items.map((item) => {
+      const { grossWeightKg, wastageWeightKg, netExpectedFabricKg } = calculateYarnMetrics(
+        item.boxCount,
+        item.netWeightPerBox,
+        item.wastagePercent
+      );
+
+      const combinedRemarks = [item.remarks?.trim(), input.remarks?.trim()].filter(Boolean).join(' | ');
+
+      return {
+        transactionType: input.transactionType,
+        partyId: party._id,
+        yarnSpec: item.yarnSpec,
+        gatePassNo: input.gatePassNo,
+        date: txDate,
+        boxCount: item.boxCount,
+        netWeightPerBox: item.netWeightPerBox,
+        grossWeightKg,
+        wastagePercent: item.wastagePercent ?? 1.0,
+        wastageWeightKg,
+        netExpectedFabricKg,
+        receivedFabricKg: 0,
+        remainingYarnBalanceKg: grossWeightKg,
+        remarks: combinedRemarks
+      };
+    });
+
+    const createdTransactions = await YarnTransaction.insertMany(docsToCreate, { session });
+    await session.commitTransaction();
+
+    let totalBoxes = 0;
+    let totalGrossKg = 0;
+    for (const item of docsToCreate) {
+      totalBoxes += item.boxCount;
+      totalGrossKg += item.grossWeightKg;
+    }
+
+    return {
+      transactions: createdTransactions,
+      count: createdTransactions.length,
+      totalBoxes,
+      totalGrossKg: Math.round(totalGrossKg * 100) / 100
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+}
+
+import { FabricInventory } from '../../models/FabricInventory.js';
+
 export async function recordKnittedFabricReceipt(input: ReceiveFabricInput): Promise<{
   reconciledKg: number;
+  totalReceivedKg: number;
+  totalRolls: number;
+  itemsCount: number;
   remainingYarnInFieldKg: number;
 }> {
-  const party = await Party.findById(input.partyId);
+  // Normalize items array
+  const items = input.items && input.items.length > 0
+    ? input.items
+    : [
+        {
+          fabricType: input.fabricType || 'Single Jersey',
+          yarnSpec: input.yarnSpec || '75/72',
+          rollsCount: input.rollsCount || 1,
+          weightKg: input.weightKg || 0,
+          remarks: input.remarks || ''
+        }
+      ];
+
+  // Resolve or create Party
+  let party = null;
+  if (Types.ObjectId.isValid(input.partyId)) {
+    party = await Party.findById(input.partyId);
+  }
   if (!party) {
-    throw new NotFoundError('Selected knitter was not found');
+    const searchName = input.partyName?.trim() || input.partyId.trim();
+    party = await Party.findOne({ name: new RegExp(`^${searchName}$`, 'i') });
+    if (!party) {
+      // Auto-create party for direct challan entry
+      const count = await Party.countDocuments();
+      const code = `KNT-${String(count + 1).padStart(3, '0')}`;
+      party = await Party.create({
+        name: searchName,
+        code,
+        isKnitter: true,
+        isActive: true,
+        currentBalance: 0
+      });
+    }
   }
 
-  const activeTransactions = await YarnTransaction.find({
-    partyId: new Types.ObjectId(input.partyId),
-    yarnSpec: input.yarnSpec,
-    transactionType: 'OUTWARD_TO_KNITTER',
-    remainingYarnBalanceKg: { $gt: 0 }
-  }).sort({ date: 1 });
+  let totalReconciledKg = 0;
+  let totalReceivedKg = 0;
+  let totalRolls = 0;
 
-  if (activeTransactions.length === 0) {
-    throw new BadRequestError(`No active unknitted yarn found for knitter ${party.name} under specification ${input.yarnSpec}`);
+  for (const item of items) {
+    totalReceivedKg += item.weightKg;
+    totalRolls += item.rollsCount;
+
+    // 1. Try FIFO deduction on active yarn transactions if available
+    const activeTransactions = await YarnTransaction.find({
+      partyId: party._id,
+      yarnSpec: item.yarnSpec,
+      transactionType: 'OUTWARD_TO_KNITTER',
+      remainingYarnBalanceKg: { $gt: 0 }
+    }).sort({ date: 1 });
+
+    let unallocatedWeight = item.weightKg;
+
+    for (const tx of activeTransactions) {
+      if (unallocatedWeight <= 0) break;
+
+      const availableToReceive = tx.netExpectedFabricKg - tx.receivedFabricKg;
+      const canDeduct = Math.min(
+        availableToReceive > 0 ? availableToReceive : tx.remainingYarnBalanceKg,
+        unallocatedWeight
+      );
+
+      if (canDeduct > 0) {
+        tx.receivedFabricKg = Math.round((tx.receivedFabricKg + canDeduct) * 100) / 100;
+        const grossDeduction = Math.round((canDeduct / (1 - tx.wastagePercent / 100)) * 100) / 100;
+        tx.remainingYarnBalanceKg = Math.max(
+          0,
+          Math.round((tx.remainingYarnBalanceKg - grossDeduction) * 100) / 100
+        );
+        await tx.save();
+        unallocatedWeight = Math.round((unallocatedWeight - canDeduct) * 100) / 100;
+      }
+    }
+
+    totalReconciledKg += item.weightKg - unallocatedWeight;
+
+    // 2. Deposit knitted fabric into RAW_ECRU stock at Godown
+    await FabricInventory.findOneAndUpdate(
+      {
+        fabricType: item.fabricType || 'Single Jersey',
+        yarnSpec: item.yarnSpec,
+        state: 'RAW_ECRU',
+        color: 'ECRU',
+        location: 'ZR_GODOWN'
+      },
+      {
+        $inc: {
+          totalRolls: item.rollsCount,
+          totalWeightKg: item.weightKg
+        },
+        $set: { updatedAt: new Date() }
+      },
+      { upsert: true }
+    );
   }
 
-  let unallocatedWeight = input.weightKg;
-
-  for (const tx of activeTransactions) {
-    if (unallocatedWeight <= 0) break;
-
-    const availableToReceive = tx.netExpectedFabricKg - tx.receivedFabricKg;
-    const canDeduct = Math.min(availableToReceive > 0 ? availableToReceive : tx.remainingYarnBalanceKg, unallocatedWeight);
-
-    tx.receivedFabricKg = Math.round((tx.receivedFabricKg + canDeduct) * 100) / 100;
-    const grossDeduction = Math.round((canDeduct / (1 - tx.wastagePercent / 100)) * 100) / 100;
-    tx.remainingYarnBalanceKg = Math.max(0, Math.round((tx.remainingYarnBalanceKg - grossDeduction) * 100) / 100);
-
-    await tx.save();
-    unallocatedWeight = Math.round((unallocatedWeight - canDeduct) * 100) / 100;
-  }
-
+  // Get total remaining yarn in field for party
   const remainingSummary = await YarnTransaction.aggregate([
     {
       $match: {
-        partyId: new Types.ObjectId(input.partyId),
-        yarnSpec: input.yarnSpec,
+        partyId: party._id,
         transactionType: 'OUTWARD_TO_KNITTER'
       }
     },
@@ -111,7 +284,10 @@ export async function recordKnittedFabricReceipt(input: ReceiveFabricInput): Pro
   ]);
 
   return {
-    reconciledKg: input.weightKg - unallocatedWeight,
+    reconciledKg: Math.round(totalReconciledKg * 100) / 100,
+    totalReceivedKg: Math.round(totalReceivedKg * 100) / 100,
+    totalRolls,
+    itemsCount: items.length,
     remainingYarnInFieldKg: remainingSummary[0]?.totalRemaining || 0
   };
 }

@@ -64,7 +64,15 @@ export const createGatePassSchema = z.object({
 });
 
 export const receiveGatePassItemSchema = z.object({
-  batchId: z.string().min(1, 'Batch ID is required'),
+  batchId: z.string().optional(),
+  lotNo: z.string().trim().optional(),
+  fabricType: z.string().trim().optional(),
+  yarnSpec: z.string().trim().optional(),
+  targetColor: z.string().trim().optional(),
+  gsm: z.string().trim().optional(),
+  width: z.string().trim().optional(),
+  ecruRollsCount: z.number().int().min(1).optional(),
+  ecruWeightKg: z.number().positive().optional(),
   finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
   finishWeightKg: z.number().positive('Finished weight must be positive'),
   remarks: z.string().optional()
@@ -73,10 +81,13 @@ export const receiveGatePassItemSchema = z.object({
 export const receiveGatePassSchema = z.object({
   igpNo: z.string().min(1, 'IGP number is required').trim(),
   dateReceived: z.string().datetime().optional().default(() => new Date().toISOString()),
+  millName: millNameEnum.optional().default('HB_DYEING'),
+  customMillName: z.string().trim().optional().default(''),
+  millPartyId: z.string().optional(),
   driverName: z.string().trim().optional().default(''),
   vehicleNo: z.string().trim().optional().default(''),
   remarks: z.string().optional().default(''),
-  items: z.array(receiveGatePassItemSchema).min(1, 'At least one batch must be received')
+  items: z.array(receiveGatePassItemSchema).min(1, 'At least one line item must be received')
 });
 
 export const settleBatchSchema = z.object({

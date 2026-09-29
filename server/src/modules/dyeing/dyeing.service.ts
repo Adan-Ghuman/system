@@ -180,10 +180,44 @@ export async function settleGatePassBatches(input: ReceiveGatePassInput): Promis
     const settled: IDyeingBatch[] = [];
 
     for (const item of input.items) {
-      const batch = await DyeingBatch.findById(item.batchId).session(session);
-      if (!batch) {
-        throw new NotFoundError(`Batch ${item.batchId} not found`);
+      let batch: IDyeingBatch | null = null;
+
+      if (item.batchId) {
+        batch = await DyeingBatch.findById(item.batchId).session(session);
+        if (!batch) {
+          throw new NotFoundError(`Batch ${item.batchId} not found`);
+        }
+      } else if (item.lotNo) {
+        // Try to match existing active batch by lot number
+        batch = await DyeingBatch.findOne({
+          batchNo: item.lotNo.trim().toUpperCase(),
+          status: { $in: ['ISSUED', 'IN_PROCESS'] }
+        }).session(session);
       }
+
+      // If no existing batch found, create it on the fly from the challan slip
+      if (!batch) {
+        const batchNo = item.lotNo?.trim().toUpperCase() || await generateNextBatchNo();
+        const ecruWeight = item.ecruWeightKg && item.ecruWeightKg > 0 ? item.ecruWeightKg : item.finishWeightKg;
+        const ecruRolls = item.ecruRollsCount && item.ecruRollsCount > 0 ? item.ecruRollsCount : item.finishRollsCount;
+
+        batch = new DyeingBatch({
+          batchNo,
+          millName: input.millName || 'HB_DYEING',
+          millPartyId: input.millPartyId ? new Types.ObjectId(input.millPartyId) : undefined,
+          customMillName: input.customMillName || '',
+          fabricType: item.fabricType?.trim() || 'Interlock',
+          yarnSpec: item.yarnSpec?.trim() || '75/72',
+          targetColor: (item.targetColor?.trim() || 'WHITE').toUpperCase(),
+          gsm: item.gsm?.trim() || '',
+          width: item.width?.trim() || '',
+          dateIssued: input.dateReceived ? new Date(input.dateReceived) : new Date(),
+          ecruRollsCount: ecruRolls,
+          ecruWeightKg: ecruWeight,
+          status: 'ISSUED'
+        });
+      }
+
       if (batch.status === 'COMPLETED') {
         throw new BadRequestError(`Batch ${batch.batchNo} is already marked as completed`);
       }
