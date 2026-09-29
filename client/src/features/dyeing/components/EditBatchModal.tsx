@@ -150,9 +150,10 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
     const finish = parseFloat(finishWeightKg) || 0;
     if (finish <= 0 || ecru <= 0) return null;
 
+    const isExceeded = finish > ecru;
     const shortageKg = Math.round((ecru - finish) * 100) / 100;
     const shortagePct = Math.round(((shortageKg / ecru) * 100) * 100) / 100;
-    return { shortageKg, shortagePct, isAlert: shortagePct > 5.0 };
+    return { shortageKg, shortagePct, isAlert: shortagePct > 5.0 && !isExceeded, isExceeded };
   }, [ecruWeightKg, finishWeightKg]);
 
   async function handleSubmit(e: FormEvent) {
@@ -165,6 +166,14 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
     setIsLoading(true);
 
     try {
+      if (batch.status === 'COMPLETED' && finishWeightKg) {
+        const fin = parseFloat(finishWeightKg);
+        const ecru = parseFloat(ecruWeightKg);
+        if (ecru > 0 && fin > ecru) {
+          throw new Error(`Finish weight (${fin} kg) cannot be more than lot weight (${ecru} kg)`);
+        }
+      }
+
       const allActiveYarnSpecs = [...selectedYarnSpecs];
       if (isOtherYarnActive && customYarnSpec.trim()) {
         const customParts = customYarnSpec.split(/\s*\+\s*/).map((s) => s.trim()).filter(Boolean);
@@ -480,28 +489,50 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
                 label="Finished Weight (Kg)"
                 value={finishWeightKg}
                 onChange={(e) => setFinishWeightKg(e.target.value)}
+                error={
+                  settlementMetrics?.isExceeded
+                    ? `Finish weight cannot be more than lot weight (${ecruWeightKg} kg)`
+                    : undefined
+                }
                 required
               />
             </div>
 
             {settlementMetrics && (
-              <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
-                <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-                  <span className="text-[10px] text-zinc-500 block">Shortage Loss</span>
-                  <strong className="text-zinc-200 font-mono text-sm">
-                    {formatWeight(settlementMetrics.shortageKg)}
-                  </strong>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
+                  <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
+                    <span className="text-[10px] text-zinc-500 block">Shortage Loss</span>
+                    <strong
+                      className={`font-mono text-sm ${
+                        settlementMetrics.isExceeded ? 'text-red-400' : 'text-zinc-200'
+                      }`}
+                    >
+                      {formatWeight(settlementMetrics.shortageKg)}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
+                    <span className="text-[10px] text-zinc-500 block">Loss Percentage</span>
+                    <strong
+                      className={`font-mono text-sm ${
+                        settlementMetrics.isExceeded
+                          ? 'text-red-400'
+                          : settlementMetrics.isAlert
+                          ? 'text-amber-400'
+                          : 'text-emerald-400'
+                      }`}
+                    >
+                      {settlementMetrics.shortagePct}%
+                    </strong>
+                  </div>
                 </div>
-                <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-                  <span className="text-[10px] text-zinc-500 block">Loss Percentage</span>
-                  <strong
-                    className={`font-mono text-sm ${
-                      settlementMetrics.isAlert ? 'text-amber-400' : 'text-emerald-400'
-                    }`}
-                  >
-                    {settlementMetrics.shortagePct}%
-                  </strong>
-                </div>
+
+                {settlementMetrics.isExceeded && (
+                  <div className="p-2 rounded bg-red-950/70 border border-red-800 text-[11px] text-red-300 flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
+                    <span>Finish weight cannot exceed lot weight ({ecruWeightKg} kg).</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -571,7 +602,11 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isDeleting}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={isLoading} disabled={isDeleting}>
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              disabled={isDeleting || !!settlementMetrics?.isExceeded}
+            >
               Save Changes
             </Button>
           </div>

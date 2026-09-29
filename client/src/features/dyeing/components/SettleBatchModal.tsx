@@ -39,24 +39,31 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
   }, [batch]);
 
   const settlementMath = useMemo(() => {
-    if (!batch) return { lossKg: 0, shrinkagePercent: 0, isAlert: false };
+    if (!batch) return { lossKg: 0, shrinkagePercent: 0, isAlert: false, isExceeded: false };
 
     const finish = parseFloat(finishWeightKg) || 0;
     const ecru = batch.ecruWeightKg || 0;
+    const isExceeded = ecru > 0 && finish > ecru;
 
     const lossKg = Math.round((ecru - finish) * 100) / 100;
     const shrinkagePercent = ecru > 0
       ? Math.round(((lossKg / ecru) * 100) * 100) / 100
       : 0;
 
-    const isAlert = shrinkagePercent > 5.0;
+    const isAlert = shrinkagePercent > 5.0 && !isExceeded;
 
-    return { lossKg, shrinkagePercent, isAlert };
+    return { lossKg, shrinkagePercent, isAlert, isExceeded };
   }, [batch, finishWeightKg]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!batch || isSubmittingRef.current || isLoading) return;
+
+    const finish = parseFloat(finishWeightKg) || 0;
+    if (batch.ecruWeightKg && batch.ecruWeightKg > 0 && finish > batch.ecruWeightKg) {
+      setError(`Finish weight (${finish} kg) cannot be more than lot weight (${batch.ecruWeightKg} kg)`);
+      return;
+    }
 
     isSubmittingRef.current = true;
     setError(null);
@@ -170,6 +177,11 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
             label="Finished Net Weight (Kg)"
             value={finishWeightKg}
             onChange={(e) => setFinishWeightKg(e.target.value)}
+            error={
+              settlementMath.isExceeded
+                ? `Finish weight (${finishWeightKg} kg) cannot be more than lot weight (${batch.ecruWeightKg} kg)`
+                : undefined
+            }
             required
           />
         </div>
@@ -199,7 +211,12 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               <Scale className="w-3.5 h-3.5 text-emerald-400" />
               Dynamic Shrinkage & Loss Engine
             </span>
-            {settlementMath.isAlert ? (
+            {settlementMath.isExceeded ? (
+              <Badge variant="destructive" className="gap-1 font-semibold text-[11px] bg-red-950 text-red-300 border-red-700">
+                <AlertCircle className="w-3 h-3" />
+                Exceeds Lot Weight
+              </Badge>
+            ) : settlementMath.isAlert ? (
               <Badge variant="warning" className="gap-1 font-semibold text-[11px]">
                 <AlertTriangle className="w-3 h-3" />
                 Excess Shrinkage (&gt; 5.0%)
@@ -217,7 +234,11 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               <div className="text-[10px] text-zinc-500 uppercase">Shortage Loss (Kg)</div>
               <div
                 className={`text-sm font-mono font-bold mt-0.5 ${
-                  settlementMath.isAlert ? 'text-amber-400' : 'text-zinc-200'
+                  settlementMath.isExceeded
+                    ? 'text-red-400'
+                    : settlementMath.isAlert
+                    ? 'text-amber-400'
+                    : 'text-zinc-200'
                 }`}
               >
                 {formatWeight(settlementMath.lossKg)}
@@ -228,7 +249,11 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               <div className="text-[10px] text-zinc-500 uppercase">Shrinkage %</div>
               <div
                 className={`text-sm font-mono font-bold mt-0.5 ${
-                  settlementMath.isAlert ? 'text-amber-400' : 'text-emerald-400'
+                  settlementMath.isExceeded
+                    ? 'text-red-400'
+                    : settlementMath.isAlert
+                    ? 'text-amber-400'
+                    : 'text-emerald-400'
                 }`}
               >
                 {settlementMath.shrinkagePercent.toFixed(2)}%
@@ -242,6 +267,15 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               </div>
             </div>
           </div>
+
+          {settlementMath.isExceeded && (
+            <div className="p-2.5 rounded bg-red-950/70 border border-red-800 text-[11px] text-red-300 flex items-center gap-1.5 font-medium">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
+              <span>
+                Finish weight ({finishWeightKg} kg) cannot be more than issued lot weight ({batch.ecruWeightKg} kg). Please verify and correct the weight.
+              </span>
+            </div>
+          )}
 
           {settlementMath.isAlert && (
             <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center gap-1.5">
@@ -263,7 +297,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" isLoading={isLoading}>
+          <Button type="submit" isLoading={isLoading} disabled={settlementMath.isExceeded}>
             Confirm & Add to Stock
           </Button>
         </div>

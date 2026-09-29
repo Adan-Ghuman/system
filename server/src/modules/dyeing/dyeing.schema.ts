@@ -76,7 +76,10 @@ export const receiveGatePassItemSchema = z.object({
   finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
   finishWeightKg: z.number().positive('Finished weight must be positive'),
   remarks: z.string().optional()
-});
+}).refine(
+  (data) => !(data.ecruWeightKg && data.ecruWeightKg > 0 && data.finishWeightKg > data.ecruWeightKg),
+  { message: "Finish weight cannot be more than lot weight", path: ['finishWeightKg'] }
+);
 
 export const receiveGatePassSchema = z.object({
   igpNo: z.string().min(1, 'IGP number is required').trim(),
@@ -121,7 +124,10 @@ export const updateBatchSchema = z.object({
   finishWeightKg: z.number().min(0).optional(),
   allocatedCustomerId: z.string().nullable().optional(),
   remarks: z.string().optional()
-});
+}).refine(
+  (data) => !(data.ecruWeightKg && data.finishWeightKg && data.ecruWeightKg > 0 && data.finishWeightKg > data.ecruWeightKg),
+  { message: 'Finish weight cannot be more than lot weight', path: ['finishWeightKg'] }
+);
 
 export const queryBatchesSchema = z.object({
   millName: millNameEnum.optional(),

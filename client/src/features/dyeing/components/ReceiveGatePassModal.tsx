@@ -251,15 +251,31 @@ export function ReceiveGatePassModal({
     const totalLossKg = Math.round((totalLotKg - totalFinishKg) * 100) / 100;
     const avgShrinkage = totalLotKg > 0 ? Math.round(((totalLossKg / totalLotKg) * 100) * 100) / 100 : 0;
 
+    const hasWeightViolation = rows.some((r) => {
+      const lotKg = parseFloat(r.lotWeightKg);
+      const finKg = parseFloat(r.finishWeightKg);
+      return !isNaN(lotKg) && lotKg > 0 && !isNaN(finKg) && finKg > lotKg;
+    });
+
     return {
       itemsCount: rows.length,
       totalRolls,
       totalLotKg: Math.round(totalLotKg * 100) / 100,
       totalFinishKg: Math.round(totalFinishKg * 100) / 100,
       totalLossKg,
-      avgShrinkage
+      avgShrinkage,
+      hasWeightViolation
     };
   }, [rows]);
+
+  // Mode B weight check
+  const hasModeBViolation = useMemo(() => {
+    return Object.entries(selectedBatchIds).some(([bId, vals]) => {
+      const matched = activeBatches.find((b) => b._id === bId);
+      const finishKg = parseFloat(vals.finishKg) || 0;
+      return matched && matched.ecruWeightKg > 0 && finishKg > matched.ecruWeightKg;
+    });
+  }, [selectedBatchIds, activeBatches]);
 
   // Handle Mode B batch selection
   function handleToggleBatch(b: DyeingBatchItem) {
@@ -300,12 +316,18 @@ export function ReceiveGatePassModal({
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
           const finishKg = parseFloat(r.finishWeightKg);
+          const lotKg = parseFloat(r.lotWeightKg);
           const rolls = parseInt(r.rolls, 10);
           if (!r.fabricType.trim()) {
             throw new Error(`Row #${i + 1}: Please select or enter a fabric variety`);
           }
           if (isNaN(finishKg) || finishKg <= 0) {
             throw new Error(`Row #${i + 1}: Ready / Finish Weight must be a positive number`);
+          }
+          if (!isNaN(lotKg) && lotKg > 0 && finishKg > lotKg) {
+            throw new Error(
+              `Row #${i + 1} (Lot ${r.lotNo || i + 1}): Finish weight (${finishKg} kg) cannot be more than lot weight (${lotKg} kg)`
+            );
           }
           if (isNaN(rolls) || rolls < 1) {
             throw new Error(`Row #${i + 1}: Roll count must be at least 1`);
@@ -344,6 +366,17 @@ export function ReceiveGatePassModal({
         const selectedEntries = Object.entries(selectedBatchIds);
         if (selectedEntries.length === 0) {
           throw new Error('Please select at least one batch from the list');
+        }
+
+        // Validate Mode B weights
+        for (const [bId, vals] of selectedEntries) {
+          const matched = activeBatches.find((b) => b._id === bId);
+          const finishKg = parseFloat(vals.finishKg) || 0;
+          if (matched && matched.ecruWeightKg > 0 && finishKg > matched.ecruWeightKg) {
+            throw new Error(
+              `Batch ${matched.batchNo}: Finish weight (${finishKg} kg) cannot be more than lot weight (${matched.ecruWeightKg} kg)`
+            );
+          }
         }
 
         payload = {
@@ -684,21 +717,31 @@ export function ReceiveGatePassModal({
                             value={row.finishWeightKg}
                             onChange={(e) => handleRowChange(row.id, 'finishWeightKg', e.target.value)}
                             placeholder="190.70"
-                            className="w-full px-2 py-1 bg-zinc-950 border border-emerald-600/80 rounded text-xs text-emerald-300 font-mono font-bold text-right focus:border-emerald-500 focus:outline-none"
+                            className={`w-full px-2 py-1 bg-zinc-950 border rounded text-xs font-mono font-bold text-right focus:outline-none ${
+                              lotKg > 0 && finKg > lotKg
+                                ? 'border-red-500 bg-red-950/40 text-red-300 focus:border-red-400'
+                                : 'border-emerald-600/80 text-emerald-300 focus:border-emerald-500'
+                            }`}
                           />
                         </td>
 
                         {/* Shortage */}
                         <td className="py-1.5 px-2 text-center whitespace-nowrap">
                           {lotKg > 0 && finKg > 0 ? (
-                            <div className="flex flex-col items-center">
-                              <span className={`font-mono text-[11px] font-bold ${shrinkPercent > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
-                                {lossKg > 0 ? `-${lossKg.toFixed(2)} kg` : `+${Math.abs(lossKg).toFixed(2)} kg`}
+                            finKg > lotKg ? (
+                              <span className="text-[10px] font-bold text-red-400 font-mono px-1.5 py-0.5 bg-red-950/70 border border-red-800 rounded inline-block animate-pulse">
+                                Exceeds Lot Wt (+{(finKg - lotKg).toFixed(2)} kg)
                               </span>
-                              <span className={`text-[9px] ${shrinkPercent > 5 ? 'text-amber-400 font-bold' : 'text-zinc-500'}`}>
-                                ({shrinkPercent.toFixed(1)}%)
-                              </span>
-                            </div>
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <span className={`font-mono text-[11px] font-bold ${shrinkPercent > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
+                                  {lossKg > 0 ? `-${lossKg.toFixed(2)} kg` : `${lossKg.toFixed(2)} kg`}
+                                </span>
+                                <span className={`text-[9px] ${shrinkPercent > 5 ? 'text-amber-400 font-bold' : 'text-zinc-500'}`}>
+                                  ({shrinkPercent.toFixed(1)}%)
+                                </span>
+                              </div>
+                            )
                           ) : (
                             <span className="text-zinc-600 text-[10px]">—</span>
                           )}
@@ -857,19 +900,36 @@ export function ReceiveGatePassModal({
                             />
                           </td>
                           <td className="py-2 px-2 text-right">
-                            <input
-                              type="number"
-                              step="0.01"
-                              disabled={!isSelected}
-                              value={vals.finishKg}
-                              onChange={(e) =>
-                                setSelectedBatchIds((prev) => ({
-                                  ...prev,
-                                  [b._id]: { ...vals, finishKg: e.target.value }
-                                }))
-                              }
-                              className="w-20 px-1.5 py-0.5 bg-zinc-950 border border-emerald-600 rounded text-xs text-right font-mono text-emerald-300 font-bold disabled:opacity-40"
-                            />
+                            {(() => {
+                              const finVal = parseFloat(vals.finishKg) || 0;
+                              const isOver = isSelected && b.ecruWeightKg > 0 && finVal > b.ecruWeightKg;
+                              return (
+                                <div>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    disabled={!isSelected}
+                                    value={vals.finishKg}
+                                    onChange={(e) =>
+                                      setSelectedBatchIds((prev) => ({
+                                        ...prev,
+                                        [b._id]: { ...vals, finishKg: e.target.value }
+                                      }))
+                                    }
+                                    className={`w-20 px-1.5 py-0.5 bg-zinc-950 border rounded text-xs text-right font-mono font-bold disabled:opacity-40 ${
+                                      isOver
+                                        ? 'border-red-500 bg-red-950/40 text-red-300 focus:border-red-400'
+                                        : 'border-emerald-600 text-emerald-300 focus:border-emerald-500'
+                                    }`}
+                                  />
+                                  {isOver && (
+                                    <div className="text-[9px] text-red-400 font-bold whitespace-nowrap mt-0.5">
+                                      Exceeds lot ({b.ecruWeightKg} kg)
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );
@@ -907,6 +967,17 @@ export function ReceiveGatePassModal({
           />
         </div>
 
+        {/* Weight Violation Banner */}
+        {((entryMode === 'DIRECT' && directSummary.hasWeightViolation) ||
+          (entryMode === 'LINK_BATCHES' && hasModeBViolation)) && (
+          <div className="p-3 bg-red-950/80 border border-red-800 rounded-md flex items-center gap-2.5 text-red-300 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+            <span>
+              Finish weight cannot be more than lot weight. Please correct the highlighted entries before saving.
+            </span>
+          </div>
+        )}
+
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
           <div className="text-[11px] text-zinc-500">
@@ -920,8 +991,12 @@ export function ReceiveGatePassModal({
             <Button
               type="submit"
               size="sm"
-              disabled={isLoading}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
+              disabled={
+                isLoading ||
+                (entryMode === 'DIRECT' && directSummary.hasWeightViolation) ||
+                (entryMode === 'LINK_BATCHES' && hasModeBViolation)
+              }
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold gap-1.5"
             >
               <PackageCheck className="w-4 h-4" />
               <span>

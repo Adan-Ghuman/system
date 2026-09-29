@@ -222,6 +222,12 @@ export async function settleGatePassBatches(input: ReceiveGatePassInput): Promis
         throw new BadRequestError(`Batch ${batch.batchNo} is already marked as completed`);
       }
 
+      if (batch.ecruWeightKg > 0 && item.finishWeightKg > batch.ecruWeightKg) {
+        throw new BadRequestError(
+          `Batch/Lot ${batch.batchNo}: Finish weight (${item.finishWeightKg} kg) cannot be more than lot weight (${batch.ecruWeightKg} kg)`
+        );
+      }
+
       const { shortageWeightKg, shortagePercent } = calculateBatchSettlement(
         batch.ecruWeightKg,
         item.finishWeightKg
@@ -283,6 +289,12 @@ export async function settleDyeingBatch(id: string, input: SettleBatchInput): Pr
 
   if (batch.status === 'COMPLETED') {
     throw new BadRequestError('Batch is already marked as completed');
+  }
+
+  if (batch.ecruWeightKg > 0 && input.finishWeightKg > batch.ecruWeightKg) {
+    throw new BadRequestError(
+      `Finished weight (${input.finishWeightKg} kg) cannot be more than issued lot weight (${batch.ecruWeightKg} kg)`
+    );
   }
 
   const { shortageWeightKg, shortagePercent } = calculateBatchSettlement(
@@ -462,6 +474,12 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
       const newEcruWeight = input.ecruWeightKg ?? batch.ecruWeightKg;
       const newFinishRolls = input.finishRollsCount !== undefined ? input.finishRollsCount : oldFinishRolls;
       const newFinishWeight = input.finishWeightKg !== undefined ? input.finishWeightKg : oldFinishWeight;
+
+      if (newEcruWeight > 0 && newFinishWeight > newEcruWeight) {
+        throw new BadRequestError(
+          `Finish weight (${newFinishWeight} kg) cannot be more than lot weight (${newEcruWeight} kg)`
+        );
+      }
 
       if (oldFinishRolls > 0 || oldFinishWeight > 0) {
         await FabricInventory.findOneAndUpdate(
