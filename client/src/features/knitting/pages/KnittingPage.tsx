@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import {
   YarnTransactionItem,
@@ -8,9 +8,12 @@ import {
   YarnSpecsResponseData
 } from '../types/knitting.types.js';
 import { Button } from '../../../components/ui/Button.js';
+import { WorkflowActions } from '../../../components/ui/WorkflowActions.js';
+import { OptionalDetails } from '../../../components/ui/WorkflowForm.js';
+import { Select } from '../../../components/ui/Select.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Badge } from '../../../components/ui/Badge.js';
-import { Card, CardContent } from '../../../components/ui/Card.js';
+import { Card } from '../../../components/ui/Card.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { IssueYarnModal } from '../components/IssueYarnModal.js';
@@ -21,25 +24,11 @@ import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import { downloadExcelReport } from '../../../lib/reportExport.js';
-import {
-  Layers,
-  RefreshCw,
-  ArrowUpRight,
-  ArrowDownLeft,
-  PackageCheck,
-  Scale,
-  Sparkles,
-  Inbox,
-  Search,
-  Edit,
-  FileSpreadsheet,
-  ArrowUpDown,
-  Filter,
-  X,
-  Sliders
-} from 'lucide-react';
+import { RefreshCw, ArrowUpRight, ArrowDownLeft, PackageCheck, Edit, FileSpreadsheet, Sliders } from 'lucide-react';
 
 export function KnittingPage() {
+  const queryClient = useQueryClient();
+  const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'balances' | 'transactions' | 'specs'>('balances');
   const [isExportingKnitting, setIsExportingKnitting] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -67,7 +56,7 @@ export function KnittingPage() {
     setPage(1);
   }, [txTypeFilter, txSortOrder, debouncedSearchTerm]);
 
-  const { data: balances = [], isLoading: isBalancesLoading, refetch: refetchBalances } = useQuery<KnitterBalanceSummary[]>({
+  const { data: balances = [], isLoading: isBalancesLoading, isError: isBalancesError, refetch: refetchBalances } = useQuery<KnitterBalanceSummary[]>({
     queryKey: ['knitter-balances'],
     queryFn: async () => {
       const res = await api.get<{ success: boolean; data: KnitterBalanceSummary[] }>('/knitting/balances');
@@ -75,7 +64,7 @@ export function KnittingPage() {
     }
   });
 
-  const { data: txData, isLoading: isTxLoading, refetch: refetchTransactions } = useQuery<{
+  const { data: txData, isLoading: isTxLoading, isError: isTxError, refetch: refetchTransactions } = useQuery<{
     items: YarnTransactionItem[];
     total: number;
     page: number;
@@ -115,6 +104,9 @@ export function KnittingPage() {
     refetchBalances();
     refetchTransactions();
     refetchSpecs();
+    queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-inventory-summary'] });
   }
 
   const isBalancesFiltered = Boolean(balanceSearchTerm.trim() || balanceStatusFilter !== 'ALL');
@@ -190,574 +182,141 @@ export function KnittingPage() {
 
   async function handleExportKnittingExcel() {
     setIsExportingKnitting(true);
+    setExportError(null);
     try {
       await downloadExcelReport('/reports/knitting-yarn/excel', 'Knitting_Yarn_Stock_Report.xlsx');
     } catch (err) {
-      console.error('Failed to export knitting yarn report:', err);
+      const failure = err as { message?: string };
+      setExportError(failure.message || 'The yarn report could not be downloaded. Please try again.');
     } finally {
       setIsExportingKnitting(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-emerald-500 shrink-0" />
-            <span>Yarn Job-Work & Knitting Operations</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Two-way contract knitter management with automated 1.0% wastage math and live remaining yarn tracking.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Knitting</h1>
+          <p className="mt-1 text-sm text-zinc-400">Send yarn out. Receive knitted fabric back. See what is still with each knitter.</p>
         </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0 pb-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportKnittingExcel}
-            disabled={isExportingKnitting}
-            className="gap-1.5 whitespace-nowrap shrink-0 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{isExportingKnitting ? 'Exporting...' : 'Yarn Stock Report (.xlsx)'}</span>
-          </Button>
-
-          <Button variant="outline" size="sm" onClick={handleRefetchAll} title="Refresh records" className="gap-1 px-2.5 shrink-0 whitespace-nowrap">
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setIssueType('OUTWARD_TO_KNITTER');
-              setIsIssueModalOpen(true);
-            }}
-            className="gap-1.5 whitespace-nowrap shrink-0"
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Send Yarn to Knitter</span>
-          </Button>
-
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setSelectedBalance(null);
-              setIsReceiveModalOpen(true);
-            }}
-            className="gap-1.5 whitespace-nowrap shrink-0"
-          >
-            <PackageCheck className="w-4 h-4" />
-            <span>Receive Knitted Fabric</span>
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setIssueType('INWARD_FROM_CLIENT');
-              setIsIssueModalOpen(true);
-            }}
-            className="gap-1.5 text-zinc-300 whitespace-nowrap shrink-0"
-          >
-            <ArrowDownLeft className="w-4 h-4" />
-            <span>Receive Outside Yarn</span>
-          </Button>
-        </div>
+        <Button variant="ghost" size="sm" onClick={handleRefetchAll}><RefreshCw className="h-4 w-4" /> Refresh</Button>
       </div>
-
+      <WorkflowActions actions={[
+        { title: 'Send yarn to a knitter', description: 'Record boxes and yarn weight on an outgoing challan.', icon: ArrowUpRight, onClick: () => { setIssueType('OUTWARD_TO_KNITTER'); setIsIssueModalOpen(true); } },
+        { title: 'Receive knitted fabric', description: 'Record rolls and actual weight delivered to your godown.', icon: PackageCheck, onClick: () => { setSelectedBalance(null); setIsReceiveModalOpen(true); } }
+      ]} />
+      <OptionalDetails title="Reports, client yarn & setup">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportKnittingExcel} isLoading={isExportingKnitting}><FileSpreadsheet className="h-4 w-4" /> Download yarn report</Button>
+          <Button variant="outline" size="sm" onClick={() => { setIssueType('INWARD_FROM_CLIENT'); setIsIssueModalOpen(true); }}><ArrowDownLeft className="h-4 w-4" /> Receive yarn from a client</Button>
+          <Button variant="outline" size="sm" onClick={() => setActiveTab('specs')}><Sliders className="h-4 w-4" /> Manage yarn counts</Button>
+        </div>
+      </OptionalDetails>
+      {exportError && <p role="alert" className="rounded-lg border border-red-900/50 p-3 text-sm text-red-300">{exportError}</p>}
+      <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
+        <Button variant={activeTab === 'balances' ? 'primary' : 'ghost'} aria-pressed={activeTab === 'balances'} onClick={() => setActiveTab('balances')}>Yarn with knitters</Button>
+        <Button variant={activeTab === 'transactions' ? 'primary' : 'ghost'} aria-pressed={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>Yarn delivery history</Button>
+        {activeTab === 'specs' && <span className="self-center text-sm text-zinc-400">Yarn count setup</span>}
+      </div>
       {activeTab !== 'specs' && (
-        <>
-          {kpis.isFiltered && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-3.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="text-zinc-300">
-                  Showing Summary for:{' '}
-                  <strong className="text-emerald-400 font-semibold">
-                    {kpis.singlePartyName || balanceSearchTerm.trim() || 'Filtered Knitters'}
-                  </strong>{' '}
-                  ({kpis.itemCount} {kpis.itemCount === 1 ? 'yarn specification' : 'yarn specifications'})
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setBalanceSearchTerm('');
-                  setBalanceStatusFilter('ALL');
-                }}
-                className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-medium whitespace-nowrap"
-              >
-                Reset to All Knitters Summary &rarr;
-              </button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-amber-500/40 shadow-sm' : 'border-amber-950/40'}`}>
-              <CardContent className="p-0">
-                <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                  <Scale className="w-3 h-3" />
-                  {kpis.isFiltered && kpis.singlePartyName ? 'Yarn Remaining' : 'Yarn Remaining at Knitters'}
-                </div>
-                <div className="text-lg font-bold font-mono text-amber-400 mt-1">
-                  {formatWeight(kpis.totalRemaining)}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5">
-                  {kpis.isFiltered
-                    ? (kpis.singlePartyName ? `For ${kpis.singlePartyName} (${kpis.itemCount} specs)` : `Across ${kpis.activeKnitterCount} filtered knitters`)
-                    : `Across ${kpis.activeKnitterCount} active contract knitters`}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
-              <CardContent className="p-0">
-                <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                  <Layers className="w-3 h-3" />
-                  Total Yarn Sent Out
-                </div>
-                <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-                  {formatWeight(kpis.totalGross)}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5">
-                  {kpis.isFiltered
-                    ? (kpis.singlePartyName ? `All yarn issued to ${kpis.singlePartyName}` : `Issued across ${kpis.totalKnitterCount} knitters`)
-                    : 'All yarn issued to knitters'}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-purple-500/40 shadow-sm' : 'border-purple-950/40'}`}>
-              <CardContent className="p-0">
-                <div className="text-[11px] font-medium text-purple-400 uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  Expected Fabric (After 1% Wastage)
-                </div>
-                <div className="text-lg font-bold font-mono text-purple-400 mt-1">
-                  {formatWeight(kpis.totalExpected)}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5">Minus 1.0% standard wastage</div>
-              </CardContent>
-            </Card>
-
-            <Card className={`bg-zinc-900/80 p-3 transition-colors ${kpis.isFiltered ? 'border-emerald-500/40 shadow-sm' : 'border-emerald-950/40'}`}>
-              <CardContent className="p-0">
-                <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                  <PackageCheck className="w-3 h-3" />
-                  Fabric Received Back
-                </div>
-                <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-                  {formatWeight(kpis.totalReceived)}
-                </div>
-                <div className="text-[10px] text-zinc-500 mt-0.5">
-                  {kpis.isFiltered && kpis.singlePartyName ? `Returned from ${kpis.singlePartyName}` : 'Returned knitted rolls'}
-                </div>
-              </CardContent>
-            </Card>
+        <OptionalDetails title={kpis.isFiltered ? 'Yarn totals for this selection' : 'View yarn totals'}>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              { label: 'Yarn sent', value: kpis.totalGross },
+              { label: 'Expected fabric after wastage', value: kpis.totalExpected },
+              { label: 'Fabric received', value: kpis.totalReceived },
+              { label: 'Yarn still with knitters', value: kpis.totalRemaining }
+            ].map((item) => <div key={item.label}><p className="text-xs text-zinc-400">{item.label}</p><p className="mt-1 font-mono text-base font-semibold text-zinc-100">{formatWeight(item.value)}</p></div>)}
           </div>
-        </>
+          <p className="text-xs text-zinc-500">{kpis.isFiltered ? 'For the knitters matching your filters.' : 'Across all knitter balances.'}</p>
+        </OptionalDetails>
       )}
-
-      <div className="flex items-center gap-1 border-b border-zinc-800 pb-2">
-        <button
-          onClick={() => setActiveTab('balances')}
-          className={`px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
-            activeTab === 'balances'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-          }`}
-        >
-          Knitter Yarn Balances ({balances.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('transactions')}
-          className={`px-4 py-2 rounded-md text-xs font-semibold transition-colors ${
-            activeTab === 'transactions'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-          }`}
-        >
-          Yarn Movement History ({transactions.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('specs')}
-          className={`px-4 py-2 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-            activeTab === 'specs'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-          }`}
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>Yarn Specifications &amp; Settings</span>
-          {specsData?.catalog && (
-            <span
-              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
-                activeTab === 'specs' ? 'bg-emerald-700 text-white' : 'bg-zinc-800 text-zinc-300'
-              }`}
-            >
-              {specsData.catalog.length}
-            </span>
-          )}
-          {specsData?.uncataloged && specsData.uncataloged.length > 0 && (
-            <span
-              className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/40"
-              title={`${specsData.uncataloged.length} uncataloged specification(s) found in transactions`}
-            >
-              {specsData.uncataloged.length} alert
-            </span>
-          )}
-        </button>
-      </div>
-
       {activeTab === 'balances' && (
-        <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
-                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                <select
-                  value={balanceStatusFilter}
-                  onChange={(e) => setBalanceStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'CLEARED')}
-                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-                  title="Filter balances"
-                >
-                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Knitter Balances</option>
-                  <option value="ACTIVE" className="bg-zinc-900 text-zinc-200">Active (Yarn Left &gt; 0)</option>
-                  <option value="CLEARED" className="bg-zinc-900 text-zinc-200">Settled / Cleared (0 Kg)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
-                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <select
-                  value={balanceSortBy}
-                  onChange={(e) => setBalanceSortBy(e.target.value as 'latest' | 'name' | 'remaining_desc')}
-                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-                  title="Sort balances"
-                >
-                  <option value="latest" className="bg-zinc-900 text-zinc-200">Sort: Latest Activity First (Default)</option>
-                  <option value="name" className="bg-zinc-900 text-zinc-200">Sort: Knitter Name (A-Z)</option>
-                  <option value="remaining_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Remaining Yarn</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <Input
-                placeholder="Search knitter, code, spec..."
-                value={balanceSearchTerm}
-                onChange={(e) => setBalanceSearchTerm(e.target.value)}
-                className="pl-9 pr-8 h-9 text-xs"
-              />
-              {balanceSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setBalanceSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-0.5 rounded transition-colors"
-                  title="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+        <div className="space-y-3">
+          <div className="grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Input id="knitter-search" label="Find a knitter or yarn" placeholder="Name, code or yarn count" value={balanceSearchTerm} onChange={(e) => setBalanceSearchTerm(e.target.value)} />
+            <Select id="knitter-status" label="Show" value={balanceStatusFilter} onChange={(e) => setBalanceStatusFilter(e.target.value as typeof balanceStatusFilter)}
+              options={[{ label: 'All balances', value: 'ALL' }, { label: 'Yarn still with knitter', value: 'ACTIVE' }, { label: 'Cleared balances', value: 'CLEARED' }]} />
+            <Select id="knitter-sort" label="Order" value={balanceSortBy} onChange={(e) => setBalanceSortBy(e.target.value as typeof balanceSortBy)}
+              options={[{ label: 'Recent activity first', value: 'latest' }, { label: 'Knitter name A–Z', value: 'name' }, { label: 'Most yarn remaining', value: 'remaining_desc' }]} />
           </div>
-
-          <ScrollableTable>
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Knitter</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Last Date</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Yarn Specification</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Gross Issued</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Expected (-1%)</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Fabric Received</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Yarn Left in Field</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Completion Progress</th>
-                  <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {isBalancesLoading ? (
-                  <LoadingState isTableRow colSpan={9} message="Loading knitter yarn balances..." />
-                ) : filteredBalances.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-zinc-500">
-                      <Inbox className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
-                      No knitter yarn balances matching the current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredBalances.map((b) => {
-                    const percent = b.totalExpectedKg > 0
-                      ? Math.min(100, Math.round((b.totalReceivedKg / b.totalExpectedKg) * 100))
-                      : 0;
-
-                    return (
-                      <tr key={`${b.partyId}-${b.yarnSpec}`} className="group hover:bg-zinc-800/40 transition-colors">
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => setBalanceSearchTerm(b.partyName)}
-                            className="text-left font-semibold text-zinc-100 hover:text-emerald-400 transition-colors cursor-pointer"
-                            title={`Click to view summary for ${b.partyName}`}
-                          >
-                            {b.partyName}
-                          </button>
-                          <span className="text-[10px] font-mono text-zinc-400 ml-2 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
-                            {b.partyCode}
-                          </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+            <p>Choose <strong className="text-zinc-200">Receive fabric</strong> beside a knitter to fill their details for you.</p>
+            {isBalancesFiltered && <Button variant="ghost" size="sm" onClick={() => { setBalanceSearchTerm(''); setBalanceStatusFilter('ALL'); }}>Clear filters</Button>}
+          </div>
+          {isBalancesError ? <div role="alert" className="space-y-2 rounded-lg border border-red-900/50 p-4 text-sm text-red-300"><p>Knitter balances could not be loaded.</p><Button variant="outline" onClick={() => refetchBalances()}>Try again</Button></div> : (
+            <Card className="overflow-hidden border-zinc-800 bg-zinc-900/80">
+              <ScrollableTable>
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-zinc-800 bg-zinc-950/70 text-xs text-zinc-400">
+                    <tr><th className="px-4 py-3">Knitter</th><th className="px-4 py-3">Yarn count</th><th className="px-4 py-3 text-right whitespace-nowrap">Yarn sent</th><th className="px-4 py-3 text-right whitespace-nowrap">Fabric received</th><th className="px-4 py-3 text-right whitespace-nowrap">Yarn left</th><th className="px-4 py-3">Next action</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {isBalancesLoading ? <LoadingState isTableRow colSpan={6} message="Loading knitter balances..." /> : filteredBalances.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-zinc-400">{isBalancesFiltered ? 'No balances match these filters.' : 'No yarn has been sent to a knitter yet. Start with Send yarn to a knitter above.'}</td></tr>
+                    ) : filteredBalances.map((balance) => (
+                      <tr key={balance.partyId + '-' + balance.yarnSpec} className="hover:bg-zinc-800/30">
+                        <td className="px-4 py-3">
+                          <button type="button" onClick={() => setBalanceSearchTerm(balance.partyName)} className="text-left font-medium text-zinc-100 hover:text-emerald-400">{balance.partyName}</button>
+                          <p className="mt-1 text-xs text-zinc-500">{balance.partyCode}{balance.lastDate ? ' · ' + formatDateTime(balance.lastDate, true) : ''}</p>
                         </td>
-
-                        <td className="py-2.5 px-3 text-zinc-300 font-mono whitespace-nowrap">
-                          {formatDateTime(b.lastDate, true)}
-                        </td>
-
-                        <td className="py-2.5 px-3 font-mono text-emerald-400 font-medium whitespace-nowrap">
-                          {b.yarnSpec}
-                        </td>
-
-                        <td className="py-2.5 px-3 text-right font-mono text-zinc-300 whitespace-nowrap">
-                          {formatWeight(b.totalGrossKg)}
-                        </td>
-
-                        <td className="py-2.5 px-3 text-right font-mono text-zinc-300 whitespace-nowrap">
-                          {formatWeight(b.totalExpectedKg)}
-                        </td>
-
-                        <td className="py-2.5 px-3 text-right font-mono text-emerald-400 font-semibold whitespace-nowrap">
-                          {formatWeight(b.totalReceivedKg)}
-                        </td>
-
-                        <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
-                          <span className={b.remainingYarnKg > 0 ? 'text-amber-400 font-bold' : 'text-zinc-500'}>
-                            {formatWeight(b.remainingYarnKg)}
-                          </span>
-                        </td>
-
-                        <td className="py-2.5 px-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${percent >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                style={{ width: `${percent}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-mono text-zinc-400">{percent}%</span>
-                          </div>
-                        </td>
-
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelectedBalance(b);
-                              setIsReceiveModalOpen(true);
-                            }}
-                            className="text-[11px] py-1 px-2.5 h-7 whitespace-nowrap"
-                          >
-                            Receive Fabric
-                          </Button>
-                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-zinc-300">{balance.yarnSpec}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-zinc-300 whitespace-nowrap">{formatWeight(balance.totalGrossKg)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-emerald-400 whitespace-nowrap">{formatWeight(balance.totalReceivedKg)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs whitespace-nowrap"><span className={balance.remainingYarnKg > 0 ? 'font-semibold text-amber-400' : 'text-zinc-500'}>{formatWeight(balance.remainingYarnKg)}</span></td>
+                        <td className="px-4 py-3 whitespace-nowrap"><Button size="sm" onClick={() => { setSelectedBalance(balance); setIsReceiveModalOpen(true); }}>Receive fabric</Button></td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </ScrollableTable>
-        </Card>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+            </Card>
+          )}
+        </div>
       )}
-
       {activeTab === 'transactions' && (
-        <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
-          <div className="p-2.5 border-b border-zinc-800 bg-zinc-950/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
-                <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                <select
-                  value={txTypeFilter}
-                  onChange={(e) => setTxTypeFilter(e.target.value as 'ALL' | 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT')}
-                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-                  title="Filter transaction type"
-                >
-                  <option value="ALL" className="bg-zinc-900 text-zinc-200">All Movement Types</option>
-                  <option value="OUTWARD_TO_KNITTER" className="bg-zinc-900 text-zinc-200">Outward to Knitter</option>
-                  <option value="INWARD_FROM_CLIENT" className="bg-zinc-900 text-zinc-200">Inward from Client</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-md px-2 py-1 h-9">
-                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <select
-                  value={txSortOrder}
-                  onChange={(e) => setTxSortOrder(e.target.value as 'desc' | 'asc')}
-                  className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-                  title="Sort order"
-                >
-                  <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
-                  <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-              <Input
-                placeholder="Search gate pass, spec, remarks..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
+        <div className="space-y-3">
+          <div className="grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:grid-cols-3">
+            <Input id="yarn-history-search" label="Find a delivery" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Challan number, yarn or note" />
+            <Select id="yarn-history-type" label="Show" value={txTypeFilter} onChange={(e) => setTxTypeFilter(e.target.value as typeof txTypeFilter)}
+              options={[{ label: 'All yarn deliveries', value: 'ALL' }, { label: 'Sent to knitters', value: 'OUTWARD_TO_KNITTER' }, { label: 'Received from clients', value: 'INWARD_FROM_CLIENT' }]} />
+            <Select id="yarn-history-sort" label="Order" value={txSortOrder} onChange={(e) => setTxSortOrder(e.target.value as typeof txSortOrder)}
+              options={[{ label: 'Newest first', value: 'desc' }, { label: 'Oldest first', value: 'asc' }]} />
           </div>
-          <ScrollableTable>
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-                <tr>
-                  <th className="py-3 px-4 whitespace-nowrap">Gate Pass #</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Date</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Type</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Party</th>
-                  <th className="py-3 px-4 whitespace-nowrap">Spec</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Boxes</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Gross (Kg)</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">1% Loss (Kg)</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Expected (Kg)</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Received (Kg)</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap">Remaining (Kg)</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {isTxLoading ? (
-                  <LoadingState isTableRow colSpan={12} message="Loading yarn movement history..." />
-                ) : transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="py-12 text-center text-zinc-500">
-                      No yarn transactions recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((tx) => (
-                    <tr key={tx._id} className="group hover:bg-zinc-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
-                        {tx.gatePassNo}
-                      </td>
-
-                      <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
-                        {formatDateTime(tx.date, true)}
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <Badge
-                          variant={tx.transactionType === 'OUTWARD_TO_KNITTER' ? 'default' : 'secondary'}
-                          className="text-[10px]"
-                        >
-                          {tx.transactionType === 'OUTWARD_TO_KNITTER' ? 'OUTWARD' : 'INWARD'}
-                        </Badge>
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-medium text-zinc-100">{tx.partyId?.name || '—'}</span>
-                        {tx.partyId?.code && (
-                          <span className="text-[10px] font-mono text-zinc-400 ml-1.5 bg-zinc-800/70 px-1.5 py-0.5 rounded border border-zinc-700/50">
-                            {tx.partyId.code}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-4 font-mono text-emerald-400 whitespace-nowrap">
-                        {tx.yarnSpec}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
-                        {tx.boxCount}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-zinc-200 font-medium whitespace-nowrap">
-                        {formatWeight(tx.grossWeightKg)}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-amber-400 whitespace-nowrap">
-                        {formatWeight(tx.wastageWeightKg)}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-purple-400 whitespace-nowrap">
-                        {formatWeight(tx.netExpectedFabricKg)}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono text-emerald-400 whitespace-nowrap">
-                        {formatWeight(tx.receivedFabricKg)}
-                      </td>
-
-                      <td className="py-3 px-4 text-right font-mono font-bold text-amber-400 whitespace-nowrap">
-                        {formatWeight(tx.remainingYarnBalanceKg)}
-                      </td>
-
-                      <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingTransaction(tx);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="text-[11px] py-1 px-2.5 h-7 gap-1 whitespace-nowrap"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </ScrollableTable>
-          <PaginationControls
-            page={page}
-            totalPages={txData?.totalPages || 1}
-            total={txData?.total || 0}
-            limit={limit}
-            onPageChange={setPage}
-            onLimitChange={setLimit}
-          />
-        </Card>
+          {isTxError ? <div role="alert" className="space-y-2 rounded-lg border border-red-900/50 p-4 text-sm text-red-300"><p>Yarn deliveries could not be loaded.</p><Button variant="outline" onClick={() => refetchTransactions()}>Try again</Button></div> : (
+            <Card className="overflow-hidden border-zinc-800 bg-zinc-900/80">
+              <ScrollableTable>
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-zinc-800 bg-zinc-950/70 text-xs text-zinc-400">
+                    <tr><th className="px-4 py-3">Challan / date</th><th className="px-4 py-3">Party</th><th className="px-4 py-3">Yarn</th><th className="px-4 py-3 text-right">Yarn weight</th><th className="px-4 py-3 text-right">Fabric received</th><th className="px-4 py-3 text-right">Yarn left</th><th className="px-4 py-3">Action</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {isTxLoading ? <LoadingState isTableRow colSpan={7} message="Loading yarn deliveries..." /> : transactions.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-zinc-400">No yarn deliveries match these filters.</td></tr>
+                    ) : transactions.map((transaction) => (
+                      <tr key={transaction._id} className="hover:bg-zinc-800/30">
+                        <td className="px-4 py-3"><p className="font-mono text-xs font-semibold text-emerald-400">{transaction.gatePassNo}</p><p className="mt-1 text-xs text-zinc-500">{formatDateTime(transaction.date, true)}</p>{transaction.remarks && <details className="mt-2 text-xs text-zinc-400"><summary className="cursor-pointer">Delivery note</summary><p className="mt-1 max-w-56 whitespace-normal">{transaction.remarks}</p></details>}</td>
+                        <td className="px-4 py-3"><p className="text-zinc-200">{transaction.partyId?.name || '—'}</p><Badge variant="outline" className="mt-1 text-[10px]">{transaction.transactionType === 'OUTWARD_TO_KNITTER' ? 'Sent to knitter' : 'Received from client'}</Badge></td>
+                        <td className="px-4 py-3 font-mono text-xs text-zinc-300">{transaction.yarnSpec}</td>
+                        <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-zinc-200 whitespace-nowrap">{formatWeight(transaction.grossWeightKg)}</p><p className="mt-1 text-zinc-500">{transaction.boxCount} boxes</p><details className="mt-2 text-zinc-400"><summary className="cursor-pointer">Wastage details</summary><p className="mt-1 whitespace-nowrap">Loss: {formatWeight(transaction.wastageWeightKg)} ({transaction.wastagePercent}%)</p><p className="mt-1 whitespace-nowrap">Expected: {formatWeight(transaction.netExpectedFabricKg)}</p></details></td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-emerald-400 whitespace-nowrap">{formatWeight(transaction.receivedFabricKg)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-xs text-amber-400 whitespace-nowrap">{formatWeight(transaction.remainingYarnBalanceKg)}</td>
+                        <td className="px-4 py-3"><Button variant="outline" size="sm" onClick={() => { setEditingTransaction(transaction); setIsEditModalOpen(true); }}><Edit className="h-3.5 w-3.5" /> Edit</Button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+              <PaginationControls page={page} totalPages={txData?.totalPages || 1} total={txData?.total || 0} limit={limit} onPageChange={setPage} onLimitChange={setLimit} />
+            </Card>
+          )}
+        </div>
       )}
-
       {activeTab === 'specs' && <YarnSpecificationsTab />}
-
-      <IssueYarnModal
-        isOpen={isIssueModalOpen}
-        initialType={issueType}
-        onClose={() => setIsIssueModalOpen(false)}
-        onSuccess={handleRefetchAll}
-      />
-
-      <ReceiveKnittedModal
-        isOpen={isReceiveModalOpen}
-        preselectedBalance={selectedBalance}
-        onClose={() => setIsReceiveModalOpen(false)}
-        onSuccess={handleRefetchAll}
-      />
-
-      <EditYarnTransactionModal
-        isOpen={isEditModalOpen}
-        transaction={editingTransaction}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingTransaction(null);
-        }}
-        onSuccess={handleRefetchAll}
-      />
+      {isIssueModalOpen && <IssueYarnModal isOpen initialType={issueType} onClose={() => setIsIssueModalOpen(false)} onSuccess={handleRefetchAll} />}
+      {isReceiveModalOpen && <ReceiveKnittedModal isOpen preselectedBalance={selectedBalance} onClose={() => { setIsReceiveModalOpen(false); setSelectedBalance(null); }} onSuccess={handleRefetchAll} />}
+      <EditYarnTransactionModal isOpen={isEditModalOpen} transaction={editingTransaction} onClose={() => { setIsEditModalOpen(false); setEditingTransaction(null); }} onSuccess={handleRefetchAll} />
     </div>
   );
 }

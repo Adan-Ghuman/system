@@ -4,16 +4,9 @@ import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Button } from '../../../components/ui/Button.js';
+import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
 import { PartyCombobox } from '../../../components/ui/PartyCombobox.js';
-import {
-  AlertCircle,
-  CheckCircle2,
-  PackageCheck,
-  Plus,
-  Trash2,
-  Copy,
-  FileSpreadsheet
-} from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   KnitterBalanceSummary,
   ReceiveFabricPayload,
@@ -72,7 +65,7 @@ function createDefaultRow(defaultSpec = '75/72 Sim'): KnittedSlipRow {
     id: generateRowId(),
     fabricType: 'Single Jersey',
     yarnSpec: defaultSpec,
-    rollsCount: '10',
+    rollsCount: '',
     weightKg: '',
     remarks: ''
   };
@@ -141,17 +134,14 @@ export function ReceiveKnittedModal({
             id: generateRowId(),
             fabricType: 'Single Jersey',
             yarnSpec: preselectedBalance.yarnSpec,
-            rollsCount: '10',
+            rollsCount: '',
             weightKg: '',
             remarks: ''
           }
         ]);
       }
-    } else if (knitters.length > 0 && !partyId) {
-      setPartyId(knitters[0]._id);
-      setPartyName(knitters[0].name);
     }
-  }, [preselectedBalance, knitters, partyId]);
+  }, [preselectedBalance]);
 
   function handleAddRow() {
     const lastRow = rows[rows.length - 1];
@@ -161,7 +151,7 @@ export function ReceiveKnittedModal({
         id: generateRowId(),
         fabricType: lastRow ? lastRow.fabricType : 'Single Jersey',
         yarnSpec: lastRow ? lastRow.yarnSpec : availableSpecs[0] || '75/72',
-        rollsCount: '10',
+        rollsCount: '',
         weightKg: '',
         remarks: ''
       }
@@ -173,7 +163,9 @@ export function ReceiveKnittedModal({
     if (!source) return;
     const duplicated: KnittedSlipRow = {
       ...source,
-      id: generateRowId()
+      id: generateRowId(),
+      rollsCount: '',
+      weightKg: ''
     };
     setRows((prev) => {
       const copy = [...prev];
@@ -286,277 +278,56 @@ export function ReceiveKnittedModal({
   }
 
   return (
-    <Dialog
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Receive Knitted Fabric (Inward Delivery Challan)"
-      description="Record multi-roll knitted fabric delivery slips from contract knitters (e.g. Starco Industry) directly into godown stock."
-      className="max-w-5xl w-full"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-950/60 border border-red-800 text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-950/60 border border-emerald-800 text-emerald-300">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        {/* 1. Header Card */}
-        <div className="p-3.5 bg-zinc-950/80 border border-zinc-800 rounded-lg space-y-3">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <PackageCheck className="w-4 h-4" />
-            <span>Knitter Delivery Slip Header</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="md:col-span-2">
-              <PartyCombobox
-                id="receiveKnitterParty"
-                label="Contract Knitter / Sender Mill"
-                value={partyId || partyName}
-                parties={knitters}
-                placeholder="Select knitter or type name (e.g. Starco Industry)..."
-                onChange={(val, party) => {
-                  setPartyId(val);
-                  setPartyName(party ? party.name : val);
-                }}
-                required
-                className="text-xs h-8 font-semibold text-emerald-300"
-              />
+    <Dialog isOpen={isOpen} onClose={() => { if (!isLoading) onClose(); }} title="Receive fabric from a knitter"
+      description="Enter the actual rolls and weight on the knitter's delivery slip." className="max-w-2xl"
+      footer={<FormFooter formId="knitted-receipt-form" onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)}
+        submitLabel="Save fabric receipt" summary={<><strong className="text-zinc-200">{totals.totalRolls} rolls</strong> · {totals.totalWeightKg.toFixed(2)} kg</>} />}>
+      <form id="knitted-receipt-form" onSubmit={handleSubmit}>
+        <fieldset disabled={isLoading || Boolean(success)} className="space-y-6">
+          <FormFeedback error={error} success={success} />
+          <FormSection step={1} title="Who delivered the fabric?">
+            <PartyCombobox id="knitted-party" label="Knitter" value={partyId} parties={knitters} required
+              placeholder="Choose or type the knitter name"
+              onChange={(value, selected) => { setPartyId(value); setPartyName(selected?.name || value); }} />
+            {preselectedBalance && <p className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3 text-xs text-zinc-300">
+              Yarn at this knitter: <strong className="text-emerald-400">{preselectedBalance.remainingYarnKg.toFixed(2)} kg</strong> of {preselectedBalance.yarnSpec}.
+            </p>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input id="knitted-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="Number on the delivery slip" required />
+              <Input id="knitted-date" label="Received date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
-
-            <div>
-              <Input
-                id="inwardChallanNo"
-                label="Challan / Gate Pass #"
-                value={gatePassNo}
-                onChange={(e) => setGatePassNo(e.target.value)}
-                placeholder="e.g. 919"
-                required
-                className="font-mono font-bold text-emerald-400 text-xs h-8"
-              />
-            </div>
-
-            <div>
-              <Input
-                id="receiveDate"
-                type="date"
-                label="Receipt Date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="text-xs h-8"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-zinc-850">
-            <Input
-              id="knitterDriver"
-              label="Driver Name / Vehicle (Optional)"
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              placeholder="e.g. Faraz / Rickshaw"
-              className="text-xs h-8"
-            />
-            <Input
-              id="knitterRemarks"
-              label="Challan Remarks (Optional)"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="e.g. Received at ZR Godown"
-              className="text-xs h-8"
-            />
-          </div>
-        </div>
-
-        {/* 2. Multi-Row Table */}
-        <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              <span>Challan Line Items ({rows.length})</span>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddRow}
-              className="text-xs h-7 py-0 px-2.5 gap-1 border-dashed border-emerald-600 text-emerald-400 hover:bg-emerald-950/40"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Line Item</span>
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto border border-zinc-800 rounded-md">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-zinc-950/90 text-zinc-400 uppercase font-semibold text-[10px] border-b border-zinc-800">
-                <tr>
-                  <th className="py-2 px-2 text-center w-8">#</th>
-                  <th className="py-2 px-2 w-48">Fabric Variety (کپڑے کی قسم)</th>
-                  <th className="py-2 px-2 w-40">Yarn Count (دھاگہ)</th>
-                  <th className="py-2 px-2 text-right w-24">Rolls (رول)</th>
-                  <th className="py-2 px-2 text-right w-32 text-emerald-400">Net Weight (ویٹ Kg)*</th>
-                  <th className="py-2 px-2">Line Remarks</th>
-                  <th className="py-2 px-2 text-center w-14">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {rows.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-1.5 px-2 text-center font-mono text-zinc-500 font-bold">
-                      {idx + 1}
-                    </td>
-
-                    {/* Fabric Variety */}
-                    <td className="py-1.5 px-1">
-                      <input
-                        type="text"
-                        list={`knit_fabrics_${row.id}`}
-                        value={row.fabricType}
-                        onChange={(e) => handleRowChange(row.id, 'fabricType', e.target.value)}
-                        placeholder="e.g. لاٹ سیڈو / Single Jersey"
-                        className="w-full px-2 py-1 bg-zinc-950 border border-zinc-700 rounded text-xs text-zinc-100 font-medium focus:border-emerald-500 focus:outline-none"
-                      />
-                      <datalist id={`knit_fabrics_${row.id}`}>
-                        {COMMON_FABRICS.map((f) => (
-                          <option key={f} value={f} />
-                        ))}
-                      </datalist>
-                    </td>
-
-                    {/* Yarn Spec */}
-                    <td className="py-1.5 px-1">
-                      <input
-                        type="text"
-                        list={`knit_specs_${row.id}`}
-                        value={row.yarnSpec}
-                        onChange={(e) => handleRowChange(row.id, 'yarnSpec', e.target.value)}
-                        placeholder="e.g. 75/36"
-                        className="w-full px-2 py-1 bg-zinc-950 border border-zinc-700 rounded text-xs text-zinc-100 font-mono focus:border-emerald-500 focus:outline-none"
-                      />
-                      <datalist id={`knit_specs_${row.id}`}>
-                        {availableSpecs.map((s) => (
-                          <option key={s} value={s} />
-                        ))}
-                      </datalist>
-                    </td>
-
-                    {/* Rolls */}
-                    <td className="py-1.5 px-1">
-                      <input
-                        type="number"
-                        min="1"
-                        value={row.rollsCount}
-                        onChange={(e) => handleRowChange(row.id, 'rollsCount', e.target.value)}
-                        className="w-full px-2 py-1 bg-zinc-950 border border-zinc-700 rounded text-xs text-zinc-100 font-mono text-right focus:border-emerald-500 focus:outline-none"
-                      />
-                    </td>
-
-                    {/* Weight (Kg) */}
-                    <td className="py-1.5 px-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={row.weightKg}
-                        onChange={(e) => handleRowChange(row.id, 'weightKg', e.target.value)}
-                        placeholder="249.50"
-                        className="w-full px-2 py-1 bg-zinc-950 border border-emerald-600/80 rounded text-xs text-emerald-300 font-mono font-bold text-right focus:border-emerald-500 focus:outline-none"
-                      />
-                    </td>
-
-                    {/* Remarks */}
-                    <td className="py-1.5 px-1">
-                      <input
-                        type="text"
-                        value={row.remarks}
-                        onChange={(e) => handleRowChange(row.id, 'remarks', e.target.value)}
-                        placeholder="e.g. Lot Sedo 75/36"
-                        className="w-full px-2 py-1 bg-zinc-950 border border-zinc-700 rounded text-xs text-zinc-300 focus:border-emerald-500 focus:outline-none"
-                      />
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-1.5 px-1 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleDuplicateRow(idx)}
-                          title="Duplicate row"
-                          className="text-zinc-400 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(row.id)}
-                          disabled={rows.length <= 1}
-                          title="Delete row"
-                          className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals Summary Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-2.5 bg-zinc-950 border border-zinc-800/80 rounded-md text-xs font-mono">
-            <div className="flex items-center gap-4 text-zinc-400">
-              <span>
-                Total Lines: <strong className="text-zinc-200">{totals.count}</strong>
-              </span>
-              <span>
-                Total Rolls: <strong className="text-zinc-200">{totals.totalRolls}</strong>
-              </span>
-            </div>
-
-            <div>
-              <span className="text-emerald-400">
-                Total Weight:{' '}
-                <strong className="text-sm font-bold">{totals.totalWeightKg} kg</strong>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-          <div className="text-[11px] text-zinc-500">
-            Fabric will deposit into RAW_ECRU stock at ZR Godown. Knitter yarn balance will reconcile FIFO if active.
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isLoading}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
-            >
-              <PackageCheck className="w-4 h-4" />
-              <span>
-                Save Inward Challan ({totals.totalRolls} Rolls - {totals.totalWeightKg} Kg)
-              </span>
-            </Button>
-          </div>
-        </div>
+          </FormSection>
+          <FormSection step={2} title="What fabric did you receive?" description="Add a separate item for each fabric type or yarn count.">
+            {rows.map((row, index) => (
+              <EntryCard key={row.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}
+                onRemove={() => handleRemoveRow(row.id)} canRemove={rows.length > 1}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input id={'knitted-fabric-' + row.id} label="Fabric type" list="knitted-fabric-types" value={row.fabricType} required
+                    onChange={(e) => handleRowChange(row.id, 'fabricType', e.target.value)} placeholder="e.g. Single Jersey" />
+                  <Input id={'knitted-yarn-' + row.id} label="Yarn count" list="knitted-yarn-counts" value={row.yarnSpec} required
+                    onChange={(e) => handleRowChange(row.id, 'yarnSpec', e.target.value)} placeholder="e.g. 75/72" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input id={'knitted-rolls-' + row.id} label="Rolls received" type="number" min="1" step="1" value={row.rollsCount} required
+                    onChange={(e) => handleRowChange(row.id, 'rollsCount', e.target.value)} placeholder="e.g. 10" />
+                  <Input id={'knitted-weight-' + row.id} label="Weight received (kg)" type="number" min="0.01" step="0.01" value={row.weightKg} required
+                    onChange={(e) => handleRowChange(row.id, 'weightKg', e.target.value)} placeholder="Actual net weight" />
+                </div>
+                <OptionalDetails title="Item note (optional)">
+                  <Input id={'knitted-note-' + row.id} label="Note for this fabric" value={row.remarks} onChange={(e) => handleRowChange(row.id, 'remarks', e.target.value)} />
+                </OptionalDetails>
+              </EntryCard>
+            ))}
+            <Button type="button" variant="outline" onClick={handleAddRow}><Plus className="h-4 w-4" /> Add another fabric</Button>
+            <p className="text-xs text-zinc-400">Received fabric is recorded as raw fabric in ZR godown.</p>
+          </FormSection>
+          <OptionalDetails title="Driver and delivery note (optional)">
+            <Input id="knitted-driver" label="Driver / vehicle" value={driverName} onChange={(e) => setDriverName(e.target.value)} />
+            <Input id="knitted-remarks" label="Delivery note" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          </OptionalDetails>
+          <datalist id="knitted-fabric-types">{COMMON_FABRICS.map((name) => <option key={name} value={name} />)}</datalist>
+          <datalist id="knitted-yarn-counts">{availableSpecs.map((name) => <option key={name} value={name} />)}</datalist>
+        </fieldset>
       </form>
     </Dialog>
   );
