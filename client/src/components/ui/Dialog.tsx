@@ -44,7 +44,8 @@ export function Dialog({ isOpen, onClose, title, description, children, footer, 
     });
 
     function handleKeyDown(event: KeyboardEvent) {
-      const topDialog = Array.from(document.querySelectorAll('[data-erp-dialog]')).at(-1);
+      const dialogs = document.querySelectorAll('[data-erp-dialog]');
+      const topDialog = dialogs[dialogs.length - 1];
       if (topDialog !== dialogRef.current) return;
       if (event.key === 'Escape') {
         event.preventDefault();

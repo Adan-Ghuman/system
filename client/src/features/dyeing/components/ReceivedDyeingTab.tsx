@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { DyeingBatchItem, DyeingMillType, DyeingUnitItem } from '../types/dyeing.types.js';
 import { Badge } from '../../../components/ui/Badge.js';
-import { Card, CardContent } from '../../../components/ui/Card.js';
+import { Card } from '../../../components/ui/Card.js';
+import { Select } from '../../../components/ui/Select.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Button } from '../../../components/ui/Button.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
@@ -11,15 +12,6 @@ import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
-import {
-  PackageCheck,
-  Search,
-  Factory,
-  Scale,
-  AlertTriangle,
-  ArrowUpDown,
-  Plus
-} from 'lucide-react';
 
 export interface ReceivedDyeingTabProps {
   onOpenReceiveModal: () => void;
@@ -69,8 +61,7 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
     ];
   }, [unitsData]);
 
-  // Query only COMPLETED batches (finished fabric received)
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, isError, refetch } = useQuery<{
     items: DyeingBatchItem[];
     total: number;
     page: number;
@@ -100,9 +91,10 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
     }
   });
 
+  useEffect(() => { setPage(1); }, [selectedMill, sortOrder, debouncedSearchTerm]);
+
   const batches = data?.items || [];
 
-  // Metrics for received fabric
   const metrics = useMemo(() => {
     let totalFinishKg = 0;
     let totalFinishRolls = 0;
@@ -129,267 +121,61 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
 
   return (
     <div className="space-y-4">
-      {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="bg-zinc-900/80 border-emerald-950/40 p-3">
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-              <PackageCheck className="w-3.5 h-3.5" />
-              Total Received Fabric
-            </div>
-            <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
-              {formatWeight(metrics.totalFinishKg)}
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">
-              Across {metrics.totalBatches} settled batches
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-900/80 border-zinc-800 p-3">
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-              Total Finished Rolls
-            </div>
-            <div className="text-lg font-bold text-white mt-1">
-              {metrics.totalFinishRolls} Rolls
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Deposited into finished stock</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-900/80 border-zinc-800 p-3">
-          <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-              <Scale className="w-3.5 h-3.5" />
-              Average Shrinkage Loss
-            </div>
-            <div
-              className={`text-lg font-bold font-mono mt-1 ${
-                metrics.avgShrinkage > 5.0 ? 'text-amber-400' : 'text-zinc-200'
-              }`}
-            >
-              {metrics.avgShrinkage.toFixed(2)}%
-            </div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">
-              Total weight loss: {formatWeight(metrics.totalLossKg)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-900/80 border-emerald-950/40 p-3 flex flex-col justify-center">
-          <CardContent className="p-0 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-                Inward Action
-              </div>
-              <div className="text-xs text-zinc-500 mt-0.5">Record new delivery</div>
-            </div>
-
-            <Button
-              size="sm"
-              onClick={onOpenReceiveModal}
-              className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Receive Delivery (IGP)</span>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Input id="received-search" label="Search received fabric" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Challan, batch, fabric or colour" />
+        <Select id="received-mill" label="Dyeing mill" value={selectedMill} onChange={(e) => setSelectedMill(e.target.value as DyeingMillType | 'ALL')} options={dynamicMillFilters.map((mill) => ({ value: mill.id, label: mill.label }))} />
+        <Select id="received-order" label="Order" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')} options={[{value: 'desc', label: 'Newest first'}, {value: 'asc', label: 'Oldest first'}]} />
       </div>
-
-      {/* Filter and Search Bar */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
-          {dynamicMillFilters.map((mill) => (
-            <button
-              key={mill.id}
-              onClick={() => {
-                setSelectedMill(mill.id as DyeingMillType | 'ALL');
-                setPage(1);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors select-none whitespace-nowrap ${
-                selectedMill === mill.id
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
-              }`}
-            >
-              <Factory className="w-3.5 h-3.5" />
-              <span>{mill.label}</span>
-            </button>
-          ))}
+      <details className="rounded-lg border border-zinc-800 bg-zinc-900/50">
+        <summary className="cursor-pointer px-4 py-3 text-xs text-zinc-400">Received totals for this page</summary>
+        <div className="grid gap-3 border-t border-zinc-800 p-4 text-xs text-zinc-400 sm:grid-cols-3">
+          <p>Received weight <strong className="ml-2 text-emerald-400">{formatWeight(metrics.totalFinishKg)}</strong></p>
+          <p>Received rolls <strong className="ml-2 text-zinc-200">{metrics.totalFinishRolls}</strong></p>
+          <p>Weight loss <strong className="ml-2 text-zinc-200">{formatWeight(metrics.totalLossKg)} · {metrics.avgShrinkage.toFixed(2)}%</strong></p>
         </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-          <div className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-            <PackageCheck className="w-4 h-4 text-emerald-400" />
-            <span>Inward Gate Pass & Received Lots Register</span>
-          </div>
-
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
-            <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
-              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
-                className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-                title="Sort order"
-              >
-                <option value="desc" className="bg-zinc-900 text-zinc-200">Sort: Latest Received First</option>
-                <option value="asc" className="bg-zinc-900 text-zinc-200">Sort: Oldest Received First</option>
-              </select>
-            </div>
-
-            <div className="w-full sm:w-72 relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search IGP #, OGP #, batch, color, driver..."
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Received Batches Table */}
-      <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
+      </details>
+      <Card className="overflow-hidden">
         <ScrollableTable>
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
-              <tr>
-                <th className="py-3 px-4 whitespace-nowrap">Date Received</th>
-                <th className="py-3 px-4 whitespace-nowrap">IGP #</th>
-                <th className="py-3 px-4 whitespace-nowrap">Batch #</th>
-                <th className="py-3 px-4 whitespace-nowrap">OGP #</th>
-                <th className="py-3 px-4 whitespace-nowrap">Dyeing Unit</th>
-                <th className="py-3 px-4 whitespace-nowrap">Fabric Variety & Spec</th>
-                <th className="py-3 px-4 whitespace-nowrap">Color</th>
-                <th className="py-3 px-4 text-right whitespace-nowrap">Ecru Sent</th>
-                <th className="py-3 px-4 text-right whitespace-nowrap">Finish Received</th>
-                <th className="py-3 px-4 text-right whitespace-nowrap">Loss (Kg)</th>
-                <th className="py-3 px-4 text-center whitespace-nowrap">Shrink %</th>
-                <th className="py-3 px-4 whitespace-nowrap">Driver / Transport</th>
-              </tr>
+            <thead className="border-b border-zinc-800 bg-zinc-950/70 text-zinc-400">
+              <tr>{['Receiving challan', 'Mill', 'Fabric', 'Sent', 'Received', 'Weight loss'].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 font-medium">{label}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
-              {isLoading ? (
-                <LoadingState isTableRow colSpan={12} message="Loading received dyeing lots..." />
+            <tbody className="divide-y divide-zinc-800">
+              {isLoading ? <LoadingState isTableRow colSpan={6} message="Loading received fabric..." /> : isError ? (
+                <tr><td colSpan={6} className="p-8 text-center text-red-300">Could not load received fabric. <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button></td></tr>
               ) : batches.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="py-12 text-center text-zinc-500">
-                    No received dyeing batches found. Click &quot;Receive Delivery (IGP)&quot; to record incoming fabric.
+                <tr><td colSpan={6} className="space-y-3 p-8 text-center text-zinc-400"><p>No received fabric matches these filters.</p><Button size="sm" variant="outline" onClick={onOpenReceiveModal}>Receive dyed fabric</Button></td></tr>
+              ) : batches.map((batch) => (
+                <tr key={batch._id} className="hover:bg-zinc-800/30">
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-emerald-400">{batch.igpNo || 'No receiving challan'}</p>
+                    <p className="mt-1 text-zinc-400">{batch.dateReceived ? formatDateTime(batch.dateReceived, true) : '—'}</p>
+                    <p className="mt-1 text-zinc-500">{batch.batchNo}</p>
                   </td>
-                </tr>
-              ) : (
-                batches.map((b) => (
-                  <tr key={b._id} className="hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
-                      {b.dateReceived ? formatDateTime(b.dateReceived, true) : '—'}
-                    </td>
-
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">
-                      {b.igpNo || '—'}
-                    </td>
-
-                    <td className="py-3 px-4 font-mono font-semibold text-zinc-200 whitespace-nowrap">
-                      {b.batchNo}
-                    </td>
-
-                    <td className="py-3 px-4 font-mono text-zinc-400 whitespace-nowrap">
-                      {b.ogpNo || '—'}
-                    </td>
-
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <Badge
-                        variant={
-                          b.millName === 'GHUMMAN_DYEING'
-                            ? 'default'
-                            : b.millName === 'RAJPUT_DYEING'
-                            ? 'success'
-                            : 'outline'
-                        }
-                        className="text-[10px] py-0.5"
-                      >
-                        {unitNameMap.get(b.millName) || (b.millName === 'OTHER' ? (b.customMillName || 'Other Unit') : b.millName)}
-                      </Badge>
-                    </td>
-
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-medium text-zinc-100">{b.fabricType}</span>
-                      <span className="text-[10px] font-mono text-zinc-400 ml-1.5">({b.yarnSpec})</span>
-                      {b.machineNo && (
-                        <span className="text-[10px] font-mono text-emerald-500 ml-1">[{b.machineNo}]</span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-zinc-800 text-zinc-200 border border-zinc-700">
-                        {b.targetColor}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
-                      <span>{formatWeight(b.ecruWeightKg)}</span>
-                      <span className="text-[10px] text-zinc-500 ml-1">({b.ecruRollsCount}R)</span>
-                    </td>
-
-                    <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
-                      <span>{formatWeight(b.finishWeightKg || 0)}</span>
-                      <span className="text-[10px] text-emerald-500/80 font-normal ml-1">({b.finishRollsCount || 0}R)</span>
-                    </td>
-
-                    <td className="py-3 px-4 text-right font-mono whitespace-nowrap text-zinc-300">
-                      {formatWeight(b.shortageWeightKg || 0)}
-                    </td>
-
-                    <td className="py-3 px-4 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1 font-mono font-bold text-xs">
-                        {(b.shortagePercent || 0) > 5.0 ? (
-                          <Badge variant="warning" className="gap-1 text-[10px]">
-                            <AlertTriangle className="w-2.5 h-2.5" />
-                            {b.shortagePercent?.toFixed(2)}%
-                          </Badge>
-                        ) : (
-                          <Badge variant="success" className="gap-1 text-[10px]">
-                            {b.shortagePercent?.toFixed(2)}%
-                          </Badge>
-                        )}
+                  <td className="px-4 py-3 text-zinc-300">{unitNameMap.get(batch.millName) || batch.customMillName || batch.millName.split('_').join(' ')}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-zinc-200">{batch.fabricType}</p>
+                    <p className="mt-1 text-zinc-400">{batch.yarnSpec} · {batch.targetColor}</p>
+                    <details className="mt-2 text-zinc-500"><summary className="cursor-pointer">Delivery details</summary>
+                      <div className="mt-2 space-y-1">
+                        {batch.ogpNo && <p>Sending challan: {batch.ogpNo}</p>}
+                        {batch.machineNo && <p>Machine: {batch.machineNo}</p>}
+                        {(batch.gsm || batch.width) && <p>GSM: {batch.gsm || '—'} · Width: {batch.width || '—'}</p>}
+                        {batch.driverName && <p>Driver: {batch.driverName}</p>}
+                        {batch.vehicleNo && <p>Vehicle: {batch.vehicleNo}</p>}
+                        {batch.remarks && <p>{batch.remarks}</p>}
                       </div>
-                    </td>
-
-                    <td className="py-3 px-4 text-zinc-300 whitespace-nowrap text-[11px]">
-                      {b.driverName || b.vehicleNo ? (
-                        <span>
-                          {b.driverName || ''} {b.vehicleNo ? `(${b.vehicleNo})` : ''}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-600">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
+                    </details>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-zinc-400"><p>{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1">{batch.ecruRollsCount} rolls</p></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-emerald-400"><p className="font-medium">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-zinc-400">{batch.finishRollsCount || 0} rolls</p></td>
+                  <td className="whitespace-nowrap px-4 py-3"><p className="text-zinc-300">{formatWeight(batch.shortageWeightKg || 0)}</p><Badge variant={(batch.shortagePercent || 0) > 5 ? 'warning' : 'success'} className="mt-1">{(batch.shortagePercent || 0).toFixed(2)}%</Badge></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </ScrollableTable>
-
-        {data && data.totalPages > 1 && (
-          <div className="p-3 border-t border-zinc-800 bg-zinc-950/40">
-            <PaginationControls
-              page={page}
-              totalPages={data.totalPages}
-              total={data.total}
-              limit={limit}
-              onPageChange={setPage}
-              onLimitChange={(newLimit) => {
-                setLimit(newLimit);
-                setPage(1);
-              }}
-            />
-          </div>
-        )}
+        {data && data.totalPages > 1 && <div className="border-t border-zinc-800 p-3"><PaginationControls page={page} totalPages={data.totalPages} total={data.total} limit={limit} onPageChange={setPage} onLimitChange={(value) => { setLimit(value); setPage(1); }} /></div>}
       </Card>
     </div>
   );

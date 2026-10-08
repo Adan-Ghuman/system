@@ -6,7 +6,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
-import { formatWeight } from '../../../lib/formatters.js';
+import { getLocalDateInput, formatWeight } from '../../../lib/formatters.js';
 import { Plus } from 'lucide-react';
 import { DyeingMillType, CreateGatePassPayload, GatePassEntryItem, DyeingUnitItem } from '../types/dyeing.types.js';
 import { PartyItem } from '../../parties/types/party.types.js';
@@ -58,7 +58,7 @@ export function CreateGatePassModal({
 }: CreateGatePassModalProps) {
   // Gate Pass Header Fields
   const [ogpNo, setOgpNo] = useState('');
-  const [dateIssued, setDateIssued] = useState(new Date().toISOString().split('T')[0]);
+  const [dateIssued, setDateIssued] = useState(getLocalDateInput());
   const [millName, setMillName] = useState<DyeingMillType>(initialMill);
   const [customMillName, setCustomMillName] = useState('');
   const [driverName, setDriverName] = useState('');

@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
+import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
+import { getLocalDateInput } from '../../../lib/formatters.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Button } from '../../../components/ui/Button.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
@@ -77,15 +78,15 @@ export function ReceiveKnittedModal({
   onSuccess,
   preselectedBalance
 }: ReceiveKnittedModalProps) {
-  const [partyId, setPartyId] = useState('');
-  const [partyName, setPartyName] = useState('');
+  const [partyId, setPartyId] = useState(preselectedBalance?.partyId || '');
+  const [partyName, setPartyName] = useState(preselectedBalance?.partyName || '');
   const [gatePassNo, setGatePassNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateInput());
   const [driverName, setDriverName] = useState('');
   const [remarks, setRemarks] = useState('');
 
   // Multi-row items state
-  const [rows, setRows] = useState<KnittedSlipRow[]>([createDefaultRow()]);
+  const [rows, setRows] = useState<KnittedSlipRow[]>([createDefaultRow(preselectedBalance?.yarnSpec || undefined)]);
 
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -122,26 +123,6 @@ export function ReceiveKnittedModal({
     }
     return DEFAULT_YARN_SPECS;
   }, [specsData]);
-
-  // Handle preselected knitter balance if opened from balances table
-  useEffect(() => {
-    if (preselectedBalance) {
-      setPartyId(preselectedBalance.partyId);
-      setPartyName(preselectedBalance.partyName);
-      if (preselectedBalance.yarnSpec) {
-        setRows([
-          {
-            id: generateRowId(),
-            fabricType: 'Single Jersey',
-            yarnSpec: preselectedBalance.yarnSpec,
-            rollsCount: '',
-            weightKg: '',
-            remarks: ''
-          }
-        ]);
-      }
-    }
-  }, [preselectedBalance]);
 
   function handleAddRow() {
     const lastRow = rows[rows.length - 1];

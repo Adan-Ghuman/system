@@ -94,7 +94,7 @@ export function FormFooter({ formId, summary, onClose, isLoading, isSaved, disab
       <div className="text-xs leading-relaxed text-zinc-400">{summary}</div>
       <div className="ml-auto flex items-center gap-2">
         <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
-        <Button type="submit" form={formId} isLoading={isLoading} disabled={disabled || isSaved}>
+        <Button type="submit" form={formId} preventDoubleClick={false} isLoading={isLoading} disabled={disabled || isSaved}>
           {isSaved ? 'Saved' : submitLabel}
         </Button>
       </div>

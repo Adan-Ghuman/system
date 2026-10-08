@@ -38,8 +38,8 @@ export function AppLayout() {
   const navItems = [
     { to: '/', label: 'Dashboard', icon: Factory },
     { to: '/parties', label: 'Parties', icon: Users },
-    { to: '/knitting', label: 'Knitting & Yarn', icon: Layers },
-    { to: '/dyeing', label: 'Dyeing Batches', icon: Palette },
+    { to: '/knitting', label: 'Knitting', icon: Layers },
+    { to: '/dyeing', label: 'Dyeing', icon: Palette },
     { to: '/inventory', label: 'Fabric Stock', icon: Boxes },
     { to: '/dispatch', label: 'Deliveries & Bills', icon: Truck },
     { to: '/accounts', label: 'Payments & Ledgers', icon: FileSpreadsheet },

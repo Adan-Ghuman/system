@@ -7,7 +7,7 @@ import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
 import { PartyCombobox } from '../../../components/ui/PartyCombobox.js';
-import { formatWeight } from '../../../lib/formatters.js';
+import { getLocalDateInput, formatWeight } from '../../../lib/formatters.js';
 import { Plus } from 'lucide-react';
 import {
   YarnTransactionType,
@@ -59,7 +59,7 @@ export function IssueYarnModal({
   const [transactionType, setTransactionType] = useState<YarnTransactionType>(initialType);
   const [partyId, setPartyId] = useState('');
   const [gatePassNo, setGatePassNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateInput());
   const [remarks, setRemarks] = useState('');
 
   // Multi-yarn line items state

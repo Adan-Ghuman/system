@@ -1,11 +1,9 @@
-import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
+import { useState, useMemo, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
-import { Button } from '../../../components/ui/Button.js';
-import { Badge } from '../../../components/ui/Badge.js';
-import { formatWeight } from '../../../lib/formatters.js';
-import { AlertCircle, CheckCircle2, AlertTriangle, CheckCircle, Scale } from 'lucide-react';
+import { FormSection, OptionalDetails, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
+import { getLocalDateInput, formatWeight } from '../../../lib/formatters.js';
 import { DyeingBatchItem, SettleBatchPayload } from '../types/dyeing.types.js';
 
 export interface SettleBatchModalProps {
@@ -16,27 +14,16 @@ export interface SettleBatchModalProps {
 }
 
 export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBatchModalProps) {
-  const [finishRollsCount, setFinishRollsCount] = useState('');
+  const [finishRollsCount, setFinishRollsCount] = useState(String(batch?.ecruRollsCount || ''));
   const [finishWeightKg, setFinishWeightKg] = useState('');
-  const [dateReceived, setDateReceived] = useState(new Date().toISOString().split('T')[0]);
-  const [igpNo, setIgpNo] = useState('');
+  const [dateReceived, setDateReceived] = useState(getLocalDateInput());
+  const [igpNo, setIgpNo] = useState(batch?.igpNo || '');
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (batch) {
-      setFinishRollsCount(String(batch.ecruRollsCount || 20));
-      const estimatedWeight = batch.ecruWeightKg ? (batch.ecruWeightKg * 0.96).toFixed(2) : '';
-      setFinishWeightKg(estimatedWeight);
-      setIgpNo(batch.igpNo || '');
-      setError(null);
-      setSuccess(null);
-    }
-  }, [batch]);
 
   const settlementMath = useMemo(() => {
     if (!batch) return { lossKg: 0, shrinkagePercent: 0, isAlert: false, isExceeded: false };
@@ -59,7 +46,12 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
     e.preventDefault();
     if (!batch || isSubmittingRef.current || isLoading) return;
 
-    const finish = parseFloat(finishWeightKg) || 0;
+    const finish = Number(finishWeightKg);
+    const rolls = Number(finishRollsCount);
+    if (!Number.isFinite(finish) || finish <= 0 || !Number.isInteger(rolls) || rolls <= 0) {
+      setError('Enter the actual rolls and weight received.');
+      return;
+    }
     if (batch.ecruWeightKg && batch.ecruWeightKg > 0 && finish > batch.ecruWeightKg) {
       setError(`Finish weight (${finish} kg) cannot be more than lot weight (${batch.ecruWeightKg} kg)`);
       return;
@@ -102,205 +94,42 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={onClose}
-      title={`Receive Dyed Fabric: ${batch.batchNo}`}
-      description="Enter finished rolls and weight received back from the unit to calculate weight loss and add to stock."
-      className="max-w-xl"
+      onClose={() => { if (!isLoading) onClose(); }}
+      title="Receive dyed fabric"
+      description="Record the actual delivery from this batch. The received fabric will be added to stock."
+      className="max-w-2xl"
+      footer={<FormFooter formId="receive-batch-form" summary={finishWeightKg ? `${finishRollsCount || 0} rolls · ${formatWeight(Number(finishWeightKg))}` : 'Enter the actual received weight'} onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)} disabled={settlementMath.isExceeded} submitLabel="Save receipt" />}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 grid grid-cols-4 gap-2 text-xs">
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Unit</div>
-            <div className="font-semibold text-zinc-200 mt-0.5">
-              {batch.millName === 'GHUMMAN_DYEING'
-                ? 'Ghumman Dyeing'
-                : batch.millName === 'RAJPUT_DYEING'
-                ? 'Rajput Dyeing'
-                : batch.millName === 'HAFIZ_SAAD_DYEING'
-                ? 'Hafiz Saad Dyeing'
-                : batch.millName === 'HB_DYEING'
-                ? 'HB Dyeing'
-                : (batch.customMillName || 'Other Unit')}
+      <form id="receive-batch-form" onSubmit={handleSubmit}>
+        <FormFeedback error={error} success={success} />
+        <fieldset disabled={isLoading || Boolean(success)} className="min-w-0 space-y-6">
+          <FormSection step={1} title="Which batch came back?">
+            <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 text-sm">
+              <p className="font-medium text-zinc-100">{batch.batchNo} · {batch.customMillName || batch.millName.split('_').join(' ')}</p>
+              <p className="text-zinc-400">{batch.fabricType} · {batch.yarnSpec} · {batch.targetColor}</p>
+              <p className="text-zinc-300">Sent: {batch.ecruRollsCount} rolls · {formatWeight(batch.ecruWeightKg)}</p>
+              {batch.ogpNo && <p className="text-xs text-zinc-500">Sending challan: {batch.ogpNo}</p>}
             </div>
-          </div>
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Fabric / Spec</div>
-            <div className="font-semibold text-emerald-400 mt-0.5 truncate">
-              {batch.fabricType} ({batch.yarnSpec})
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input id="settle-challan" label="Receiving challan number (optional)" value={igpNo} onChange={(e) => setIgpNo(e.target.value)} />
+              <Input id="settle-date" type="date" label="Received on" value={dateReceived} onChange={(e) => setDateReceived(e.target.value)} required />
             </div>
-          </div>
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Target Color</div>
-            <Badge variant="default" className="mt-0.5 font-bold">
-              {batch.targetColor}
-            </Badge>
-          </div>
-          <div className="text-right">
-            <div className="text-zinc-500 text-[10px] uppercase">Ecru Issued</div>
-            <div className="font-mono font-bold text-zinc-100 mt-0.5">
-              {formatWeight(batch.ecruWeightKg)} ({batch.ecruRollsCount} R)
+          </FormSection>
+          <FormSection step={2} title="How much did you receive?" description="Check these values against the delivery, including the roll count.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input id="settle-rolls" type="number" min="1" step="1" label="Rolls received" value={finishRollsCount} onChange={(e) => setFinishRollsCount(e.target.value)} required />
+              <Input id="settle-weight" type="number" step="0.01" min="0.01" label="Actual received weight (kg)" value={finishWeightKg} onChange={(e) => setFinishWeightKg(e.target.value)} error={settlementMath.isExceeded ? 'Received weight cannot exceed the sent weight.' : undefined} required />
             </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            id="finishRollsCount"
-            type="number"
-            min="1"
-            label="Finished Rolls Received"
-            value={finishRollsCount}
-            onChange={(e) => setFinishRollsCount(e.target.value)}
-            required
-            autoFocus
-          />
-
-          <Input
-            id="finishWeightKg"
-            type="number"
-            step="0.01"
-            min="0.01"
-            label="Finished Net Weight (Kg)"
-            value={finishWeightKg}
-            onChange={(e) => setFinishWeightKg(e.target.value)}
-            error={
-              settlementMath.isExceeded
-                ? `Finish weight (${finishWeightKg} kg) cannot be more than lot weight (${batch.ecruWeightKg} kg)`
-                : undefined
-            }
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            id="igpNo"
-            label="Inward Gate Pass (IGP) / Delivery Challan"
-            value={igpNo}
-            onChange={(e) => setIgpNo(e.target.value)}
-            placeholder="e.g. IGP-772"
-          />
-
-          <Input
-            id="dateReceived"
-            type="date"
-            label="Receipt Date"
-            value={dateReceived}
-            onChange={(e) => setDateReceived(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
-              <Scale className="w-3.5 h-3.5 text-emerald-400" />
-              Dynamic Shrinkage & Loss Engine
-            </span>
-            {settlementMath.isExceeded ? (
-              <Badge variant="destructive" className="gap-1 font-semibold text-[11px] bg-red-950 text-red-300 border-red-700">
-                <AlertCircle className="w-3 h-3" />
-                Exceeds Lot Weight
-              </Badge>
-            ) : settlementMath.isAlert ? (
-              <Badge variant="warning" className="gap-1 font-semibold text-[11px]">
-                <AlertTriangle className="w-3 h-3" />
-                Excess Shrinkage (&gt; 5.0%)
-              </Badge>
-            ) : (
-              <Badge variant="success" className="gap-1 font-semibold text-[11px]">
-                <CheckCircle className="w-3 h-3" />
-                Normal Yield (&le; 5.0%)
-              </Badge>
+            {Number(finishWeightKg) > 0 && (
+              <div className={`rounded-lg border p-3 text-sm ${settlementMath.isExceeded ? 'border-red-500/30 bg-red-500/10 text-red-300' : settlementMath.isAlert ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-zinc-800 bg-zinc-950/30 text-zinc-300'}`}>
+                {settlementMath.isExceeded ? 'Please check the weight before saving.' : <>Weight loss: {formatWeight(settlementMath.lossKg)} ({settlementMath.shrinkagePercent.toFixed(2)}%).{settlementMath.isAlert && ' Above the 5% tolerance; the batch will be flagged.'}</>}
+              </div>
             )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-center pt-1">
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-              <div className="text-[10px] text-zinc-500 uppercase">Shortage Loss (Kg)</div>
-              <div
-                className={`text-sm font-mono font-bold mt-0.5 ${
-                  settlementMath.isExceeded
-                    ? 'text-red-400'
-                    : settlementMath.isAlert
-                    ? 'text-amber-400'
-                    : 'text-zinc-200'
-                }`}
-              >
-                {formatWeight(settlementMath.lossKg)}
-              </div>
-            </div>
-
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-              <div className="text-[10px] text-zinc-500 uppercase">Shrinkage %</div>
-              <div
-                className={`text-sm font-mono font-bold mt-0.5 ${
-                  settlementMath.isExceeded
-                    ? 'text-red-400'
-                    : settlementMath.isAlert
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`}
-              >
-                {settlementMath.shrinkagePercent.toFixed(2)}%
-              </div>
-            </div>
-
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800">
-              <div className="text-[10px] text-zinc-500 uppercase">Finished Yield</div>
-              <div className="text-sm font-mono font-bold text-zinc-200 mt-0.5">
-                {(100 - settlementMath.shrinkagePercent).toFixed(2)}%
-              </div>
-            </div>
-          </div>
-
-          {settlementMath.isExceeded && (
-            <div className="p-2.5 rounded bg-red-950/70 border border-red-800 text-[11px] text-red-300 flex items-center gap-1.5 font-medium">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
-              <span>
-                Finish weight ({finishWeightKg} kg) cannot be more than issued lot weight ({batch.ecruWeightKg} kg). Please verify and correct the weight.
-              </span>
-            </div>
-          )}
-
-          {settlementMath.isAlert && (
-            <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>Process loss exceeds standard 5.0% contract tolerance limit. An alert flag will be saved in the batch audit log.</span>
-            </div>
-          )}
-        </div>
-
-        <Input
-          id="settleRemarks"
-          label="Settlement Remarks"
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-          placeholder="e.g. Approved by Haji Ghumman, slight heat shrinkage"
-        />
-
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} disabled={settlementMath.isExceeded}>
-            Confirm & Add to Stock
-          </Button>
-        </div>
+          </FormSection>
+          <OptionalDetails title="Delivery notes (optional)">
+            <Input id="settle-remarks" label="Notes" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          </OptionalDetails>
+        </fieldset>
       </form>
     </Dialog>
   );

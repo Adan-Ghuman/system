@@ -92,7 +92,7 @@ export function KnittingPage() {
 
   const transactions = txData?.items || [];
 
-  const { data: specsData, refetch: refetchSpecs } = useQuery<YarnSpecsResponseData>({
+  const { refetch: refetchSpecs } = useQuery<YarnSpecsResponseData>({
     queryKey: ['yarn-specs'],
     queryFn: async () => {
       const res = await api.get<{ success: boolean; data: YarnSpecsResponseData }>('/knitting/yarn-specs');

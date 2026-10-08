@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
+import { getLocalDateInput } from '../../../lib/formatters.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
@@ -84,7 +85,7 @@ export function ReceiveGatePassModal({
 
   // Header Details
   const [igpNo, setIgpNo] = useState('');
-  const [dateReceived, setDateReceived] = useState(new Date().toISOString().split('T')[0]);
+  const [dateReceived, setDateReceived] = useState(getLocalDateInput());
   const [millName, setMillName] = useState<DyeingMillType>(initialMill || 'HB_DYEING');
   const [customMillName, setCustomMillName] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -128,10 +129,7 @@ export function ReceiveGatePassModal({
   const { data: activeBatchesData, isLoading: isBatchesLoading, isError: isBatchesError, refetch: refetchBatches } = useQuery<{ items: DyeingBatchItem[] }>({
     queryKey: ['active-dyeing-batches-for-receive', millName],
     queryFn: async () => {
-      const params: Record<string, string> = { status: 'ACTIVE', limit: '200' };
-      if (millName !== 'OTHER') {
-        params.millName = millName;
-      }
+      const params: Record<string, string> = { status: 'ACTIVE', millName };
       const items: DyeingBatchItem[] = [];
       let page = 1;
       let totalPages = 1;
@@ -440,7 +438,7 @@ export function ReceiveGatePassModal({
     setMillName(value as DyeingMillType);
     setSelectedBatchIds({});
     setBatchSearch('');
-    setRows((current) => current.map((row) => ({ ...row, matchedBatchId: undefined })));
+    setRows([createDefaultRow()]);
   }
 
   return (
