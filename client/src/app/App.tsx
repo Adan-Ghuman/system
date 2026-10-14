@@ -1,9 +1,9 @@
 import { ReasonDialog } from '../components/ui/ReasonDialog.js';
-import { IntercompanyPage } from '../business/IntercompanyPage.js';
 import { LedgerPage } from '../business/LedgerPage.js';
 import { CatalogPage } from '../business/CatalogPage.js';
 import { WorkspacePage } from '../business/WorkspacePage.js';
 import { YarnPage } from '../business/YarnPage.js';
+import { UnitsPage } from '../business/UnitsPage.js';
 import { ProductionPage } from '../business/ProductionPage.js';
 import { useBusinessStore } from '../business/store.js';
 import { useMemo } from 'react';
@@ -11,7 +11,7 @@ import { useEffect, ReactNode, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
-import { BusinessItem } from '../business/BusinessPicker.js';
+import { BusinessItem } from '../business/types.js';
 import { QueryError } from '../components/ui/QueryError.js';
 import { useAuthStore } from '../features/auth/stores/useAuthStore.js';
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage.js').then(module => ({ default: module.LoginPage })));
@@ -61,22 +61,20 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   return <>{children}</>;
 }
 
-function BusinessRoute() {
-  const { businessId = '' } = useParams();const current = useBusinessStore(state => state.id);const setBusiness = useBusinessStore(state => state.setBusiness);
-  useEffect(() => { if (current !== businessId) setBusiness(businessId); }, [businessId, current, setBusiness]);
-  if (current !== businessId) return <ThemedLoadingScreen />;
-  return <ProtectedRoute><ErrorBoundary fallbackTitle="Application Interface Error"><AppLayout /></ErrorBoundary></ProtectedRoute>;
+function PreviousBusinessRoute() {
+  const params = useParams();const location = useLocation();
+  return <Navigate to={'/' + (params['*'] || '') + location.search} replace />;
 }
 
 function DefaultBusinessRoute() {
-  const current = useBusinessStore(state => state.id);const setBusiness = useBusinessStore(state => state.setBusiness);const location = useLocation();
+  const current = useBusinessStore(state => state.id);const setBusiness = useBusinessStore(state => state.setBusiness);
   const query = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });
-  const company = query.data?.find(item => item._id === current) || query.data?.find(item => item.code === 'ROZAIN') || query.data?.[0];
+  const company = query.data?.find(item => item.code === 'ROZAIN');
   useEffect(() => { if (company && current !== company._id) setBusiness(company._id); }, [company, current, setBusiness]);
   if (query.isError) return <QueryError onRetry={() => query.refetch()} />;
   if (query.isPending || (company && current !== company._id)) return <ThemedLoadingScreen />;
   if (!company) return <p className="p-6 text-sm text-soft">Ask your administrator for access to a company.</p>;
-  return <Navigate to={'/b/' + company._id + (location.pathname === '/' ? '' : location.pathname) + location.search} replace />;
+  return <AppLayout />;
 }
 
 export function App() {
@@ -115,33 +113,18 @@ export function App() {
             <Route path="bills" element={<WorkspacePage mode="bills" />} />
             <Route path="yarn" element={<YarnPage />} />
             <Route path="production" element={<ProductionPage />} />
-            <Route path="intercompany" element={<IntercompanyPage />} />
+            <Route path="intercompany" element={<Navigate to="/parties" replace />} />
             <Route path="accounts/parties/:partyId/ledger" element={<LedgerPage />} />
             <Route path="parties" element={<PartiesPage />} />
             <Route path="knitting" element={<KnittingPage />} />
             <Route path="dyeing" element={<DyeingPage />} />
             <Route path="inventory" element={<InventoryPage />} />
+            <Route path="units" element={<UnitsPage />} />
             <Route path="dispatch" element={<DispatchPage />} />
             <Route path="accounts" element={<AccountsPage />} />
           </Route>
 
-          <Route path="/b/:businessId" element={<BusinessRoute />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="catalog" element={<CatalogPage />} />
-            <Route path="buying" element={<WorkspacePage mode="buying" />} />
-            <Route path="bills" element={<WorkspacePage mode="bills" />} />
-            <Route path="yarn" element={<YarnPage />} />
-            <Route path="production" element={<ProductionPage />} />
-            <Route path="intercompany" element={<IntercompanyPage />} />
-            <Route path="accounts/parties/:partyId/ledger" element={<LedgerPage />} />
-            <Route path="parties" element={<PartiesPage />} />
-            <Route path="knitting" element={<KnittingPage />} />
-            <Route path="dyeing" element={<DyeingPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="dispatch" element={<DispatchPage />} />
-            <Route path="accounts" element={<AccountsPage />} />
-          </Route>
+          <Route path="/b/:businessId/*" element={<ProtectedRoute><PreviousBusinessRoute /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes></Suspense>

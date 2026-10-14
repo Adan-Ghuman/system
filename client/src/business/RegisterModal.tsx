@@ -14,7 +14,7 @@ import { QueryError } from '../components/ui/QueryError.js';
 import { FormFeedback } from '../components/ui/WorkflowForm.js';
 import { saveBlob } from '../lib/fileDownload.js';
 import { useBusinessStore } from './store.js';
-import { BusinessItem } from './BusinessPicker.js';
+import { BusinessItem } from './types.js';
 
 interface Row { _id: string; date: string; number: string; source: string; fabricType: string; yarnSpec: string; color: string; rolls: number; weightKg: number; poNo?: string; externalReference?: string; }
 export function RegisterModal({ onClose, defaultType = 'OGP' }: { onClose: () => void; defaultType?: 'IGP' | 'OGP' }) {

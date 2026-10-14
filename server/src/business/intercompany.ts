@@ -6,7 +6,7 @@ import { FabricInventory } from '../models/FabricInventory.js';
 import { Party } from '../models/Party.js';
 import { IUser } from '../models/User.js';
 import { PaymentVoucher } from '../models/PaymentVoucher.js';
-import { businessContext } from './context.js';
+import { businessContext, usesExistingRecords } from './context.js';
 import { postCommand, nextDocumentNo, money, weight } from './posting.js';
 import { billTotals } from './commerce.js';
 import { itemInput } from './commerce.schema.js';
@@ -26,7 +26,7 @@ export async function inBusiness<T>(id: string, user: IUser, action: () => Promi
 }
 async function counterpartAccount(id: string, session: ClientSession) {
   const business = await Business.findById(id).session(session);if (!business) throw new NotFoundError('Business not found.');
-  const code = 'INTERCO-' + business.code;
+  const code = usesExistingRecords() && business.code === 'ZR' ? 'ZR_TRADING' : 'INTERCO-' + business.code;
   const existing = await Party.findOne({ code }).session(session);if (existing) return existing;
   return (await Party.create([{ code, name: business.name, tags: { isFabricBuyer: true }, openingBalance: 0, currentBalance: 0 }], { session }))[0];
 }

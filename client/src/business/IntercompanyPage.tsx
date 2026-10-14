@@ -18,7 +18,7 @@ import { PaginationControls } from '../components/ui/Pagination.js';
 import { LoadingState } from '../components/ui/LoadingState.js';
 import { QueryError } from '../components/ui/QueryError.js';
 import { DocumentReferences, useDocumentReferences } from '../components/ui/DocumentReferences.js';
-import { BusinessItem } from './BusinessPicker.js';
+import { BusinessItem } from './types.js';
 import { useBusinessStore } from './store.js';
 import { OperationDocument } from './types.js';
 import { DocumentPreview } from './DocumentPreview.js';

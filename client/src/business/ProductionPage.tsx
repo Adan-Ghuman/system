@@ -1,6 +1,6 @@
 import { loadAllRecords } from '../lib/pagedResources.js';
 import { Select } from '../components/ui/Select.js';
-import { BusinessItem } from './BusinessPicker.js';
+import { BusinessItem } from './types.js';
 import { DocumentPreview } from './DocumentPreview.js';
 import { OperationDocument } from './types.js';
 import { useState } from 'react';

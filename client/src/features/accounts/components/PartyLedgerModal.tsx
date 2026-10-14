@@ -1,5 +1,5 @@
 import { getLocalDateInput } from '../../../lib/formatters.js';
-import { BusinessItem } from '../../../business/BusinessPicker.js';
+import { BusinessItem } from '../../../business/types.js';
 import { useBusinessStore } from '../../../business/store.js';
 import { DocumentPreview } from '../../../business/DocumentPreview.js';
 import { OperationDocument } from '../../../business/types.js';
@@ -29,7 +29,7 @@ export interface PartyLedgerModalProps {
 }
 
 export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyLedgerModalProps) {
-  const businessId = useBusinessStore(state => state.id);const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });const companyName = businesses.data?.find(item => item._id === businessId)?.name || 'Historical records';const [sourceDocument, setSourceDocument] = useState<OperationDocument | null>(null);
+  const businessId = useBusinessStore(state => state.id);const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });const companyName = businesses.data?.find(item => item._id === businessId)?.name || 'Rozain Textile';const [sourceDocument, setSourceDocument] = useState<OperationDocument | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [isExportingCsv, setIsExportingCsv] = useState(false);

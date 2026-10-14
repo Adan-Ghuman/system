@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import { BusinessItem } from '../../../business/BusinessPicker.js';
+import { useBusinessStore } from '../../../business/store.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
@@ -32,8 +31,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUserModalProps) {
-  const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });
-  const [businessIds, setBusinessIds] = useState<string[]>([]);
+  const workspaceId = useBusinessStore(state => state.id);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,7 +98,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
 
     try {
       await api.post('/users', {
-        businessIds, fullName,
+        businessIds: [workspaceId], fullName,
         email,
         password,
         role,
@@ -155,7 +153,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
           </div>
         )}
 
-        <FormSection step={1} title="Account details"><fieldset className="space-y-3 rounded-lg border border-line p-4"><legend className="px-1 text-sm font-medium text-strong">Business access</legend><p className="text-xs text-soft">Choose the businesses this person may work in. Administrators have access to all businesses.</p>{businesses.data?.map(business => <label key={business._id} className="flex items-center gap-2 text-sm text-ink"><input type="checkbox" checked={businessIds.includes(business._id)} onChange={event => setBusinessIds(current => event.target.checked ? [...current, business._id] : current.filter(id => id !== business._id))} />{business.name}</label>)}</fieldset>
+        <FormSection step={1} title="Account details">
 <div className="grid grid-cols-2 gap-3">
           <Input
             id="fullName"

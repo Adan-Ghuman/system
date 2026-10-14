@@ -14,6 +14,7 @@ import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { AddEditUnitModal } from './AddEditUnitModal.js';
 import { formatWeight } from '../../../lib/formatters.js';
+import { PartyLink } from '../../../business/PartyLink.js';
 import { Factory, Warehouse, Plus, Search, Edit, Trash2, RefreshCw, CheckCircle, XCircle, Filter, X, Phone, MapPin } from 'lucide-react';
 
 export function DyeingUnitsTab() {
@@ -268,6 +269,7 @@ export function DyeingUnitsTab() {
                       <div className="text-xs font-mono text-soft mt-0.5">
                         Code: {u.code}
                       </div>
+                      {u.partyId && <div className="mt-1 text-xs"><PartyLink party={{ _id: u.partyId, name: u.shortName }} /><span className="ml-1 text-soft">· Party ledger</span></div>}
                     </td>
                     <td className="py-2.5 px-3">
                       <span className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-subtle border border-control text-brand">

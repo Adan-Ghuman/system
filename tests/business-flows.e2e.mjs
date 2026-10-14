@@ -15,16 +15,17 @@ const token=signAccessToken({userId:String(user._id),email:user.email,role:'admi
 const server=createApp().listen(5182,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
 export async function request(method,url,body,status=200){const response=await fetch('http://127.0.0.1:5182/api'+url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=await response.json();assert.equal(response.status,status,JSON.stringify({url,status:response.status,data}));return data.data;}
 try{
+ const {Business}=await import('../server/dist/business/Business.js');await Business.create({code:'ZR',name:'ZR Trading'});
  await mongoose.connection.collection('fabricinventories').createIndex({fabricType:1,yarnSpec:1,state:1,color:1,location:1},{unique:true});
  const businesses=await request('GET','/businesses');assert.equal(businesses.length,2);const [a,b]=businesses;
  const base=id=>'/businesses/'+id;
  const party=await request('POST',base(a._id)+'/parties',{name:'Example Knitter',tags:{isKnitter:true},openingBalance:15},201);
- assert.equal((await request('GET',base(a._id)+'/parties')).total,1);
+ assert.equal((await request('GET',base(a._id)+'/parties')).total,2);
  assert.equal((await request('GET',base(b._id)+'/parties')).total,0);
  await request('GET',base(b._id)+'/parties/'+party._id,undefined,404);
  const second=await request('POST',base(b._id)+'/parties',{name:'Example Knitter',code:party.code,openingBalance:-5},201);
  assert.equal(second.code,party.code);assert.equal((await request('GET',base(a._id)+'/parties/summary')).totalDr,15);
- assert.equal((await request('GET','/parties')).total,1);
+ assert.equal((await request('GET','/parties')).total,2);
  const specs=await request('GET',base(a._id)+'/knitting/yarn-specs');assert(specs.catalog.length>0);
  await request('POST',base(a._id)+'/knitting/transactions',{transactionType:'INWARD_FROM_CLIENT',partyId:party._id,yarnSpec:'75/72',gatePassNo:'0033/26',date:new Date().toISOString(),boxCount:2,netWeightPerBox:36,poNo:'0007/26'},201);
  const tx=await request('GET',base(a._id)+'/knitting/transactions');assert.equal(tx.items[0].partyId.name,'Example Knitter');assert.equal(tx.items[0].poNo,'0007/26');
@@ -161,6 +162,7 @@ try{
  assert.equal((await request('GET',base(a._id)+'/inventory/items')).items.find(item=>item.fabricType==='Interlock').totalWeightKg,196);
  console.log('PASS paired transit shortage, paid-trade refund, physical return, paired credit reversal and stock/ledger reconciliation.');
  const {verifyExistingCompany}=await import('./existing-company.e2e.mjs');await verifyExistingCompany({mongoose,request,businesses,signAccessToken});
+ const {verifySiblingUnit}=await import('./sibling-unit.e2e.mjs');await verifySiblingUnit({request});
  if(process.env.QA_BROWSER==='1'){const bcrypt=require('../server/node_modules/bcrypt');await User.updateOne({_id:user._id},{$set:{passwordHash:await bcrypt.hash('Isolated-QA-only-2026',4)}});const {runBrowserQA}=await import('./browser-flows.e2e.mjs');await runBrowserQA({businesses,supplier,buyer});}
 
 

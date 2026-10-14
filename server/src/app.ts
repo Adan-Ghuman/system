@@ -74,7 +74,13 @@ export function createApp(): express.Application {
   businessScope.use('/sources', sourceRoutes);
   businessScope.use(operations);
   app.use('/api/businesses/:businessId', businessScope);
-  app.use('/api', defaultBusinessScope, operations);
+  const workspace = express.Router();
+  workspace.use('/catalog', catalogRoutes);
+  workspace.use('/workspace', workspaceRoutes);
+  workspace.use('/production', productionRoutes);
+  workspace.use('/sources', sourceRoutes);
+  workspace.use(operations);
+  app.use('/api', defaultBusinessScope, workspace);
 
   app.use((_req, _res, next) => {
     next(new NotFoundError('Route not found'));

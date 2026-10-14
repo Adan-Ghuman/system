@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { BusinessItem } from '../business/BusinessPicker.js';
-import { BusinessPicker } from '../business/BusinessPicker.js';
+import { BusinessItem } from '../business/types.js';
 import { useBusinessStore } from '../business/store.js';
 import { useEffect, useRef, useState, Suspense } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../features/auth/stores/useAuthStore.js';
 import { api } from '../lib/api.js';
 import { Button } from '../components/ui/Button.js';
@@ -20,11 +19,11 @@ const navigation = [
   { to: '/yarn', label: 'Yarn stock', icon: Boxes, group: 'Operations' },
   { to: '/dyeing', label: 'Dyeing', icon: Palette, group: 'Operations' },
   { to: '/inventory', label: 'Fabric stock', icon: Boxes, group: 'Operations' },
+  { to: '/units', label: 'Units & godowns', icon: Boxes, group: 'Operations' },
   { to: '/dispatch', label: 'Deliveries & invoices', icon: Truck, group: 'Operations' },
   { to: '/buying', label: 'Buy fabric', icon: Boxes, group: 'Operations' },
   { to: '/catalog', label: 'Color program & names', icon: Palette, group: 'Operations' },
   { to: '/production', label: 'Production report', icon: Layers, group: 'Operations' },
-  { to: '/intercompany', label: 'Trade between businesses', icon: Truck, group: 'Finance & parties' },
   { to: '/bills', label: 'Bills & charges', icon: Wallet, group: 'Finance & parties' },
   { to: '/parties', label: 'Parties', icon: Users, group: 'Finance & parties' },
   { to: '/accounts', label: 'Accounts & ledgers', icon: Wallet, group: 'Finance & parties' },
@@ -38,10 +37,10 @@ export function AppLayout() {
   const { user, clearAuth } = useAuthStore();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
-  const access: Record<string, string[]> = { '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
+  const access: Record<string, string[]> = { '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/units': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
   const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (access[item.to] || []).every(permission => user?.permissions.includes(permission))));
   const path = location.pathname.replace(/^\/b\/[^/]+/, '') || '/';
-  const link = (value: string) => businessId ? '/b/' + businessId + (value === '/' ? '' : value) : value;
+  const link = (value: string) => value;
   const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });
   const businessName = businesses.data?.find(item => item._id === businessId)?.name || 'Company workspace';
   const current = navigation.find((item) => item.to === path);
@@ -73,7 +72,6 @@ export function AppLayout() {
     );
   }
 
-  if (businessId && !location.pathname.startsWith('/b/')) return <Navigate to={link(path) + location.search} replace />;
   return (
     <div className="flex min-h-screen bg-canvas text-ink">
       <a href="#main-content" className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-lg bg-primary px-4 py-2 text-white focus:translate-y-0">Skip to content</a>
@@ -99,7 +97,7 @@ export function AppLayout() {
             <button ref={menuRef} type="button" onClick={() => setIsMobileOpen(true)} aria-label="Open menu" aria-expanded={isMobileOpen} className="rounded-lg p-2 text-soft hover:bg-subtle lg:hidden"><Menu className="h-5 w-5" /></button>
             <p className="truncate text-xs text-soft"><span className="hidden sm:inline">Workspace <span className="mx-2 text-control">/</span></span><span className="font-medium text-ink">{current?.label || 'Overview'}</span></p>
           </div>
-          <div className="flex shrink-0 items-center gap-2"><BusinessPicker /><span className="hidden sm:inline"><ThemePicker /></span><span className="hidden text-xs text-soft md:block">{user?.email}</span><Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0 lg:hidden" aria-label="Sign out"><LogOut className="h-4 w-4" /></Button></div>
+          <div className="flex shrink-0 items-center gap-2"><span className="hidden sm:inline"><ThemePicker /></span><span className="hidden text-xs text-soft md:block">{user?.email}</span><Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0 lg:hidden" aria-label="Sign out"><LogOut className="h-4 w-4" /></Button></div>
         </header>
         <main id="main-content" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 p-4 outline-none sm:p-7 lg:p-8"><Suspense fallback={<LoadingState className="min-h-48" />}><Outlet /></Suspense></main>
       </div>
