@@ -1,6 +1,15 @@
-import mongoose, { Model, Schema, Query, Types } from 'mongoose';
-import { currentBusinessId, businessObjectId, businessContext } from './context.js';
+import mongoose, { Model, Schema, Query, Types, PipelineStage } from 'mongoose';
+import { currentBusinessId, businessObjectId, businessContext, businessRecordFilter, usesExistingRecords } from './context.js';
 import { ForbiddenError } from '../utils/errors.js';
+
+function existingDefaults(filter: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(filter).map(([key, value]) => {
+    if ((key === 'ownerKey' && value === 'OWN') || (key === 'status' && value === 'POSTED')) return [key, { $in: [value, null] }];
+    if (Array.isArray(value)) return [key, value.map(item => item && Object.getPrototypeOf(item) === Object.prototype ? existingDefaults(item) : item)];
+    if (value && Object.getPrototypeOf(value) === Object.prototype) return [key, existingDefaults(value as Record<string, unknown>)];
+    return [key, value];
+  }));
+}
 
 export function businessModel<T>(name: string, schema: Schema<T>): Model<T> {
   const legacy = mongoose.model<T>(name, schema);
@@ -17,19 +26,25 @@ export function businessModel<T>(name: string, schema: Schema<T>): Model<T> {
     scopedSchema.pre(hook, function(this: Query<unknown, unknown>) {
       const businessId = businessObjectId();
       if (!businessId) throw new ForbiddenError('Choose a business first.');
-      this.setQuery({ $and: [this.getFilter(), { businessId }] });
+      const filter = usesExistingRecords() ? existingDefaults(this.getFilter()) : this.getFilter();
+      this.setQuery({ $and: [filter, businessRecordFilter()] });
       const update = this.getUpdate();
       if (update && !Array.isArray(update)) {
         const requested = (update.$set as Record<string, unknown> | undefined)?.businessId || (update as Record<string, unknown>).businessId;
         if (requested && String(requested) !== String(businessId)) throw new ForbiddenError('The business cannot be changed.');
+        if (this.getOptions().upsert) update.$setOnInsert = { ...update.$setOnInsert, businessId };
       }
     });
   }
   scopedSchema.pre('aggregate', function() {
     const businessId = businessObjectId();
     if (!businessId) throw new ForbiddenError('Choose a business first.');
-    this.pipeline().unshift({ $match: { businessId } });
-    for (const stage of this.pipeline()) if ('$lookup' in stage && stage.$lookup.from === 'parties') stage.$lookup.from = 'partyaccounts';
+    this.pipeline().unshift({ $match: businessRecordFilter() });
+    if (usesExistingRecords()) {
+      const normalize = (pipeline: PipelineStage[]) => { for (const stage of pipeline) { if ('$match' in stage) stage.$match = existingDefaults(stage.$match);if ('$unionWith' in stage && typeof stage.$unionWith !== 'string' && stage.$unionWith.pipeline) normalize(stage.$unionWith.pipeline); } };
+      normalize(this.pipeline());
+    }
+    for (const stage of this.pipeline()) if ('$lookup' in stage && stage.$lookup.from === 'parties') stage.$lookup.from = usesExistingRecords() ? 'parties' : 'partyaccounts';
   });
   scopedSchema.pre('validate', function() {
     const businessId = businessObjectId();
@@ -59,8 +74,11 @@ export function businessModel<T>(name: string, schema: Schema<T>): Model<T> {
     });
   }
   const scoped = mongoose.model<T>(name === 'Party' ? 'PartyAccount' : `Business${name}`, scopedSchema, name === 'Party' ? 'partyaccounts' : `business_${legacy.collection.name}`);
+  const existingNames = new Set(['Party', 'YarnTransaction', 'YarnSpecification', 'DyeingUnit', 'DyeingBatch', 'FabricInventory', 'Dispatch', 'Invoice', 'PaymentVoucher', 'PartyLedgerEntry', 'StockTransfer', 'StockAdjustment']);
+  const existing = existingNames.has(name) ? mongoose.model<T>(name === 'Party' ? 'RozainPartyAccount' : `Rozain${name}`, scopedSchema.clone(), legacy.collection.name) : scoped;
+  const selected = () => !currentBusinessId() ? legacy : usesExistingRecords() ? existing : scoped;
   return new Proxy(legacy, {
-    get(_target, property) { const target = currentBusinessId() ? scoped : legacy; const value = Reflect.get(target, property); return typeof value === 'function' ? value.bind(target) : value; },
-    construct(_target, argumentsList) { return Reflect.construct(currentBusinessId() ? scoped : legacy, argumentsList); }
+    get(_target, property) { const target = selected(); const value = Reflect.get(target, property); return typeof value === 'function' ? value.bind(target) : value; },
+    construct(_target, argumentsList) { return Reflect.construct(selected(), argumentsList); }
   });
 }

@@ -6,7 +6,7 @@ import { requirePermission } from '../middleware/auth.middleware.js';
 import { parsePagination } from '../utils/pagination.js';
 import { KnittingReceipt, DyeingReceipt, StockMovement } from './records.js';
 import { DyeingBatch } from '../models/DyeingBatch.js';
-import { businessContext, businessObjectId } from './context.js';
+import { businessContext, businessRecordFilter } from './context.js';
 import { escapeRegex } from '../utils/search.js';
 import { weight } from './posting.js';
 import { BadRequestError } from '../utils/errors.js';
@@ -25,8 +25,8 @@ productionRoutes.get('/', requirePermission('knitting:read', 'dyeing:read'), asy
   const pipeline: PipelineStage[] = [
     { $match: { status: 'POSTED' } }, { $unwind: '$items' },
     { $project: { partyId: { $toString: '$partyId' }, color: { $literal: 'ECRU' }, poNo: 1, externalReference: 1, date: 1, number: '$receiptNo', reference: '$gatePassNo', kind: { $literal: 'KNITTING' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rollsCount', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } },
-    { $unionWith: { coll: DyeingReceipt.collection.name, pipeline: [{ $match: { businessId: businessObjectId(), status: 'POSTED' } }, { $unwind: '$items' }, { $project: { partyId: { $toString: '$partyId' }, color: '$items.color', poNo: 1, externalReference: 1, date: 1, number: 1, reference: '$gatePassNo', kind: { $literal: 'DYEING_RECEIVED' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rolls', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } }] } },
-    { $unionWith: { coll: DyeingBatch.collection.name, pipeline: [{ $match: { businessId: businessObjectId(), status: { $ne: 'REVERSED' } } }, { $project: { partyId: { $toString: '$millPartyId' }, color: '$targetColor', poNo: 1, externalReference: 1, date: '$dateIssued', number: '$batchNo', reference: '$ogpNo', kind: { $literal: 'DYEING_SENT' }, fabricType: 1, yarnSpec: 1, rolls: '$ecruRollsCount', weightKg: '$ecruWeightKg', wastageKg: { $literal: 0 } } }] } },
+    { $unionWith: { coll: DyeingReceipt.collection.name, pipeline: [{ $match: { ...businessRecordFilter(), status: 'POSTED' } }, { $unwind: '$items' }, { $project: { partyId: { $toString: '$partyId' }, color: '$items.color', poNo: 1, externalReference: 1, date: 1, number: 1, reference: '$gatePassNo', kind: { $literal: 'DYEING_RECEIVED' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rolls', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } }] } },
+    { $unionWith: { coll: DyeingBatch.collection.name, pipeline: [{ $match: { ...businessRecordFilter(), status: { $ne: 'REVERSED' } } }, { $project: { partyId: { $toString: '$millPartyId' }, color: '$targetColor', poNo: 1, externalReference: 1, date: '$dateIssued', number: '$batchNo', reference: '$ogpNo', kind: { $literal: 'DYEING_SENT' }, fabricType: 1, yarnSpec: 1, rolls: '$ecruRollsCount', weightKg: '$ecruWeightKg', wastageKg: { $literal: 0 } } }] } },
     { $match: filter }, { $sort: { date: -1, _id: -1, fabricType: 1 } }
   ];
   if (req.query.format) {

@@ -1,6 +1,6 @@
 # Implementation and verification - 15 October 2026
 
-The requested operational workflows are implemented for separate Rozain Textile and ZR Trading business workspaces. The verification uses a disposable MongoDB replica set and an isolated browser server. It does not migrate or enter records in the operating database.
+Rozain Textile and ZR Trading are separate sibling companies. All existing records belong to Rozain Textile and remain editable in their original collections, with the same IDs, stock and balances. ZR Trading is added as a separate company with its own godown, stock, party accounts and documents. There is no historical mode or ownership-review step. The verification uses a disposable MongoDB replica set and an isolated browser server; it does not enter records in the operating database.
 
 ## Operator workflow
 
@@ -36,7 +36,7 @@ The browser test uses installed Microsoft Edge on Windows and Playwright. It can
 
 | Flow | Checks |
 | --- | --- |
-| Business/access | Separate accounts, equal local codes, company-scoped population, foreign-ID rejection, staff creation/revocation, protected exports, unauthenticated rejection, historical read access |
+| Business/access | Existing Rozain IDs/balances/stock preserved, editable original records and ledger, continued numbering, separate sibling godowns/accounts, equal local codes, company-scoped population, foreign-ID rejection, existing staff access, staff creation/revocation, protected exports and unauthenticated rejection |
 | Catalogs/forms | Reusable shade creation, blank Add another, explicit source selection, initially closed dropdown, generic references and retained failed entries |
 | Yarn/knitting | Actual measured kg, units, opening/correction, issue, manual loss, durable retry, explicit blend allocation, receipt history and reversal |
 | Exact balance | 200 kg issued, 196 kg fabric plus 2.4 kg actual wastage, 1.6 kg remaining |
@@ -52,10 +52,14 @@ The browser test uses installed Microsoft Edge on Windows and Playwright. It can
 
 Generated evidence is under `scratch/qa-completion/`: screenshots, actual downloads, extracted PDF text and inspection JSON. The suite inspects 12 PDF document samples and 13 CSV/XLSX samples. Production and ledger samples include records beyond one list page. These are repeatable scenario checks, not a guarantee against every possible data combination or printer configuration.
 
-## Historical data and release condition
+## Existing records and sibling company setup
 
-Historical records remain separate and read only. **Historical ownership review** exports worksheets with original IDs and blank business/opening/review columns. It does not guess ownership, duplicate balances or fabricate missing receipt history.
+Existing records are Rozain Textile records. They are read directly from their original collections, including records created before company IDs were introduced. Reads do not rewrite their IDs, balances, quantities or dates. Normal authorized edits and postings remain available. The former historical-review screen and read-only restriction have been removed.
 
-Before migrating the existing database, its owner must review business ownership, reconcile openings and dependent documents on a protected copy, and confirm business print details. No production cutover or migration has been performed. New business postings and their isolated tests do not require that historical cutover.
+ZR Trading has separate stock, accounts, bills, numbering and a company-owned godown. Godown codes are local to each company; the existing `ZR_GODOWN` location code is retained so existing Rozain stock references do not change. The company name identifies the godown in selectors. Inter-company trades remain explicit linked sales/purchases at the agreed price; a location transfer never shares stock or ledgers between companies.
+
+The stock index is extended to distinguish ownership without changing stock records. New document numbering continues above existing numbers. Older staff records retain Rozain access; explicitly assigned or revoked memberships remain enforced. No ownership worksheet, data reassignment, balance copying or production cutover is needed for this setup.
+
+The corrected setup passed `npm run verify`, including original-format records without company IDs and a browser check of existing-party isolation. The configured operating database could not be inspected from this session because its MongoDB DNS lookup failed. No operating database records were moved or changed during verification.
 
 Operational demo seeding is disabled by default. `ENABLE_DEMO_SEED=true` explicitly enables it for a testing database. The testing login hint appears in development; testing builds can opt in with `VITE_SHOW_TEST_CREDENTIALS=true`.

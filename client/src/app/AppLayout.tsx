@@ -28,7 +28,6 @@ const navigation = [
   { to: '/bills', label: 'Bills & charges', icon: Wallet, group: 'Finance & parties' },
   { to: '/parties', label: 'Parties', icon: Users, group: 'Finance & parties' },
   { to: '/accounts', label: 'Accounts & ledgers', icon: Wallet, group: 'Finance & parties' },
-  { to: '/legacy-review', label: 'Historical ownership review', icon: Shield, group: 'Administration' },
   { to: '/users', label: 'Staff & access', icon: Shield, group: 'Administration' }
 ];
 
@@ -40,11 +39,11 @@ export function AppLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const access: Record<string, string[]> = { '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
-  const items = navigation.filter(item => user?.role === 'admin' || (!['/users', '/legacy-review'].includes(item.to) && (access[item.to] || []).every(permission => user?.permissions.includes(permission))));
+  const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (access[item.to] || []).every(permission => user?.permissions.includes(permission))));
   const path = location.pathname.replace(/^\/b\/[^/]+/, '') || '/';
   const link = (value: string) => businessId ? '/b/' + businessId + (value === '/' ? '' : value) : value;
   const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });
-  const businessName = businesses.data?.find(item => item._id === businessId)?.name || 'Historical records';
+  const businessName = businesses.data?.find(item => item._id === businessId)?.name || 'Company workspace';
   const current = navigation.find((item) => item.to === path);
 
   useEffect(() => { setIsMobileOpen(false); }, [location.pathname]);
@@ -102,7 +101,7 @@ export function AppLayout() {
           </div>
           <div className="flex shrink-0 items-center gap-2"><BusinessPicker /><span className="hidden sm:inline"><ThemePicker /></span><span className="hidden text-xs text-soft md:block">{user?.email}</span><Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0 lg:hidden" aria-label="Sign out"><LogOut className="h-4 w-4" /></Button></div>
         </header>
-        <main id="main-content" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 p-4 outline-none sm:p-7 lg:p-8"><Suspense fallback={<LoadingState className="min-h-48" />}>{!businessId && <div className="mb-5 rounded-lg border border-warning/40 bg-warning-soft p-4 text-sm text-ink"><strong>Historical workspace</strong><p className="mt-1 text-xs text-soft">Choose Rozain Textile or ZR Trading above to enter new transactions. Existing records stay separate until their ownership is reviewed.</p></div>}<Outlet /></Suspense></main>
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 p-4 outline-none sm:p-7 lg:p-8"><Suspense fallback={<LoadingState className="min-h-48" />}><Outlet /></Suspense></main>
       </div>
       <Dialog isOpen={isMobileOpen} onClose={() => setIsMobileOpen(false)} title="Your workspace" description="Choose where you want to work." className="max-w-sm">
         {renderNavigation()}

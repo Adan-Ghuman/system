@@ -1,12 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 import mongoose, { ClientSession } from 'mongoose';
 import { PostingRequest, DocumentCounter } from './records.js';
-import { currentBusinessId, businessContext } from './context.js';
+import { currentBusinessId, businessContext, usesExistingRecords } from './context.js';
+import { existingNumberFloor } from './existing-records.js';
 import { ConflictError, ForbiddenError } from '../utils/errors.js';
 
 export const weight = (value: number) => Math.round(value * 1000) / 1000;
 export const money = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 export async function nextDocumentNo(kind: string, session?: ClientSession) {
+  if (usesExistingRecords()) await DocumentCounter.updateOne({ kind }, { $max: { value: await existingNumberFloor(kind, session) }, $setOnInsert: { kind } }, { upsert: true, session });
   const counter = await DocumentCounter.findOneAndUpdate({ kind }, { $inc: { value: 1 } }, { upsert: true, new: true, session });
   return `${kind}-${String(counter!.value).padStart(5, '0')}`;
 }

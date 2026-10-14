@@ -13,5 +13,5 @@ export function BusinessPicker() {
     if (document.querySelector('[data-erp-dialog] form') && !window.confirm('Switch business and discard this unsaved form?')) return;
     const path = location.pathname.replace(/^\/b\/[^/]+/, '') || '/';
     setBusiness(event.target.value);navigate((event.target.value ? '/b/' + event.target.value : '') + path);
-  }} options={[{ value: '', label: 'Historical records · read only' }, ...data.map(item => ({ value: item._id, label: item.name }))]} />{isError && <button className="text-xs text-danger" onClick={() => refetch()}>Retry business list</button>}</div>;
+  }} options={data.map(item => ({ value: item._id, label: item.name }))} />{isError && <button className="text-xs text-danger" onClick={() => refetch()}>Retry company list</button>}</div>;
 }

@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { businessContext } from './context.js';
 
 export async function sendTable(res: Response, format: string, title: string, headers: string[], rows: Array<Array<string | number | Date | null | undefined>>) {
-  const company = businessContext.getStore()?.name || 'Historical records';
+  const company = businessContext.getStore()?.name || 'Rozain Textile';
   if (format === 'csv') {
     const quote = (value: unknown) => '"' + String(typeof value === 'string' && /^[=+@-]/.test(value) ? "'" + value : value instanceof Date ? value.toISOString() : value ?? '').replace(/"/g, '""') + '"';
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');res.setHeader('Content-Disposition', `attachment; filename="${title}.csv"`);

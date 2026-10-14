@@ -14,14 +14,15 @@ import { moveFabric } from './stock.js';
 import { postPartyAmount } from './finance.js';
 import { referenceFields, documentReferenceFields } from './references.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { canAccessBusiness } from './access.js';
 
 export const intercompanyInput = z.object({ ...documentReferenceFields, targetBusinessId: z.string(), date: z.string().datetime(), reference: z.string().trim().max(150).default(''), remarks: z.string().max(1000).default(''), taxPercent: z.union([z.literal(0), z.literal(18)]).default(0), items: z.array(z.object({ inventoryId: z.string(), rolls: z.number().int().positive(), weightKg: z.number().positive(), rate: z.number().positive(), basis: z.enum(['KG', 'ROLL']).default('KG') })).min(1).max(100) });
 
 export async function inBusiness<T>(id: string, user: IUser, action: () => Promise<T>) {
   if (!Types.ObjectId.isValid(id)) throw new NotFoundError('Business not found.');
-  if (user.role !== 'admin' && !user.businessIds?.some(value => String(value) === id)) throw new ForbiddenError('Access to both businesses is required for this transaction.');
   const business = await Business.findOne({ _id: id, isActive: true });if (!business) throw new NotFoundError('Business not found.');
-  return businessContext.run({ businessId: id, actorId: String(user._id), name: business.name }, action);
+  if (!canAccessBusiness(user, business)) throw new ForbiddenError('Access to both businesses is required for this transaction.');
+  return businessContext.run({ businessId: id, actorId: String(user._id), name: business.name, usesExistingRecords: business.code === 'ROZAIN' }, action);
 }
 async function counterpartAccount(id: string, session: ClientSession) {
   const business = await Business.findById(id).session(session);if (!business) throw new NotFoundError('Business not found.');

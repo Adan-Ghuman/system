@@ -11,6 +11,7 @@ export interface IFabricInventory extends Document {
   state: 'RAW_ECRU' | 'FINISHED_DYED';
   color: string;
   location: InventoryLocation;
+  ownerKey: string;
   totalRolls: number;
   totalWeightKg: number;
   createdAt: Date;
@@ -48,6 +49,7 @@ const fabricInventorySchema = new Schema<IFabricInventory>(
       required: true,
       index: true
     },
+    ownerKey: { type: String, default: 'OWN' },
     totalRolls: {
       type: Number,
       default: 0,
@@ -65,7 +67,7 @@ const fabricInventorySchema = new Schema<IFabricInventory>(
 );
 
 fabricInventorySchema.index(
-  { fabricType: 1, yarnSpec: 1, state: 1, color: 1, location: 1 },
+  { fabricType: 1, yarnSpec: 1, state: 1, color: 1, location: 1, ownerKey: 1 },
   { unique: true }
 );
 

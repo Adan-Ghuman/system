@@ -60,4 +60,4 @@ Use isolated fixture data for destructive or transactional browser checks. Verif
 
 Actual measured kg use up to three decimals. New knitting receipts require manually entered wastage, including zero. Source-linked billing exposes only unbilled quantities and identifies fully billed sources. Posted records are corrected from their sources; independent stock, bill and ledger edits must not diverge.
 
-`npm run verify` runs the saved build, request-policy, isolated API, real-browser and downloaded-file checks. Operator notes and the historical ownership review condition are documented in `docs/verification/README.md`.
+`npm run verify` runs the saved build, request-policy, isolated API, real-browser and downloaded-file checks. Existing records remain editable under Rozain Textile; ZR Trading has its own godown, stock and accounts. There is no historical mode. Operator notes are documented in `docs/verification/README.md`.

@@ -4,12 +4,12 @@ import { DyeingBatch } from '../models/DyeingBatch.js';
 import { YarnTransaction } from '../models/YarnTransaction.js';
 import { Dispatch } from '../models/Dispatch.js';
 import { BusinessDocument } from './commerce.models.js';
-import { businessObjectId } from './context.js';
+import { businessRecordFilter } from './context.js';
 import { escapeRegex } from '../utils/search.js';
 
 export interface RegisterRow { _id: string; date: Date; number: string; partyId: string; fabricType: string; yarnSpec: string; color: string; rolls: number; weightKg: number; poNo: string; externalReference: string; source: string; }
 export function registerPipeline(type: string, filter: { from?: string; to?: string; partyId?: string; search?: string; millName?: string }) {
-  const union = (collection: string, pipeline: PipelineStage.UnionWithPipelineStage[]): PipelineStage => ({ $unionWith: { coll: collection, pipeline: [{ $match: { businessId: businessObjectId() } }, ...pipeline] } });
+  const union = (collection: string, pipeline: PipelineStage.UnionWithPipelineStage[]): PipelineStage => ({ $unionWith: { coll: collection, pipeline: [{ $match: businessRecordFilter() }, ...pipeline] } });
   const fields = { date: 1, poNo: 1, externalReference: 1 };
   const pipeline: PipelineStage[] = [{ $match: type === 'IGP' ? { status: 'POSTED' } : { _id: { $exists: false } } }, { $unwind: '$items' }, { $project: { ...fields, number: '$gatePassNo', partyId: 1, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', color: { $literal: 'ECRU' }, rolls: '$items.rollsCount', weightKg: '$items.weightKg', source: { $literal: 'Knitting receipt' } } }];
   if (type === 'IGP') {

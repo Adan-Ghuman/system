@@ -15,6 +15,7 @@ const token=signAccessToken({userId:String(user._id),email:user.email,role:'admi
 const server=createApp().listen(5182,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
 export async function request(method,url,body,status=200){const response=await fetch('http://127.0.0.1:5182/api'+url,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=await response.json();assert.equal(response.status,status,JSON.stringify({url,status:response.status,data}));return data.data;}
 try{
+ await mongoose.connection.collection('fabricinventories').createIndex({fabricType:1,yarnSpec:1,state:1,color:1,location:1},{unique:true});
  const businesses=await request('GET','/businesses');assert.equal(businesses.length,2);const [a,b]=businesses;
  const base=id=>'/businesses/'+id;
  const party=await request('POST',base(a._id)+'/parties',{name:'Example Knitter',tags:{isKnitter:true},openingBalance:15},201);
@@ -23,7 +24,7 @@ try{
  await request('GET',base(b._id)+'/parties/'+party._id,undefined,404);
  const second=await request('POST',base(b._id)+'/parties',{name:'Example Knitter',code:party.code,openingBalance:-5},201);
  assert.equal(second.code,party.code);assert.equal((await request('GET',base(a._id)+'/parties/summary')).totalDr,15);
- await request('POST','/parties',{name:'No legacy writes'},409);
+ assert.equal((await request('GET','/parties')).total,1);
  const specs=await request('GET',base(a._id)+'/knitting/yarn-specs');assert(specs.catalog.length>0);
  await request('POST',base(a._id)+'/knitting/transactions',{transactionType:'INWARD_FROM_CLIENT',partyId:party._id,yarnSpec:'75/72',gatePassNo:'0033/26',date:new Date().toISOString(),boxCount:2,netWeightPerBox:36,poNo:'0007/26'},201);
  const tx=await request('GET',base(a._id)+'/knitting/transactions');assert.equal(tx.items[0].partyId.name,'Example Knitter');assert.equal(tx.items[0].poNo,'0007/26');
@@ -143,7 +144,7 @@ try{
  assert.equal((await request('GET',base(a._id)+'/workspace/yarn?search=Concurrent')).items[0].totalWeightKg,6);
  const control=(await request('GET',base(a._id)+'/knitting/balances?page=1')).items.find(item=>item.yarnSpec==='75/72');assert.equal(control.remainingYarnKg,1.6);
  const dateLedger=await request('GET',base(a._id)+'/accounts/ledger/'+supplier._id+'?startDate=2026-10-07T00:00:00.000Z&endDate=2026-10-09T23:59:59.999Z&page=1');assert.equal(dateLedger.closingBalance,0);
- const readonly=await request('GET','/legacy-review');assert.equal(readonly.migrationApplied,false);
+ await request('GET','/legacy-review',undefined,404);
  console.log('PASS client ownership isolation, standalone voucher corrections, managed-payment protection, concurrent counters/stock and ledger period reconciliation.');
 
  const trade2=await r('/intercompany',{...tradeInput,requestId:randomUUID()});const purchase2=trade2.purchase;
@@ -159,6 +160,7 @@ try{
  await r('/intercompany/'+trade2.sale._id+'/reverse',{reason:'Pair corrected completely',requestId:randomUUID()},200);
  assert.equal((await request('GET',base(a._id)+'/inventory/items')).items.find(item=>item.fabricType==='Interlock').totalWeightKg,196);
  console.log('PASS paired transit shortage, paid-trade refund, physical return, paired credit reversal and stock/ledger reconciliation.');
+ const {verifyExistingCompany}=await import('./existing-company.e2e.mjs');await verifyExistingCompany({mongoose,request,businesses,signAccessToken});
  if(process.env.QA_BROWSER==='1'){const bcrypt=require('../server/node_modules/bcrypt');await User.updateOne({_id:user._id},{$set:{passwordHash:await bcrypt.hash('Isolated-QA-only-2026',4)}});const {runBrowserQA}=await import('./browser-flows.e2e.mjs');await runBrowserQA({businesses,supplier,buyer});}
 
 
@@ -184,14 +186,14 @@ try{
  const viewerToken=signAccessToken({userId:String(newStaff._id),email:newStaff.email,role:'viewer',permissions:['parties:read']});
  let scoped=await fetch('http://127.0.0.1:5182/api'+base(a._id)+'/parties',{headers:{Authorization:'Bearer '+viewerToken}});assert.equal(scoped.status,200);
  scoped=await fetch('http://127.0.0.1:5182/api'+base(a._id)+'/reports/master-balance/excel',{headers:{Authorization:'Bearer '+viewerToken}});assert.equal(scoped.status,403);
- scoped=await fetch('http://127.0.0.1:5182/api/parties',{headers:{Authorization:'Bearer '+viewerToken}});assert.equal(scoped.status,403);
+ scoped=await fetch('http://127.0.0.1:5182/api/parties',{headers:{Authorization:'Bearer '+viewerToken}});assert.equal(scoped.status,200);
  await request('PATCH','/users/'+newStaff._id+'/access',{businessIds:[b._id]});
  scoped=await fetch('http://127.0.0.1:5182/api'+base(a._id)+'/parties',{headers:{Authorization:'Bearer '+viewerToken}});assert.equal(scoped.status,403);
  await request('GET',base(a._id)+'/sources/production/KNITTING/'+received.receipt._id);
  assert.equal((await request('GET',base(a._id)+'/sources/bill/'+boughtPay.voucherId))._id,buy._id);
- console.log('PASS unauthenticated rejection, staff creation/revocation, protected exports, historical access and source drill-through.');
+ console.log('PASS unauthenticated rejection, staff creation/revocation, protected exports, existing company access and source drill-through.');
  const operator=await User.create({fullName:'Restricted',email:'restricted@example.invalid',passwordHash:'fixture',role:'operator',permissions:['parties:read'],businessIds:[a._id]});
  const restricted=signAccessToken({userId:String(operator._id),email:operator.email,role:'operator',permissions:['parties:read']});
  const response=await fetch('http://127.0.0.1:5182/api'+base(b._id)+'/parties',{headers:{Authorization:'Bearer '+restricted}});assert.equal(response.status,403);
- console.log('PASS separate company accounts, summaries, duplicate local codes, scoped population, references, legacy read-only and membership access.');
+ console.log('PASS separate company accounts, summaries, duplicate local codes, scoped population, references and membership access.');
 }finally{await new Promise(resolve=>server.close(resolve));await mongoose.disconnect();await db.stop();}

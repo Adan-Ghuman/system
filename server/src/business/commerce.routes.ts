@@ -26,11 +26,13 @@ import { submitOperation, saveDraft, postDraft, payBill, reverseOperation } from
 import { businessContext } from './context.js';
 import { postCommand, weight, money } from './posting.js';
 import { postPartyAmount } from './finance.js';
+import { ensureDefaultDyeingUnits } from '../modules/dyeing/dyeing.service.js';
 
 export const workspaceRoutes = Router();
 workspaceRoutes.get('/locations', asyncHandler(async (req, res) => {
   if (req.user?.role !== 'admin' && !req.user?.permissions.some(permission => ['inventory:read', 'dyeing:read', 'dispatch:read'].includes(permission))) throw new ForbiddenError('You do not have permission to view locations.');
-  const units = await DyeingUnit.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });res.json({ success: true, data: [{ value: 'ZR_GODOWN', label: 'Main store' }, ...units.filter(unit => unit.code !== 'ZR_GODOWN').map(unit => ({ value: unit.code, label: unit.name }))] });
+  await ensureDefaultDyeingUnits();
+  const units = await DyeingUnit.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });res.json({ success: true, data: units.map(unit => ({ value: unit.code, label: unit.code === 'ZR_GODOWN' ? `${businessContext.getStore()!.name} Godown` : unit.name })) });
 }));
 workspaceRoutes.post('/documents/:id/returns', requirePermission('accounts:write'), requirePermission('inventory:write'), asyncHandler(async (req, res) => { res.status(201).json({ success: true, data: await postReturn(String(req.params.id), returnInput.parse(req.body)) }); }));
 workspaceRoutes.post('/yarn-deliveries/:id/reverse', requirePermission('knitting:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseYarnDelivery(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) }); }));

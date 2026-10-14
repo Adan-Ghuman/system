@@ -34,7 +34,7 @@ api.defaults.adapter = createRequestPolicy(axios.getAdapter(api.defaults.adapter
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const businessId = useBusinessStore.getState().id;
-  if (businessId && config.url && !/^\/(auth|users|businesses|legacy-review)(\/|$)/.test(config.url)) config.url = `/businesses/${businessId}${config.url}`;
+  if (businessId && config.url && !/^\/(auth|users|businesses)(\/|$)/.test(config.url)) config.url = `/businesses/${businessId}${config.url}`;
   const token = useAuthStore.getState().accessToken;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
