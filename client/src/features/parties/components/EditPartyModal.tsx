@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -14,6 +16,7 @@ export interface EditPartyModalProps {
 }
 
 export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyModalProps) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
@@ -78,6 +81,7 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
       await api.put(`/parties/${party._id}`, payload);
 
       setSuccess('Party profile updated successfully');
+      ['parties', 'party-options', 'parties-summary', 'accounts-parties', 'dashboard-parties', 'accounting-metrics'].forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
       onSuccess();
 
       setTimeout(() => {
@@ -96,29 +100,37 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
   if (!party) return null;
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="edit-party-modal-form" isLoading={isLoading}>
+            Save Changes
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={`Edit Party: ${party.code}`}
       description="Update profile details and operational role assignments."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="edit-party-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <Input
+        <FormSection step={1} title="Contact details">
+<Input
           id="editName"
           label="Party / Business Name"
           value={name}
@@ -157,60 +169,56 @@ export function EditPartyModal({ party, isOpen, onClose, onSuccess }: EditPartyM
             onChange={(e) => setMlNo(e.target.value)}
           />
         </div>
+</FormSection>
 
-        <div className="space-y-2 pt-2 border-t border-zinc-800">
-          <label className="text-xs font-semibold text-zinc-300">Who is this party? (Select all that apply)</label>
+        <FormSection step={2} title="Roles">
+<div className="space-y-2 pt-2 border-t border-line">
+          <label className="text-xs font-semibold text-ink">Who is this party? (Select all that apply)</label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
+            <label className="flex items-center gap-2 p-2 rounded-md bg-canvas border border-line hover:border-control cursor-pointer text-xs text-ink select-none">
               <input
                 type="checkbox"
                 checked={tags.isFabricBuyer}
                 onChange={() => handleTagToggle('isFabricBuyer')}
-                className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-control bg-surface text-brand focus:ring-emerald-500"
               />
               <span>Customer (Buys fabric from us)</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
+            <label className="flex items-center gap-2 p-2 rounded-md bg-canvas border border-line hover:border-control cursor-pointer text-xs text-ink select-none">
               <input
                 type="checkbox"
                 checked={tags.isKnitter}
                 onChange={() => handleTagToggle('isKnitter')}
-                className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-control bg-surface text-brand focus:ring-emerald-500"
               />
               <span>Knitter (Knits yarn into fabric)</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
+            <label className="flex items-center gap-2 p-2 rounded-md bg-canvas border border-line hover:border-control cursor-pointer text-xs text-ink select-none">
               <input
                 type="checkbox"
                 checked={tags.isYarnClient}
                 onChange={() => handleTagToggle('isYarnClient')}
-                className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-control bg-surface text-brand focus:ring-emerald-500"
               />
               <span>Yarn Supplier / Client (Provides yarn)</span>
             </label>
 
-            <label className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300 select-none">
+            <label className="flex items-center gap-2 p-2 rounded-md bg-canvas border border-line hover:border-control cursor-pointer text-xs text-ink select-none">
               <input
                 type="checkbox"
                 checked={tags.isDyeingMill}
                 onChange={() => handleTagToggle('isDyeingMill')}
-                className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-control bg-surface text-brand focus:ring-emerald-500"
               />
               <span>Dyeing Unit (Dyes raw fabric)</span>
             </label>
           </div>
         </div>
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading}>
-            Save Changes
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

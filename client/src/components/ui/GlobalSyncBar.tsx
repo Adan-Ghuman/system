@@ -27,10 +27,10 @@ export function GlobalSyncBar() {
     <div
       role="progressbar"
       aria-label="Synchronizing data"
-      className="fixed top-0 left-0 right-0 h-[2.5px] z-50 pointer-events-none overflow-hidden bg-zinc-900/40"
+      className="fixed top-0 left-0 right-0 h-[2.5px] z-50 pointer-events-none overflow-hidden bg-surface/40"
     >
       <div className="w-full h-full relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-300 opacity-90 shadow-[0_0_10px_#10b981] animate-[syncPulse_1.4s_ease-in-out_infinite]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-300 opacity-90 shadow-sm animate-[syncPulse_1.4s_ease-in-out_infinite]" />
       </div>
       <style>{`
         @keyframes syncPulse {

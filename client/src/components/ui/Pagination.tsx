@@ -46,24 +46,25 @@ export function PaginationControls({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-4 border-t border-zinc-800 bg-zinc-900/60 text-xs text-zinc-400 rounded-b-lg">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-4 border-t border-line bg-surface/60 text-xs text-soft rounded-b-lg">
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
         <span>
-          Showing <span className="font-semibold text-zinc-200">{startEntry}</span> to{' '}
-          <span className="font-semibold text-zinc-200">{endEntry}</span> of{' '}
-          <span className="font-semibold text-emerald-400">{total}</span> entries
+          Showing <span className="font-semibold text-strong">{startEntry}</span> to{' '}
+          <span className="font-semibold text-strong">{endEntry}</span> of{' '}
+          <span className="font-semibold text-brand">{total}</span> entries
         </span>
 
         {onLimitChange && (
-          <div className="flex items-center gap-1.5 ml-2 pl-3 border-l border-zinc-800">
-            <span className="text-zinc-500 text-[11px]">Rows:</span>
+          <div className="flex items-center gap-1.5 ml-2 pl-3 border-l border-line">
+            <span className="text-soft text-xs">Rows:</span>
             <select
+              aria-label="Rows per page"
               value={limit}
               onChange={(e) => {
                 onLimitChange(Number(e.target.value));
                 onPageChange(1);
               }}
-              className="bg-zinc-950 border border-zinc-800 rounded px-2 py-0.5 text-xs text-zinc-200 focus:outline-none focus:border-emerald-500"
+              className="bg-canvas border border-line rounded px-2 py-0.5 text-xs text-strong focus:outline-none focus:border-emerald-500"
             >
               {limitOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -75,14 +76,14 @@ export function PaginationControls({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex w-full flex-wrap items-center justify-center gap-1 sm:w-auto sm:flex-nowrap">
         <Button
           variant="outline"
           size="sm"
           onClick={() => onPageChange(1)}
           disabled={page <= 1}
-          className="h-7 w-7 p-0 border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-30"
-          title="First Page"
+          className="h-9 w-9 p-0 border-line bg-canvas text-ink disabled:opacity-30"
+          title="First Page" aria-label="First page"
         >
           <ChevronsLeft className="w-3.5 h-3.5" />
         </Button>
@@ -92,17 +93,17 @@ export function PaginationControls({
           size="sm"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="h-7 w-7 p-0 border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-30"
-          title="Previous Page"
+          className="h-9 w-9 p-0 border-line bg-canvas text-ink disabled:opacity-30"
+          title="Previous Page" aria-label="Previous page"
         >
           <ChevronLeft className="w-3.5 h-3.5" />
         </Button>
 
-        <div className="flex items-center gap-1 mx-1">
+        <div className="order-2 flex basis-full flex-wrap items-center justify-center gap-1 sm:order-none sm:mx-1 sm:basis-auto">
           {pageNumbers.map((p, idx) => {
             if (p === '...') {
               return (
-                <span key={`dots-${idx}`} className="px-1 text-zinc-600 font-bold select-none">
+                <span key={`dots-${idx}`} className="px-1 text-soft font-bold select-none">
                   •••
                 </span>
               );
@@ -114,11 +115,13 @@ export function PaginationControls({
             return (
               <button
                 key={pageNum}
+                aria-label={"Page " + pageNum}
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => onPageChange(pageNum)}
-                className={`h-7 min-w-7 px-2 text-xs font-semibold rounded transition-colors ${
+                className={`h-9 min-w-9 px-2 text-xs font-semibold rounded transition-colors ${
                   isActive
                     ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-zinc-950 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                    : 'bg-canvas border border-line text-ink hover:bg-subtle hover:text-strong'
                 }`}
               >
                 {pageNum}
@@ -132,8 +135,8 @@ export function PaginationControls({
           size="sm"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="h-7 w-7 p-0 border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-30"
-          title="Next Page"
+          className="h-9 w-9 p-0 border-line bg-canvas text-ink disabled:opacity-30"
+          title="Next Page" aria-label="Next page"
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </Button>
@@ -143,8 +146,8 @@ export function PaginationControls({
           size="sm"
           onClick={() => onPageChange(totalPages)}
           disabled={page >= totalPages}
-          className="h-7 w-7 p-0 border-zinc-800 bg-zinc-950 text-zinc-300 disabled:opacity-30"
-          title="Last Page"
+          className="h-9 w-9 p-0 border-line bg-canvas text-ink disabled:opacity-30"
+          title="Last Page" aria-label="Last page"
         >
           <ChevronsRight className="w-3.5 h-3.5" />
         </Button>

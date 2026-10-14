@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/cn.js';
 import { X } from 'lucide-react';
 
@@ -18,13 +19,17 @@ let previousBodyOverflow = '';
 export function Dialog({ isOpen, onClose, title, description, children, footer, className }: DialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
+  const openerRef = useRef<Element | null>(null);
+  const previousIsOpen = useRef(false);
   const titleId = useId();
   const descriptionId = useId();
   closeRef.current = onClose;
+  if (isOpen && !previousIsOpen.current) openerRef.current = document.activeElement;
+  previousIsOpen.current = isOpen;
 
   useEffect(() => {
     if (!isOpen) return;
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = openerRef.current instanceof HTMLElement ? openerRef.current : null;
     if (openDialogCount === 0) {
       previousBodyOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
@@ -40,7 +45,8 @@ export function Dialog({ isOpen, onClose, title, description, children, footer, 
     const frame = requestAnimationFrame(() => {
       const controls = visibleControls();
       const firstField = controls.find((element) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName));
-      (firstField || dialogRef.current)?.focus();
+      const focusedField = controls.find(element => element === document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName));
+      (focusedField || firstField || dialogRef.current)?.focus();
     });
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -83,9 +89,9 @@ export function Dialog({ isOpen, onClose, title, description, children, footer, 
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/75 backdrop-blur-xs" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-950/45" onClick={onClose} />
       <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div
           ref={dialogRef}
@@ -96,23 +102,23 @@ export function Dialog({ isOpen, onClose, title, description, children, footer, 
           data-erp-dialog
           tabIndex={-1}
           className={cn(
-            'relative z-50 flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 text-left shadow-2xl focus:outline-none sm:max-h-[calc(100dvh-2rem)]',
+            'relative z-50 flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-line bg-surface text-left shadow-2xl focus:outline-none sm:max-h-[calc(100dvh-2rem)]',
             className
           )}
         >
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-4 sm:px-6">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-4 sm:px-6">
             <div className="min-w-0">
-              <h2 id={titleId} className="text-base font-semibold text-zinc-100">{title}</h2>
-              {description && <p id={descriptionId} className="mt-1 text-xs leading-relaxed text-zinc-400">{description}</p>}
+              <h2 id={titleId} className="text-base font-semibold text-strong">{title}</h2>
+              {description && <p id={descriptionId} className="mt-1 text-xs leading-relaxed text-soft">{description}</p>}
             </div>
-            <button type="button" onClick={onClose} className="shrink-0 rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Close dialog">
+            <button type="button" onClick={onClose} className="shrink-0 rounded-lg p-2 text-soft hover:bg-subtle hover:text-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" aria-label="Close dialog">
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">{children}</div>
-          {footer && <div className="shrink-0 border-t border-zinc-800 bg-zinc-900 px-4 py-3 sm:px-6">{footer}</div>}
+          {footer && <div className="shrink-0 border-t border-line bg-surface px-4 py-3 sm:px-6">{footer}</div>}
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }

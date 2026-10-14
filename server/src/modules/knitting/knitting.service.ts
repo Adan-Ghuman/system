@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { YarnTransaction, IYarnTransaction } from '../../models/YarnTransaction.js';
 import { YarnSpecification, IYarnSpecification, DEFAULT_YARN_SPECIFICATIONS } from '../../models/YarnSpecification.js';
@@ -305,8 +306,8 @@ export interface KnitterBalanceSummary {
   remainingYarnKg: number;
 }
 
-export async function getKnitterBalances(): Promise<KnitterBalanceSummary[]> {
-  const result = await YarnTransaction.aggregate([
+export async function getKnitterBalances(query: { page?: number; limit?: number; search?: string; status?: string; sortBy?: string } = {}) {
+  const pipeline: mongoose.PipelineStage[] = [
     {
       $match: {
         transactionType: 'OUTWARD_TO_KNITTER'
@@ -354,9 +355,29 @@ export async function getKnitterBalances(): Promise<KnitterBalanceSummary[]> {
     {
       $sort: { lastDate: -1, partyName: 1, yarnSpec: 1 }
     }
-  ]);
-
-  return result;
+  ];
+  if (query.page === undefined) return YarnTransaction.aggregate<KnitterBalanceSummary>(pipeline);
+  const { page, limit, skip } = parsePagination(query, 20);
+  const match: Record<string, unknown> = {};
+  if (query.search?.trim()) {
+    const text = query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const search = new RegExp(text, 'i');
+    match.$or = [{ partyName: search }, { partyCode: search }, { yarnSpec: search }];
+  }
+  if (query.status === 'ACTIVE') match.remainingYarnKg = { $gt: 0 };
+  if (query.status === 'CLEARED') match.remainingYarnKg = { $lte: 0 };
+  pipeline.push({ $match: match });
+  const sort: Record<string, 1 | -1> = query.sortBy === 'name' ? { partyName: 1, partyId: 1, yarnSpec: 1 }
+    : query.sortBy === 'remaining_desc' ? { remainingYarnKg: -1, partyId: 1, yarnSpec: 1 }
+    : { lastDate: -1, partyId: 1, yarnSpec: 1 };
+  pipeline.push({ $facet: {
+    items: [{ $sort: sort }, { $skip: skip }, { $limit: limit }],
+    count: [{ $count: 'total' }],
+    totals: [{ $group: { _id: null, totalGross: { $sum: '$totalGrossKg' }, totalExpected: { $sum: '$totalExpectedKg' }, totalReceived: { $sum: '$totalReceivedKg' }, totalRemaining: { $sum: '$remainingYarnKg' } } }]
+  } });
+  const [result] = await YarnTransaction.aggregate(pipeline);
+  const { _id, ...summary } = result.totals[0] || { totalGross: 0, totalExpected: 0, totalReceived: 0, totalRemaining: 0 };
+  return { ...formatPaginatedResult(result.items, result.count[0]?.total || 0, page, limit), summary };
 }
 
 export async function listYarnTransactions(query: QueryTransactionsInput) {
@@ -373,7 +394,7 @@ export async function listYarnTransactions(query: QueryTransactionsInput) {
     filter.yarnSpec = query.yarnSpec;
   }
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { gatePassNo: searchRegex },
       { yarnSpec: searchRegex },
@@ -386,7 +407,7 @@ export async function listYarnTransactions(query: QueryTransactionsInput) {
   const [items, total] = await Promise.all([
     YarnTransaction.find(filter)
       .populate('partyId', 'code name phone')
-      .sort({ date: sortDirection, createdAt: sortDirection })
+      .sort({ date: sortDirection, createdAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     YarnTransaction.countDocuments(filter)
@@ -454,10 +475,6 @@ export async function deleteYarnTransaction(id: string): Promise<void> {
   }
 
   await YarnTransaction.findByIdAndDelete(id);
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export async function ensureDefaultYarnSpecs(): Promise<void> {

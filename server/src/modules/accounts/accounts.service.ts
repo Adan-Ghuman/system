@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { PaymentVoucher, IPaymentVoucher, VoucherType, PaymentMode } from '../../models/PaymentVoucher.js';
 import { Party } from '../../models/Party.js';
@@ -118,25 +119,28 @@ export async function getPartyLedgerStatement(partyId: string, query: QueryLedge
     filter.date = dateRange;
   }
 
-  const entries = await PartyLedgerEntry.find(filter).sort({ date: 1, createdAt: 1 });
-
-  let totalDebits = 0;
-  let totalCredits = 0;
-
-  entries.forEach((e) => {
-    if (e.entryType === 'DEBIT') {
-      totalDebits = Math.round((totalDebits + e.amount) * 100) / 100;
-    } else {
-      totalCredits = Math.round((totalCredits + e.amount) * 100) / 100;
-    }
-  });
-
+  if (query.search?.trim()) {
+    const search = new RegExp(escapeRegex(query.search.trim()), 'i');
+    filter.$or = [{ referenceNo: search }, { description: search }];
+  }
+  const pagination = parsePagination(query, 20);
+  const entriesQuery = PartyLedgerEntry.find(filter).sort({ date: 1, createdAt: 1, _id: 1 });
+  if (query.page !== undefined) entriesQuery.skip(pagination.skip).limit(pagination.limit);
+  const [entries, totals] = await Promise.all([
+    entriesQuery,
+    PartyLedgerEntry.aggregate([
+      { $match: filter },
+      { $group: { _id: null, total: { $sum: 1 }, totalDebits: { $sum: { $cond: [{ $eq: ['$entryType', 'DEBIT'] }, '$amount', 0] } }, totalCredits: { $sum: { $cond: [{ $eq: ['$entryType', 'CREDIT'] }, '$amount', 0] } } } }
+    ])
+  ]);
+  const total = totals[0]?.total || 0;
   return {
-    party,
-    entries,
-    totalDebits,
-    totalCredits,
-    closingBalance: party.currentBalance
+    party, entries,
+    totalDebits: Math.round((totals[0]?.totalDebits || 0) * 100) / 100,
+    totalCredits: Math.round((totals[0]?.totalCredits || 0) * 100) / 100,
+    closingBalance: party.currentBalance,
+    total, page: pagination.page, limit: pagination.limit,
+    totalPages: Math.max(1, Math.ceil(total / pagination.limit))
   };
 }
 
@@ -160,7 +164,7 @@ export async function listPaymentVouchers(query: QueryVouchersInput) {
     filter.date = dateRange;
   }
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { voucherNo: searchRegex },
       { bankName: searchRegex },
@@ -175,7 +179,7 @@ export async function listPaymentVouchers(query: QueryVouchersInput) {
   const [items, total] = await Promise.all([
     PaymentVoucher.find(filter)
       .populate('partyId', 'code name phone currentBalance')
-      .sort({ date: sortDirection, createdAt: sortDirection })
+      .sort({ date: sortDirection, createdAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     PaymentVoucher.countDocuments(filter)
@@ -185,32 +189,23 @@ export async function listPaymentVouchers(query: QueryVouchersInput) {
 }
 
 export async function getAccountingMetrics() {
-  const parties = await Party.find();
-
-  let totalReceivables = 0;
-  let totalPayables = 0;
-
-  parties.forEach((p) => {
-    if (p.currentBalance > 0) {
-      totalReceivables = Math.round((totalReceivables + p.currentBalance) * 100) / 100;
-    } else if (p.currentBalance < 0) {
-      totalPayables = Math.round((totalPayables + Math.abs(p.currentBalance)) * 100) / 100;
-    }
-  });
-
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentVouchers = await PaymentVoucher.find({ date: { $gte: thirtyDaysAgo } });
-
-  let monthlyReceipts = 0;
-  let monthlyPayments = 0;
-
-  recentVouchers.forEach((v) => {
-    if (v.voucherType === 'RECEIPT') {
-      monthlyReceipts = Math.round((monthlyReceipts + v.amount) * 100) / 100;
-    } else if (v.voucherType === 'PAYMENT') {
-      monthlyPayments = Math.round((monthlyPayments + v.amount) * 100) / 100;
-    }
-  });
+  const [partyTotals, voucherTotals] = await Promise.all([
+    Party.aggregate([{ $group: {
+      _id: null, totalParties: { $sum: 1 },
+      totalReceivables: { $sum: { $cond: [{ $gt: ['$currentBalance', 0] }, '$currentBalance', 0] } },
+      totalPayables: { $sum: { $cond: [{ $lt: ['$currentBalance', 0] }, { $multiply: ['$currentBalance', -1] }, 0] } }
+    } }]),
+    PaymentVoucher.aggregate([{ $match: { date: { $gte: thirtyDaysAgo } } }, { $group: {
+      _id: null,
+      monthlyReceipts: { $sum: { $cond: [{ $eq: ['$voucherType', 'RECEIPT'] }, '$amount', 0] } },
+      monthlyPayments: { $sum: { $cond: [{ $eq: ['$voucherType', 'PAYMENT'] }, '$amount', 0] } }
+    } }])
+  ]);
+  const totalReceivables = Math.round((partyTotals[0]?.totalReceivables || 0) * 100) / 100;
+  const totalPayables = Math.round((partyTotals[0]?.totalPayables || 0) * 100) / 100;
+  const monthlyReceipts = Math.round((voucherTotals[0]?.monthlyReceipts || 0) * 100) / 100;
+  const monthlyPayments = Math.round((voucherTotals[0]?.monthlyPayments || 0) * 100) / 100;
 
   return {
     totalReceivables,
@@ -218,7 +213,7 @@ export async function getAccountingMetrics() {
     netReceivablePosition: Math.round((totalReceivables - totalPayables) * 100) / 100,
     monthlyReceipts,
     monthlyPayments,
-    totalParties: parties.length
+    totalParties: partyTotals[0]?.totalParties || 0
   };
 }
 
@@ -226,7 +221,7 @@ export async function recomputePartyLedger(partyId: string | Types.ObjectId, ses
   const party = await Party.findById(partyId).session(session || null);
   if (!party) return;
 
-  const entries = await PartyLedgerEntry.find({ partyId }).sort({ date: 1, createdAt: 1 }).session(session || null);
+  const entries = await PartyLedgerEntry.find({ partyId }).sort({ date: 1, createdAt: 1, _id: 1 }).session(session || null);
   let running = party.openingBalance || 0;
 
   for (const entry of entries) {

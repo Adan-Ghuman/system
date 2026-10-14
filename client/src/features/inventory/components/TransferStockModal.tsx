@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -53,10 +55,7 @@ export function TransferStockModal({
   const { data: stockData } = useQuery<{ items: FabricInventoryItem[] }>({
     queryKey: ['inventory-items', fromLocation],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: FabricInventoryItem[] } }>('/inventory/items', {
-        params: { location: fromLocation, limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation });
     },
     enabled: isOpen
   });
@@ -129,29 +128,38 @@ export function TransferStockModal({
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="transfer-stock-modal-form" isLoading={isLoading} className="gap-1.5">
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            <span>Confirm & Move Stock</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Move Fabric Between Locations"
       description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Unit."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={1} title="Choose fabric">
+<div className="grid grid-cols-2 gap-3">
           <Select
             id="fromLocation"
             label="Source Location (Origin)"
@@ -199,23 +207,25 @@ export function TransferStockModal({
         />
 
         {activeItem && (
-          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs">
+          <div className="p-3 rounded-lg bg-canvas border border-line flex items-center justify-between text-xs">
             <div>
-              <div className="text-zinc-400">Current Available at Origin:</div>
-              <div className="font-semibold text-zinc-100 mt-0.5">
+              <div className="text-soft">Current Available at Origin:</div>
+              <div className="font-semibold text-strong mt-0.5">
                 {activeItem.fabricType} ({activeItem.color})
               </div>
             </div>
             <div className="text-right">
-              <div className="text-zinc-400">Total Rolls / Weight:</div>
-              <div className="font-mono font-bold text-emerald-400 mt-0.5">
+              <div className="text-soft">Total Rolls / Weight:</div>
+              <div className="font-mono font-bold text-brand mt-0.5">
                 {activeItem.totalRolls} rolls • {formatWeight(activeItem.totalWeightKg)}
               </div>
             </div>
           </div>
         )}
+</FormSection>
 
-        <div className="grid grid-cols-3 gap-3">
+        <FormSection step={2} title="Quantities and delivery">
+<div className="grid grid-cols-3 gap-3">
           <Input
             id="rollsCount"
             type="number"
@@ -255,7 +265,7 @@ export function TransferStockModal({
             label="Gate Pass / OGP No."
             value={gatePassNo}
             onChange={(e) => setGatePassNo(e.target.value)}
-            placeholder="e.g. OGP-TRF-091"
+            placeholder="e.g. 1234"
           />
 
           <Input
@@ -263,7 +273,7 @@ export function TransferStockModal({
             label="Driver / Loader Name"
             value={driverName}
             onChange={(e) => setDriverName(e.target.value)}
-            placeholder="e.g. Aslam"
+            placeholder="e.g. Alex Smith"
           />
 
           <Input
@@ -282,16 +292,9 @@ export function TransferStockModal({
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="e.g. Shifting finished black fleece rolls to godown"
         />
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-            <span>Confirm & Move Stock</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

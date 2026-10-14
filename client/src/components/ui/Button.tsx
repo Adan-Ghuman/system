@@ -49,19 +49,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       onClick?.(e);
     };
 
-    const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none rounded-md';
+    const baseStyles = 'inline-flex shrink-0 items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none';
 
     const variants = {
-      primary: 'bg-emerald-600 text-white hover:bg-emerald-500 active:bg-emerald-700 shadow-xs',
-      secondary: 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 active:bg-zinc-600',
-      outline: 'border border-zinc-700 bg-transparent text-zinc-200 hover:bg-zinc-800 hover:text-white',
-      ghost: 'bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-white',
-      destructive: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+      primary: 'bg-primary text-white hover:bg-emerald-800 active:bg-emerald-900',
+      secondary: 'bg-subtle text-strong hover:bg-muted active:bg-muted',
+      outline: 'border border-control bg-transparent text-strong hover:bg-subtle hover:text-strong',
+      ghost: 'bg-transparent text-ink hover:bg-subtle hover:text-strong',
+      destructive: 'bg-red-700 text-white hover:bg-red-800 active:bg-red-900'
     };
 
     const sizes = {
-      sm: 'h-8 px-3 text-xs gap-1.5',
-      md: 'h-9 px-4 text-sm gap-2',
+      sm: 'h-9 px-3 text-xs gap-1.5',
+      md: 'h-10 px-4 text-sm gap-2',
       lg: 'h-11 px-6 text-base gap-2.5'
     };
 
@@ -80,7 +80,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             variant={variant === 'primary' || variant === 'destructive' ? 'white' : 'emerald'}
           />
         )}
-        {children}
+        {isLoading ? <span className="sr-only">{children}</span> : children}
       </button>
     );
   }

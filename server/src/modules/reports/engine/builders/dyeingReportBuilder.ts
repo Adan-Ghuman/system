@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns } from '../excelStyles.js';
+import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns, sanitizeSheetName } from '../excelStyles.js';
 
 export interface DyeingBatchReportItem {
   batchNo: string;
@@ -87,7 +87,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
   usedSheetNames.add('main sheet');
 
   function getUniqueSheetName(baseName: string): string {
-    let clean = baseName.trim().replace(/[:\\\/\?\*\[\]]/g, '-').replace(/\s+/g, ' ');
+    let clean = sanitizeSheetName(baseName, 'Fabric', 25);
     if (clean.length > 25) {
       clean = clean.substring(0, 25).trim();
     }
@@ -156,13 +156,14 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       rIdx++;
       const ecruWt = b.ecruWeightKg || 0;
       const finWt = b.finishWeightKg || 0;
-      const shortWt = b.shortageWeightKg !== undefined ? b.shortageWeightKg : Math.max(0, ecruWt - finWt);
+      const hasReceipt = b.finishWeightKg !== undefined && b.finishWeightKg !== null;
+      const shortWt = hasReceipt ? (b.shortageWeightKg ?? Math.max(0, ecruWt - finWt)) : 0;
 
       totalEcru += ecruWt;
       totalFinish += finWt;
       totalShortage += shortWt;
 
-      const formulaShortage = `G${rIdx}-I${rIdx}`;
+      const formulaShortage = `IF(ISNUMBER(I${rIdx}),G${rIdx}-I${rIdx},0)`;
       const formulaPercent = `IF(G${rIdx}>0, (J${rIdx}/G${rIdx})*100, 0)`;
 
       const row = ws.addRow([
@@ -174,9 +175,9 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
         b.ecruRollsCount || null,
         ecruWt || null,
         b.finishRollsCount || null,
-        finWt || null,
+        hasReceipt ? finWt : null,
         { formula: formulaShortage, result: shortWt },
-        { formula: formulaPercent, result: b.shortagePercent || 0 },
+        { formula: formulaPercent, result: hasReceipt && ecruWt > 0 ? (shortWt / ecruWt) * 100 : 0 },
         b.customerName || 'Rozain Textile',
         b.remarks || ''
       ]);

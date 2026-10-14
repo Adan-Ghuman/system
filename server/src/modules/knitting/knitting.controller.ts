@@ -1,3 +1,4 @@
+import { queryBalancesSchema } from './knitting.schema.js';
 import { Request, Response } from 'express';
 import { sendCreated, sendSuccess } from '../../utils/response.js';
 import {
@@ -30,8 +31,8 @@ export async function handleReceiveFabric(req: Request, res: Response): Promise<
   sendSuccess(res, result, 'Knitted fabric receipt logged and balance updated');
 }
 
-export async function handleGetBalances(_req: Request, res: Response): Promise<void> {
-  const balances = await getKnitterBalances();
+export async function handleGetBalances(req: Request, res: Response): Promise<void> {
+  const balances = await getKnitterBalances(queryBalancesSchema.parse(req.query));
   sendSuccess(res, balances);
 }
 

@@ -32,8 +32,17 @@ export class ReportsService {
       }
     }
 
-    const rawEntries = await PartyLedgerEntry.find(query).sort({ date: 1, createdAt: 1 }).lean();
+    const rawEntries = await PartyLedgerEntry.find(query).sort({ date: 1, createdAt: 1, _id: 1 }).lean();
 
+    let periodOpening = party.openingBalance;
+    if (rawEntries.length) {
+      const first = rawEntries[0];
+      periodOpening = Math.round((first.runningBalance - (first.entryType === 'DEBIT' ? first.amount : -first.amount)) * 100) / 100;
+    } else if (dateFrom || dateTo) {
+      const previous = await PartyLedgerEntry.findOne({ partyId: party._id, date: { $lt: new Date(dateFrom || dateTo!) } }).sort({ date: -1, createdAt: -1, _id: -1 }).lean();
+      periodOpening = previous?.runningBalance ?? party.openingBalance;
+    }
+    const periodClosing = rawEntries.length ? rawEntries[rawEntries.length - 1].runningBalance : periodOpening;
     const entries = rawEntries.map((e) => ({
       date: e.date,
       referenceNo: e.referenceNo || '—',
@@ -51,8 +60,8 @@ export class ReportsService {
         contactPerson: party.contactPerson,
         address: party.address,
         mlNo: party.mlNo,
-        openingBalance: party.openingBalance,
-        currentBalance: party.currentBalance
+        openingBalance: periodOpening,
+        currentBalance: periodClosing
       },
       dateFrom,
       dateTo,
@@ -113,7 +122,7 @@ export class ReportsService {
       remarks: b.remarks
     }));
 
-    const targetMill = millName && millName !== 'ALL' ? millName : 'GHUMMAN DYEING';
+    const targetMill = millName && millName !== 'ALL' ? millName : 'All Dyeing Mills';
     const workbook = buildDyeingMillReportWorkbook({
       millName: targetMill,
       dateFrom,
@@ -208,7 +217,7 @@ export class ReportsService {
     const workbook = buildGatePassRegisterWorkbook({
       type,
       partyName,
-      millName: millName || 'GHUMMAN DYEING',
+      millName: millName && millName !== 'ALL' ? millName : 'All Dyeing Mills',
       dateFrom,
       dateTo,
       rows

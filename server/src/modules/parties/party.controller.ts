@@ -5,7 +5,8 @@ import {
   updateParty,
   getPartyById,
   listParties,
-  generateNextPartyCode
+  generateNextPartyCode,
+  getPartySummary
 } from './party.service.js';
 
 export async function handleCreateParty(req: Request, res: Response): Promise<void> {
@@ -31,4 +32,8 @@ export async function handleListParties(req: Request, res: Response): Promise<vo
 export async function handleGetNextCode(_req: Request, res: Response): Promise<void> {
   const nextCode = await generateNextPartyCode();
   sendSuccess(res, { nextCode });
+}
+
+export async function handlePartySummary(req: Request, res: Response): Promise<void> {
+  sendSuccess(res, await getPartySummary(req.query as unknown as Parameters<typeof getPartySummary>[0]));
 }

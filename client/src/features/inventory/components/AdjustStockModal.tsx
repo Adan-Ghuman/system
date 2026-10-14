@@ -1,3 +1,4 @@
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -100,29 +101,38 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="adjust-stock-modal-form" isLoading={isLoading} className="gap-1.5">
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Save Stock Changes</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Add New Stock or Correct Inventory"
       description="Enter brand new fabric received into warehouse, or adjust roll and weight counts."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="adjust-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={1} title="Fabric details">
+<div className="grid grid-cols-2 gap-3">
           <Select
             id="adjustLocation"
             label="Location to Adjust"
@@ -180,8 +190,10 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
             placeholder="e.g. SKY BLUE / PALE KHAKI"
           />
         )}
+</FormSection>
 
-        <div className="grid grid-cols-3 gap-3">
+        <FormSection step={2} title="Adjustment">
+<div className="grid grid-cols-3 gap-3">
           <div>
             <Input
               id="adjustmentRolls"
@@ -191,7 +203,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
               onChange={(e) => setAdjustmentRolls(e.target.value)}
               required
             />
-            <p className="text-[10px] text-zinc-500 mt-0.5">Negative to reduce stock</p>
+            <p className="text-xs text-soft mt-0.5">Negative to reduce stock</p>
           </div>
 
           <div>
@@ -204,7 +216,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
               onChange={(e) => setAdjustmentWeightKg(e.target.value)}
               required
             />
-            <p className="text-[10px] text-zinc-500 mt-0.5">e.g. -22.50 or +45.00</p>
+            <p className="text-xs text-soft mt-0.5">e.g. -22.50 or +45.00</p>
           </div>
 
           <Input
@@ -232,16 +244,9 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="e.g. Initial stock intake from factory or monthly physical count"
         />
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <Wrench className="w-3.5 h-3.5" />
-            <span>Save Stock Changes</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { DyeingBatch, IDyeingBatch } from '../../models/DyeingBatch.js';
 import { DyeingUnit, IDyeingUnit, DEFAULT_DYEING_UNITS } from '../../models/DyeingUnit.js';
@@ -373,7 +374,7 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
     filter.fabricType = query.fabricType;
   }
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { batchNo: searchRegex },
       { targetColor: searchRegex },
@@ -394,7 +395,7 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
     DyeingBatch.find(filter)
       .populate('millPartyId', 'code name phone')
       .populate('allocatedCustomerId', 'code name')
-      .sort({ dateIssued: sortDirection, createdAt: sortDirection })
+      .sort({ dateIssued: sortDirection, createdAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     DyeingBatch.countDocuments(filter)

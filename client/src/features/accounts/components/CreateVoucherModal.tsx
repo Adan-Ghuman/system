@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -54,12 +56,9 @@ export function CreateVoucherModal({
   }, [initialType]);
 
   const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties-for-vouchers'],
+    queryKey: ['party-options', 'all'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { });
     },
     enabled: isOpen
   });
@@ -126,37 +125,46 @@ export function CreateVoucherModal({
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="create-voucher-modal-form" isLoading={isLoading} className="gap-1.5">
+            <DollarSign className="w-4 h-4" />
+            <span>Save Payment Entry</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={voucherType === 'RECEIPT' ? 'Record Money Received (Receipt)' : 'Record Money Paid (Payment)'}
       description="Record money received or paid with immediate update to their account balance."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 relative">
+      <form id="create-voucher-modal-form" onSubmit={handleSubmit} className="space-y-4 relative">
         <LoadingOverlay isLoading={isLoading} message="Recording payment entry..." />
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="flex items-center gap-2 p-1 rounded-md bg-zinc-950 border border-zinc-800">
+        <FormSection step={1} title="Payment details">
+<div className="flex items-center gap-2 p-1 rounded-md bg-canvas border border-line">
           <button
             type="button"
             onClick={() => setVoucherType('RECEIPT')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded transition-colors ${
               voucherType === 'RECEIPT'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-soft hover:text-strong'
             }`}
           >
             <ArrowDownLeft className="w-4 h-4" />
@@ -167,8 +175,8 @@ export function CreateVoucherModal({
             onClick={() => setVoucherType('PAYMENT')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded transition-colors ${
               voucherType === 'PAYMENT'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-soft hover:text-strong'
             }`}
           >
             <ArrowUpRight className="w-4 h-4" />
@@ -221,15 +229,15 @@ export function CreateVoucherModal({
         </div>
 
         {(paymentMode === 'BANK_TRANSFER' || paymentMode === 'CHEQUE' || paymentMode === 'ONLINE') && (
-          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-3">
-            <div className="text-xs font-semibold text-zinc-300">Bank & Cheque Details</div>
+          <div className="p-3 rounded-lg bg-canvas border border-line space-y-3">
+            <div className="text-xs font-semibold text-ink">Bank & Cheque Details</div>
             <div className="grid grid-cols-2 gap-3">
               <Input
                 id="bankName"
                 label="Bank Name"
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g. Meezan Bank / HBL"
+                placeholder="e.g. Example Bank"
               />
 
               <Input
@@ -258,21 +266,23 @@ export function CreateVoucherModal({
             )}
           </div>
         )}
+</FormSection>
 
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs font-mono">
+        <FormSection step={2} title="Balance and notes">
+<div className="p-3 rounded-lg bg-canvas border border-line flex items-center justify-between text-xs font-mono">
           <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Current Balance:</div>
-            <div className="font-bold text-zinc-200 mt-0.5">{formatCurrency(balancePreview.current)}</div>
+            <div className="text-soft text-xs normal-case">Current Balance:</div>
+            <div className="font-bold text-strong mt-0.5">{formatCurrency(balancePreview.current)}</div>
           </div>
           <div className="text-center">
-            <div className="text-zinc-500 text-[10px] uppercase">Payment Change:</div>
-            <div className={`font-bold mt-0.5 ${voucherType === 'RECEIPT' ? 'text-emerald-400' : 'text-zinc-200'}`}>
+            <div className="text-soft text-xs normal-case">Payment Change:</div>
+            <div className={`font-bold mt-0.5 ${voucherType === 'RECEIPT' ? 'text-brand' : 'text-strong'}`}>
               {voucherType === 'RECEIPT' ? '-' : '+'}{formatCurrency(parseFloat(amount) || 0)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-zinc-500 text-[10px] uppercase">New Balance After Payment:</div>
-            <div className="font-bold text-white mt-0.5">{formatCurrency(balancePreview.projected)}</div>
+            <div className="text-soft text-xs normal-case">New Balance After Payment:</div>
+            <div className="font-bold text-strong mt-0.5">{formatCurrency(balancePreview.projected)}</div>
           </div>
         </div>
 
@@ -283,16 +293,9 @@ export function CreateVoucherModal({
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="e.g. Advance payment or against bill"
         />
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <DollarSign className="w-4 h-4" />
-            <span>Save Payment Entry</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

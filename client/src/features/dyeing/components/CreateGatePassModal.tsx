@@ -1,3 +1,4 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -113,12 +114,9 @@ export function CreateGatePassModal({
 
   // Load Fabric Buyers for customer allocation
   const { data: buyersData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', 'isFabricBuyer'],
+    queryKey: ['party-options', 'isFabricBuyer'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: 'isFabricBuyer', limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: 'isFabricBuyer' });
     },
     enabled: isOpen
   });
@@ -288,7 +286,7 @@ export function CreateGatePassModal({
     <Dialog isOpen={isOpen} onClose={() => { if (!isLoading) onClose(); }} title="Send fabric for dyeing"
       description="Choose the mill, then enter the fabric and colors on this outgoing challan." className="max-w-2xl"
       footer={<FormFooter formId="send-dyeing-form" onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)}
-        submitLabel="Save fabric delivery" summary={<><strong className="text-zinc-200">{totals.totalRolls} rolls</strong> · {formatWeight(totals.totalWeightKg)}</>} />}>
+        submitLabel="Save fabric delivery" summary={<><strong className="text-strong">{totals.totalRolls} rolls</strong> · {formatWeight(totals.totalWeightKg)}</>} />}>
       <form id="send-dyeing-form" onSubmit={handleSubmit}>
         <fieldset disabled={isLoading || Boolean(success)} className="space-y-6">
           <FormFeedback error={error} success={success} />
@@ -299,7 +297,7 @@ export function CreateGatePassModal({
             {millName === 'OTHER' && <Input id="send-dyeing-custom-mill" label="Mill name" value={customMillName}
               onChange={(e) => setCustomMillName(e.target.value)} required />}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="send-dyeing-challan" label="Challan number" value={ogpNo} onChange={(e) => setOgpNo(e.target.value)} placeholder="Outgoing slip number (OGP)" required />
+              <Input id="send-dyeing-challan" label="Challan number" value={ogpNo} onChange={(e) => setOgpNo(e.target.value)} placeholder="e.g. 1234" required />
               <Input id="send-dyeing-date" label="Sent date" type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
             </div>
           </FormSection>
@@ -319,7 +317,7 @@ export function CreateGatePassModal({
                   <Input id={'send-rolls-' + entry.id} label="Rolls sent" type="number" min="1" step="1" value={entry.ecruRollsCount}
                     onChange={(e) => handleRowChange(entry.id, 'ecruRollsCount', e.target.value)} placeholder="e.g. 10" required />
                   <Input id={'send-weight-' + entry.id} label="Raw weight sent (kg)" type="number" min="0.01" step="0.01" value={entry.ecruWeightKg}
-                    onChange={(e) => handleRowChange(entry.id, 'ecruWeightKg', e.target.value)} placeholder="Actual weight before dyeing" required />
+                    onChange={(e) => handleRowChange(entry.id, 'ecruWeightKg', e.target.value)} placeholder="e.g. 25.50" required />
                 </div>
                 <OptionalDetails title="Machine, fabric specifications and buyer (optional)">
                   <div className="grid gap-4 sm:grid-cols-3">

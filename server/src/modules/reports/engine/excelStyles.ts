@@ -48,6 +48,10 @@ export const NUMBER_FORMATS = {
   date: 'dd/mm/yyyy',
 };
 
+export function sanitizeSheetName(name: string, fallback: string, maxLength = 31): string {
+  return name.replace(/[:\\\/\?\*\[\]\x00-\x1f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, maxLength).replace(/^'+|'+$/g, '').trim() || fallback;
+}
+
 /**
  * Automatically calculates and applies optimal column widths
  */
@@ -55,6 +59,7 @@ export function autoFitColumns(sheet: ExcelJS.Worksheet, minWidth = 10, maxWidth
   sheet.columns.forEach((column) => {
     let maxLen = minWidth;
     column.eachCell?.({ includeEmpty: false }, (cell) => {
+      if (cell.isMerged) return;
       const val = cell.value;
       if (val === null || val === undefined) return;
       let textLen = 0;

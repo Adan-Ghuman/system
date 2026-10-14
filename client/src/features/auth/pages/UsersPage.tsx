@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
+import { QueryError } from '../../../components/ui/QueryError.js';
+import { PageHeader } from '../../../components/ui/PageHeader.js';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Button } from '../../../components/ui/Button.js';
@@ -25,16 +28,12 @@ interface UserListItem {
 export function UsersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearchTerm]);
+  const { page: page, limit: limit, setPage: setPage, setLimit: setLimit } = useQueryPagination([debouncedSearchTerm]);
 
-  const { data: usersData, isLoading, refetch } = useQuery<{
+  const { isError: hasQueryError1,  data: usersData, isLoading, refetch } = useQuery<{
     items: UserListItem[];
     total: number;
     page: number;
@@ -61,12 +60,7 @@ export function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-100">Staff Accounts & User Access</h1>
-          <p className="text-xs text-zinc-400">Manage login accounts and assign permissions for operators and staff.</p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader title="Staff & access" description="Manage staff accounts, roles and access to your workspace."><div className="flex max-w-full flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
@@ -75,17 +69,18 @@ export function UsersPage() {
             <UserPlus className="w-4 h-4" />
             Add New User
           </Button>
-        </div>
-      </div>
+        </div></PageHeader>
+      {(hasQueryError1) && <QueryError onRetry={() => { refetch(); }} />}
+
 
       <Card>
-        <CardHeader className="border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <CardHeader className="border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle>Staff & User Accounts</CardTitle>
             <CardDescription>List of staff members with login access to the system.</CardDescription>
           </div>
           <div className="relative max-w-xs w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-soft" />
             <Input
               placeholder="Search staff by name or email..."
               value={searchTerm}
@@ -97,7 +92,7 @@ export function UsersPage() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-950/70 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+              <thead className="bg-canvas/70 border-b border-line text-soft normal-case font-semibold">
                 <tr>
                   <th className="py-3 px-4 whitespace-nowrap">Staff Member</th>
                   <th className="py-3 px-4 whitespace-nowrap">Date Added</th>
@@ -106,29 +101,29 @@ export function UsersPage() {
                   <th className="py-3 px-4 whitespace-nowrap">Allowed Features</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-line/60">
                 {isLoading ? (
                   <LoadingState isTableRow colSpan={5} message="Loading staff accounts..." />
                 ) : users?.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-zinc-500">
+                    <td colSpan={5} className="py-8 text-center text-soft">
                       No staff accounts found.
                     </td>
                   </tr>
                 ) : (
                   users?.map((u) => (
-                    <tr key={u._id} className="hover:bg-zinc-800/30 transition-colors">
+                    <tr key={u._id} className="hover:bg-subtle/30 transition-colors">
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300">
-                            {u.role === 'admin' ? <Shield className="w-3 h-3 text-emerald-400" /> : <UserIcon className="w-3 h-3" />}
+                          <div className="w-6 h-6 rounded-full bg-subtle flex items-center justify-center text-ink">
+                            {u.role === 'admin' ? <Shield className="w-3 h-3 text-brand" /> : <UserIcon className="w-3 h-3" />}
                           </div>
-                          <span className="font-semibold text-zinc-100">{u.fullName}</span>
-                          <span className="text-[11px] font-mono text-zinc-400 ml-1">({u.email})</span>
+                          <span className="font-semibold text-strong">{u.fullName}</span>
+                          <span className="text-xs font-mono text-soft ml-1">({u.email})</span>
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                      <td className="py-3 px-4 text-ink font-mono whitespace-nowrap">
                         {formatDateTime(u.createdAt, true)}
                       </td>
 
@@ -150,13 +145,13 @@ export function UsersPage() {
 
                       <td className="py-3 px-4 whitespace-nowrap">
                         {u.role === 'admin' ? (
-                          <span className="text-[11px] text-emerald-400 font-medium">Full Access (All Features)</span>
+                          <span className="text-xs text-brand font-medium">Full Access (All Features)</span>
                         ) : (
                           <div className="flex flex-wrap gap-1 max-w-md">
                             {u.permissions.map((p) => (
                               <span
                                 key={p}
-                                className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-800/80 text-zinc-300 border border-zinc-700/50"
+                                className="px-1.5 py-0.5 rounded text-xs bg-subtle/80 text-ink border border-control/50"
                               >
                                 {p}
                               </span>
@@ -181,11 +176,11 @@ export function UsersPage() {
         />
       </Card>
 
-      <RegisterUserModal
+      {isCreateOpen && <RegisterUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onUserCreated={() => refetch()}
-      />
+      />}
     </div>
   );
 }

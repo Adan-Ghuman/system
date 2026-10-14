@@ -90,20 +90,20 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
   const avgRollWeight = totals.rollsCount > 0 ? totals.totalNet / totals.rollsCount : 0;
 
   return (
-    <div className="space-y-2 border border-zinc-800 rounded-lg bg-zinc-950/60 p-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300">
-          <Keyboard className="w-4 h-4 text-emerald-400" />
+    <div className="space-y-2 border border-line rounded-lg bg-canvas/60 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-ink">
+          <Keyboard className="w-4 h-4 text-brand" />
           <span>Roll Weights (Enter weight for each roll)</span>
         </div>
-        <div className="text-[11px] text-zinc-400 font-mono">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 font-bold border border-zinc-700">Enter</kbd> to quickly add next roll
+        <div className="text-xs text-soft font-mono">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-subtle text-strong font-bold border border-control">Enter</kbd> to quickly add next roll
         </div>
       </div>
 
-      <div className="max-h-56 overflow-y-auto border border-zinc-800/80 rounded-md">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-zinc-900 sticky top-0 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+      <div className="max-h-64 overflow-auto border border-line/80 rounded-md">
+        <table className="min-w-[560px] w-full text-left text-xs">
+          <thead className="bg-surface sticky top-0 border-b border-line text-soft normal-case font-semibold">
             <tr>
               <th className="py-2 px-3 w-16 text-center">Roll #</th>
               <th className="py-2 px-3">Roll Weight (Gross Kg)</th>
@@ -112,16 +112,17 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
               <th className="py-2 px-2 w-10 text-center"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/40">
+          <tbody className="divide-y divide-line/40">
             {rolls.map((roll, idx) => {
               const isLast = idx === rolls.length - 1;
               return (
-                <tr key={idx} className="hover:bg-zinc-900/40">
-                  <td className="py-1.5 px-3 text-center font-mono font-bold text-zinc-400">
+                <tr key={idx} className="hover:bg-surface/40">
+                  <td className="py-1.5 px-3 text-center font-mono font-bold text-soft">
                     #{roll.rollNumber}
                   </td>
                   <td className="py-1.5 px-3">
                     <input
+                      aria-label={"Gross weight for roll " + roll.rollNumber}
                       ref={isLast ? lastInputRef : null}
                       type="number"
                       step="0.01"
@@ -129,7 +130,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
                       value={roll.grossWeightKg || ''}
                       onChange={(e) => handleWeightChange(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx)}
-                      className="w-full px-2 py-1 text-xs font-mono font-bold rounded bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                      className="w-full px-2 py-1 text-xs font-mono font-bold rounded bg-surface border border-control text-strong focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                     />
                   </td>
                   <td className="py-1.5 px-3">
@@ -137,14 +138,15 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
                       type="number"
                       step="0.01"
                       min="0"
+                      aria-label={"Tare weight for roll " + roll.rollNumber}
                       value={roll.tareKg || ''}
                       onChange={(e) => handleTareChange(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx)}
                       placeholder="0.00"
-                      className="w-full px-2 py-1 text-xs font-mono rounded bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-hidden focus:border-emerald-500"
+                      className="w-full px-2 py-1 text-xs font-mono rounded bg-surface border border-line text-ink focus:outline-hidden focus:border-emerald-500"
                     />
                   </td>
-                  <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-400">
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-brand">
                     {roll.netWeightKg.toFixed(2)}
                   </td>
                   <td className="py-1.5 px-2 text-center">
@@ -152,9 +154,10 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
                       type="button"
                       onClick={() => handleRemoveRoll(idx)}
                       disabled={rolls.length <= 1}
-                      tabIndex={-1}
-                      className="text-zinc-600 hover:text-red-400 disabled:opacity-30 transition-colors p-1"
+
+                      className="text-soft hover:text-danger disabled:opacity-30 transition-colors p-1"
                       title="Delete roll row"
+                      aria-label={"Remove roll " + roll.rollNumber}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -166,7 +169,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
         </table>
       </div>
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <Button
           type="button"
           variant="outline"
@@ -178,18 +181,18 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
           Add Next Roll
         </Button>
 
-        <div className="flex items-center gap-4 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Total Rolls:</span>
-            <span className="font-bold text-zinc-200">{totals.rollsCount}</span>
+            <span className="text-soft text-xs mr-1 normal-case">Total Rolls:</span>
+            <span className="font-bold text-strong">{totals.rollsCount}</span>
           </div>
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Avg Weight:</span>
-            <span className="text-zinc-300">{avgRollWeight.toFixed(2)} Kg</span>
+            <span className="text-soft text-xs mr-1 normal-case">Avg Weight:</span>
+            <span className="text-ink">{avgRollWeight.toFixed(2)} Kg</span>
           </div>
           <div>
-            <span className="text-zinc-500 text-[10px] mr-1 uppercase">Total Net Weight:</span>
-            <span className="font-bold text-emerald-400 text-sm">{formatWeight(totals.totalNet)}</span>
+            <span className="text-soft text-xs mr-1 normal-case">Total Net Weight:</span>
+            <span className="font-bold text-brand text-sm">{formatWeight(totals.totalNet)}</span>
           </div>
         </div>
       </div>

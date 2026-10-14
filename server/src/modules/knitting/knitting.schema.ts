@@ -111,3 +111,11 @@ export type CreateYarnSpecInput = z.infer<typeof createYarnSpecSchema>;
 export type UpdateYarnSpecInput = z.infer<typeof updateYarnSpecSchema>;
 export type BulkRenameYarnSpecInput = z.infer<typeof bulkRenameYarnSpecSchema>;
 
+
+export const queryBalancesSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().max(200).optional(),
+  status: z.enum(['ALL', 'ACTIVE', 'CLEARED']).optional(),
+  sortBy: z.enum(['latest', 'name', 'remaining_desc']).optional()
+});

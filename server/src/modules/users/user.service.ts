@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import bcrypt from 'bcrypt';
 import { User, IUser } from '../../models/User.js';
 import { ConflictError, NotFoundError } from '../../utils/errors.js';
@@ -43,7 +44,7 @@ export async function listAllUsers(query: QueryUsersInput = {}): Promise<Paginat
   const filter: Record<string, unknown> = {};
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { fullName: searchRegex },
       { email: searchRegex },
@@ -52,7 +53,7 @@ export async function listAllUsers(query: QueryUsersInput = {}): Promise<Paginat
   }
 
   const [items, total] = await Promise.all([
-    User.find(filter, '-passwordHash').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    User.find(filter, '-passwordHash').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit),
     User.countDocuments(filter)
   ]);
 

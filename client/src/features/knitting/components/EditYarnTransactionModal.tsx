@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -93,12 +95,9 @@ export function EditYarnTransactionModal({
   const targetTag = transaction?.transactionType === 'OUTWARD_TO_KNITTER' ? 'isKnitter' : 'isYarnClient';
 
   const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', targetTag],
+    queryKey: ['party-options', targetTag],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: targetTag, limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: targetTag });
     },
     enabled: isOpen && !!transaction
   });
@@ -192,45 +191,94 @@ export function EditYarnTransactionModal({
   const hasReceivedFabric = (transaction.receivedFabricKg || 0) > 0;
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-between">
+          <div>
+            {!hasReceivedFabric && (
+              confirmDelete ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    isLoading={isDeleting}
+                  >
+                    Yes, Delete
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmDelete(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-danger hover:text-danger hover:border-red-500/50"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={isLoading || isDeleting}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  Delete
+                </Button>
+              )
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isDeleting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-yarn-transaction-modal-form" isLoading={isLoading} disabled={isDeleting}>
+              Save Changes
+            </Button>
+          </div>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Yarn Transaction"
       description={`Update or correct details for Gate Pass ${transaction.gatePassNo}`}
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="edit-yarn-transaction-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
         {hasReceivedFabric && (
-          <div className="p-3 text-xs rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
+          <div className="p-3 text-xs rounded-md bg-amber-500/10 border border-amber-500/30 text-warning space-y-1">
             <div className="font-semibold flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <AlertCircle className="w-4 h-4 text-warning" />
               <span>Fabric Already Received Against This Gate Pass</span>
             </div>
-            <p className="text-zinc-400">
+            <p className="text-soft">
               Received so far:{' '}
-              <strong className="text-zinc-200">{formatWeight(transaction.receivedFabricKg)}</strong>.
+              <strong className="text-strong">{formatWeight(transaction.receivedFabricKg)}</strong>.
               Remaining balance:{' '}
-              <strong className="text-zinc-200">{formatWeight(transaction.remainingYarnBalanceKg)}</strong>.
+              <strong className="text-strong">{formatWeight(transaction.remainingYarnBalanceKg)}</strong>.
               This transaction cannot be deleted while fabric receipts exist.
             </p>
           </div>
         )}
 
-        <Select
+        <FormSection step={1} title="Delivery details">
+<Select
           id="editPartySelect"
           label={transaction.transactionType === 'OUTWARD_TO_KNITTER' ? 'Knitter Party' : 'Client Party'}
           value={partyId}
@@ -272,8 +320,10 @@ export function EditYarnTransactionModal({
             placeholder="e.g. 40/1 Combed Cotton"
           />
         )}
+</FormSection>
 
-        <div className="grid grid-cols-3 gap-3">
+        <FormSection step={2} title="Quantities and notes">
+<div className="grid grid-cols-3 gap-3">
           <Input
             id="editTxDate"
             type="date"
@@ -305,12 +355,12 @@ export function EditYarnTransactionModal({
           />
         </div>
 
-        <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg flex items-center justify-between">
+        <div className="p-3 bg-canvas/80 border border-line rounded-lg flex items-center justify-between">
           <div className="text-xs">
-            <span className="text-zinc-400">Total Dispatched Yarn Weight:</span>
-            <span className="text-zinc-500 text-[11px] ml-1.5">({boxCount || 0} boxes × {netWeightPerBox || 0} Kg)</span>
+            <span className="text-soft">Total Dispatched Yarn Weight:</span>
+            <span className="text-soft text-xs ml-1.5">({boxCount || 0} boxes × {netWeightPerBox || 0} Kg)</span>
           </div>
-          <div className="text-base font-bold font-mono text-emerald-400">
+          <div className="text-base font-bold font-mono text-brand">
             {formatWeight(calculations.gross)}
           </div>
         </div>
@@ -322,56 +372,9 @@ export function EditYarnTransactionModal({
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Lot number, container info, or special notes"
         />
+</FormSection>
 
-        <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
-          <div>
-            {!hasReceivedFabric && (
-              confirmDelete ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleDelete}
-                    isLoading={isDeleting}
-                  >
-                    Yes, Delete
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-red-400 hover:text-red-300 hover:border-red-500/50"
-                  onClick={() => setConfirmDelete(true)}
-                  disabled={isLoading || isDeleting}
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" />
-                  Delete
-                </Button>
-              )
-            )}
-          </div>
 
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isDeleting}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={isLoading} disabled={isDeleting}>
-              Save Changes
-            </Button>
-          </div>
-        </div>
       </form>
     </Dialog>
   );

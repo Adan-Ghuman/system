@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -113,12 +115,9 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
   }, [batch]);
 
   const { data: buyersData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', 'isFabricBuyer'],
+    queryKey: ['party-options', 'isFabricBuyer'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: 'isFabricBuyer', limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: 'isFabricBuyer' });
     },
     enabled: isOpen && !!batch
   });
@@ -267,42 +266,93 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
   if (!batch) return null;
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-between">
+          <div>
+            {confirmDelete ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDelete}
+                  isLoading={isDeleting}
+                >
+                  Yes, Delete
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-danger hover:text-danger hover:border-red-500/50"
+                onClick={() => setConfirmDelete(true)}
+                disabled={isLoading || isDeleting}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                Delete
+              </Button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              type="submit" form="edit-batch-modal-form"
+              isLoading={isLoading}
+              disabled={isDeleting || !!settlementMetrics?.isExceeded}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={`Edit Batch: ${batch.batchNo}`}
       description="Update batch details, unit allocation, weights, or delete batch with atomic inventory synchronization."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="edit-batch-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
         {batch.status === 'COMPLETED' && (
-          <div className="p-3 text-xs rounded-md bg-sky-500/10 border border-sky-500/30 text-sky-300 space-y-1">
+          <div className="p-3 text-xs rounded-md bg-info-soft border border-line text-info space-y-1">
             <div className="font-semibold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-sky-400" />
+              <CheckCircle2 className="w-4 h-4 text-info" />
               <span>Batch Completed & Settled in Warehouse Inventory</span>
             </div>
-            <p className="text-zinc-400">
+            <p className="text-soft">
               Changes to finished weight, color, or unit will automatically synchronize with live finished fabric inventory stock.
             </p>
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300">Processing Unit</label>
+        <FormSection step={1} title="Batch details">
+<div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink">Processing Unit</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeMills.map((unit) => (
               <button
@@ -311,8 +361,8 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
                 onClick={() => setMillName(unit.code as DyeingMillType)}
                 className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
                   millName === unit.code
-                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'bg-primary/20 border-emerald-500 text-brand'
+                    : 'bg-canvas border-line text-soft hover:border-control hover:text-strong'
                 }`}
               >
                 <Factory className="w-4 h-4" />
@@ -325,8 +375,8 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
               onClick={() => setMillName('OTHER')}
               className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
                 millName === 'OTHER'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  ? 'bg-primary/20 border-emerald-500 text-brand'
+                  : 'bg-canvas border-line text-soft hover:border-control hover:text-strong'
               }`}
             >
               <Building2 className="w-4 h-4" />
@@ -341,7 +391,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
                 label="Custom Dyeing Unit Name"
                 value={customMillName}
                 onChange={(e) => setCustomMillName(e.target.value)}
-                placeholder="e.g. Master Dyeing Unit, Ittehad Dyeing..."
+                placeholder="e.g. Example Dyeing Mill"
                 required
               />
             </div>
@@ -362,7 +412,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             label="OGP (Outward)"
             value={ogpNo}
             onChange={(e) => setOgpNo(e.target.value)}
-            placeholder="e.g. OGP-123"
+            placeholder="e.g. 1234"
           />
 
           <Input
@@ -370,7 +420,7 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             label="IGP (Inward)"
             value={igpNo}
             onChange={(e) => setIgpNo(e.target.value)}
-            placeholder="e.g. IGP-456"
+            placeholder="e.g. 1234"
           />
 
           <Input
@@ -382,8 +432,10 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             required
           />
         </div>
+</FormSection>
 
-        <div className="space-y-3">
+        <FormSection step={2} title="Fabric and quantities">
+<div className="space-y-3">
           <div>
             <Select
               id="editFabricTypeSelect"
@@ -464,9 +516,9 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
         )}
 
         {batch.status === 'COMPLETED' && (
-          <div className="p-3 bg-zinc-950/80 border border-zinc-800 rounded-lg space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400">
-              <Calculator className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="p-3 bg-canvas/80 border border-line rounded-lg space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-soft">
+              <Calculator className="w-3.5 h-3.5 text-brand" />
               <span>Finished Weights & Reconciled Shrinkage</span>
             </div>
 
@@ -501,25 +553,25 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             {settlementMetrics && (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
-                  <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-                    <span className="text-[10px] text-zinc-500 block">Shortage Loss</span>
+                  <div className="p-2 bg-surface border border-line/80 rounded">
+                    <span className="text-xs text-soft block">Shortage Loss</span>
                     <strong
                       className={`font-mono text-sm ${
-                        settlementMetrics.isExceeded ? 'text-red-400' : 'text-zinc-200'
+                        settlementMetrics.isExceeded ? 'text-danger' : 'text-strong'
                       }`}
                     >
                       {formatWeight(settlementMetrics.shortageKg)}
                     </strong>
                   </div>
-                  <div className="p-2 bg-zinc-900 border border-zinc-800/80 rounded">
-                    <span className="text-[10px] text-zinc-500 block">Loss Percentage</span>
+                  <div className="p-2 bg-surface border border-line/80 rounded">
+                    <span className="text-xs text-soft block">Loss Percentage</span>
                     <strong
                       className={`font-mono text-sm ${
                         settlementMetrics.isExceeded
-                          ? 'text-red-400'
+                          ? 'text-danger'
                           : settlementMetrics.isAlert
-                          ? 'text-amber-400'
-                          : 'text-emerald-400'
+                          ? 'text-warning'
+                          : 'text-brand'
                       }`}
                     >
                       {settlementMetrics.shortagePct}%
@@ -528,8 +580,8 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
                 </div>
 
                 {settlementMetrics.isExceeded && (
-                  <div className="p-2 rounded bg-red-950/70 border border-red-800 text-[11px] text-red-300 flex items-center gap-1.5 font-medium">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
+                  <div className="p-2 rounded bg-danger-soft border border-line text-xs text-danger flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-danger" />
                     <span>Finish weight cannot exceed lot weight ({ecruWeightKg} kg).</span>
                   </div>
                 )}
@@ -537,8 +589,10 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
             )}
           </div>
         )}
+</FormSection>
 
-        <Select
+        <FormSection step={3} title="Customer and notes">
+<Select
           id="editAllocatedCustomer"
           label="Pre-Allocated Customer Order (Optional)"
           value={allocatedCustomerId}
@@ -559,58 +613,9 @@ export function EditBatchModal({ isOpen, onClose, onSuccess, batch }: EditBatchM
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Special dyeing instructions, temperature, or chemical specs"
         />
+</FormSection>
 
-        <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
-          <div>
-            {confirmDelete ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDelete}
-                  isLoading={isDeleting}
-                >
-                  Yes, Delete
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmDelete(false)}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-red-400 hover:text-red-300 hover:border-red-500/50"
-                onClick={() => setConfirmDelete(true)}
-                disabled={isLoading || isDeleting}
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" />
-                Delete
-              </Button>
-            )}
-          </div>
 
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isDeleting}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              isLoading={isLoading}
-              disabled={isDeleting || !!settlementMetrics?.isExceeded}
-            >
-              Save Changes
-            </Button>
-          </div>
-        </div>
       </form>
     </Dialog>
   );

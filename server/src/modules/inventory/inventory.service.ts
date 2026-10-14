@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import mongoose from 'mongoose';
 import { FabricInventory, IFabricInventory } from '../../models/FabricInventory.js';
 import { StockTransfer, IStockTransfer } from '../../models/StockTransfer.js';
@@ -194,7 +195,7 @@ export async function listInventoryItems(query: Partial<QueryInventoryInput> = {
     filter.color = query.color.toUpperCase();
   }
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { fabricType: searchRegex },
       { yarnSpec: searchRegex },
@@ -213,7 +214,7 @@ export async function listInventoryItems(query: Partial<QueryInventoryInput> = {
 
   const [items, total] = await Promise.all([
     FabricInventory.find(filter)
-      .sort(sortCriteria)
+      .sort({ ...sortCriteria, _id: 1 })
       .skip(skip)
       .limit(limit),
     FabricInventory.countDocuments(filter)
@@ -240,7 +241,7 @@ export async function getInventorySummary(query: InventorySummaryQuery = {}) {
     matchFilter.state = query.state;
   }
   if (query.search && query.search.trim()) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     matchFilter.$and = [
       {
         $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
@@ -281,7 +282,7 @@ export async function listStockTransfers(query: Partial<QueryTransfersInput> = {
   const filter: Record<string, unknown> = {};
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { transferNo: searchRegex },
       { fabricType: searchRegex },
@@ -304,7 +305,7 @@ export async function listStockTransfers(query: Partial<QueryTransfersInput> = {
 
   const [items, total] = await Promise.all([
     StockTransfer.find(filter)
-      .sort({ date: sortDirection, createdAt: sortDirection })
+      .sort({ date: sortDirection, createdAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     StockTransfer.countDocuments(filter)

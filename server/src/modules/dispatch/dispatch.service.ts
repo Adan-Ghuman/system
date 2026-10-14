@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { Dispatch, IDispatch } from '../../models/Dispatch.js';
 import { Invoice, IInvoice, InvoiceType } from '../../models/Invoice.js';
@@ -193,7 +194,7 @@ export async function listDispatches(query: QueryDispatchesInput) {
     filter.fromLocation = query.fromLocation;
   }
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { dispatchNo: searchRegex },
       { ogpNo: searchRegex },
@@ -215,7 +216,7 @@ export async function listDispatches(query: QueryDispatchesInput) {
   const [items, total] = await Promise.all([
     Dispatch.find(filter)
       .populate('customerId', 'code name phone currentBalance')
-      .sort({ date: sortDirection, createdAt: sortDirection })
+      .sort({ date: sortDirection, createdAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     Dispatch.countDocuments(filter)

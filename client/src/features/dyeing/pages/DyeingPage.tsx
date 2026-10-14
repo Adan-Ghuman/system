@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
+import { PageHeader } from '../../../components/ui/PageHeader.js';
+import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { DyeingBatchItem, DyeingMillType, DyeingUnitItem } from '../types/dyeing.types.js';
@@ -32,8 +34,6 @@ export function DyeingPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [isMultiGatePassOpen, setIsMultiGatePassOpen] = useState(false);
   const [isReceiveGatePassOpen, setIsReceiveGatePassOpen] = useState(false);
@@ -45,9 +45,7 @@ export function DyeingPage() {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    setPage(1);
-  }, [selectedMill, statusFilter, sortOrder, debouncedSearchTerm]);
+  const { page: page, limit: limit, setPage: setPage, setLimit: setLimit } = useQueryPagination([selectedMill, statusFilter, sortOrder, debouncedSearchTerm]);
 
   const { data: unitsData = [] } = useQuery<DyeingUnitItem[]>({
     queryKey: ['dyeing-units'],
@@ -91,6 +89,7 @@ export function DyeingPage() {
     limit: number;
     totalPages: number;
   }>({
+    enabled: mainTab === 'batches',
     queryKey: ['dyeing-batches', selectedMill, statusFilter, sortOrder, debouncedSearchTerm, page, limit],
     queryFn: async () => {
       const params: Record<string, string | number> = { page, limit, sortOrder };
@@ -174,10 +173,7 @@ export function DyeingPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-xl font-semibold tracking-tight text-zinc-100">Dyeing</h1><p className="mt-1 text-sm text-zinc-400">Send raw fabric to a mill. Receive dyed fabric back. Track each batch along the way.</p></div>
-        <Button variant="ghost" size="sm" onClick={refreshDyeing}><RefreshCw className="h-4 w-4" /> Refresh</Button>
-      </div>
+      <PageHeader title="Dyeing" description="Send raw fabric, receive dyed fabric, and follow each batch."><Button variant="ghost" size="sm" onClick={refreshDyeing}><RefreshCw className="h-4 w-4" /> Refresh</Button></PageHeader>
       <WorkflowActions actions={[
         { title: 'Send fabric for dyeing', description: 'Record the mill, fabric, color and weight on an outgoing challan.', icon: Truck, onClick: () => setIsMultiGatePassOpen(true) },
         { title: 'Receive dyed fabric', description: 'Match a sent batch or enter an incoming paper challan.', icon: PackageCheck, onClick: () => setIsReceiveGatePassOpen(true) }
@@ -190,15 +186,15 @@ export function DyeingPage() {
           <Button variant="outline" size="sm" onClick={() => setIsIssueOpen(true)}><Plus className="h-4 w-4" /> Add a single batch without a challan</Button>
         </div>
       </OptionalDetails>
-      {exportError && <p role="alert" className="rounded-lg border border-red-900/50 p-3 text-sm text-red-300">{exportError}</p>}
-      <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
+      {exportError && <p role="alert" className="rounded-lg border border-line p-3 text-sm text-danger">{exportError}</p>}
+      <div className="flex flex-wrap gap-2 border-b border-line pb-3">
         <Button variant={mainTab === 'batches' ? 'primary' : 'ghost'} aria-pressed={mainTab === 'batches'} onClick={() => { setMainTab('batches'); setStatusFilter('ACTIVE'); }}>At the mill</Button>
         <Button variant={mainTab === 'received' ? 'primary' : 'ghost'} aria-pressed={mainTab === 'received'} onClick={() => setMainTab('received')}>Received fabric</Button>
-        {mainTab === 'units' && <span className="self-center text-sm text-zinc-400">Mill & location setup</span>}
+        {mainTab === 'units' && <span className="self-center text-sm text-soft">Mill & location setup</span>}
       </div>
       {mainTab === 'units' ? <DyeingUnitsTab /> : mainTab === 'received' ? <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} /> : (
         <div className="space-y-3">
-          <div className="grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 rounded-xl border border-line bg-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <Input id="dyeing-search" label="Find a batch" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Batch, fabric, color or challan" />
             <Select id="dyeing-mill-filter" label="Mill" value={selectedMill} onChange={(e) => setSelectedMill(e.target.value as typeof selectedMill)}
               options={dynamicMillFilters.map((mill) => ({ label: mill.label, value: mill.id }))} />
@@ -207,32 +203,32 @@ export function DyeingPage() {
             <Select id="dyeing-order" label="Order" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
               options={[{ label: 'Newest sent first', value: 'desc' }, { label: 'Oldest sent first', value: 'asc' }]} />
           </div>
-          <p className="text-xs text-zinc-400">Choose <strong className="text-zinc-200">Receive fabric</strong> beside a batch to use its recorded details.</p>
+          <p className="text-xs text-soft">Choose <strong className="text-strong">Receive fabric</strong> beside a batch to use its recorded details.</p>
           <OptionalDetails title="Totals for this page">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div><p className="text-xs text-zinc-400">Awaiting receipt</p><p className="mt-1 font-mono text-base text-zinc-100">{formatWeight(kpis.inProcessKg)}</p></div>
-              <div><p className="text-xs text-zinc-400">Finished fabric received</p><p className="mt-1 font-mono text-base text-emerald-400">{formatWeight(kpis.completedKg)}</p></div>
-              <div><p className="text-xs text-zinc-400">Average weight loss</p><p className="mt-1 font-mono text-base text-zinc-100">{kpis.avgShrinkage.toFixed(2)}%</p></div>
-            </div><p className="text-xs text-zinc-500">Calculated from the {batches.length} batches shown on this page.</p>
+              <div><p className="text-xs text-soft">Awaiting receipt</p><p className="mt-1 font-mono text-base text-strong">{formatWeight(kpis.inProcessKg)}</p></div>
+              <div><p className="text-xs text-soft">Finished fabric received</p><p className="mt-1 font-mono text-base text-brand">{formatWeight(kpis.completedKg)}</p></div>
+              <div><p className="text-xs text-soft">Average weight loss</p><p className="mt-1 font-mono text-base text-strong">{kpis.avgShrinkage.toFixed(2)}%</p></div>
+            </div><p className="text-xs text-soft">Calculated from the {batches.length} batches shown on this page.</p>
           </OptionalDetails>
-          {isError ? <div role="alert" className="space-y-2 rounded-lg border border-red-900/50 p-4 text-sm text-red-300"><p>Dyeing batches could not be loaded.</p><Button variant="outline" onClick={() => refetch()}>Try again</Button></div> : (
-            <Card className="overflow-hidden border-zinc-800 bg-zinc-900/80">
+          {isError ? <div role="alert" className="space-y-2 rounded-lg border border-line p-4 text-sm text-danger"><p>Dyeing batches could not be loaded.</p><Button variant="outline" onClick={() => refetch()}>Try again</Button></div> : (
+            <Card className="overflow-hidden border-line bg-surface/80">
               <ScrollableTable>
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-zinc-800 bg-zinc-950/70 text-xs text-zinc-400">
+                  <thead className="border-b border-line bg-canvas/70 text-xs text-soft">
                     <tr><th className="px-4 py-3">Batch / sent date</th><th className="px-4 py-3">Mill</th><th className="px-4 py-3">Fabric</th><th className="px-4 py-3 text-right">Sent</th><th className="px-4 py-3 text-right">Received</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Next action</th></tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800">
+                  <tbody className="divide-y divide-line">
                     {isLoading ? <LoadingState isTableRow colSpan={7} message="Loading dyeing batches..." /> : batches.length === 0 ? (
-                      <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-zinc-400">No batches match these filters. Use Send fabric for dyeing to record a new delivery.</td></tr>
+                      <tr><td colSpan={7} className="px-4 py-10 text-center text-sm text-soft">No batches match these filters. Use Send fabric for dyeing to record a new delivery.</td></tr>
                     ) : batches.map((batch) => (
-                      <tr key={batch._id} className="hover:bg-zinc-800/30">
-                        <td className="px-4 py-3"><p className="font-mono text-xs font-semibold text-emerald-400">{batch.batchNo}</p><p className="mt-1 text-xs text-zinc-500">{formatDateTime(batch.dateIssued, true)}</p>{batch.ogpNo && <p className="mt-1 text-xs text-zinc-500">Challan {batch.ogpNo}</p>}</td>
-                        <td className="px-4 py-3 text-xs text-zinc-300">{unitNameMap.get(batch.millName) || (batch.millName === 'OTHER' ? batch.customMillName || 'Other mill' : batch.millName.split('_').join(' '))}</td>
-                        <td className="px-4 py-3"><p className="text-zinc-100">{batch.fabricType}</p><p className="mt-1 text-xs text-zinc-400">{batch.yarnSpec} · {batch.targetColor}</p>{batch.allocatedCustomerId && <p className="mt-1 text-xs text-emerald-400">{batch.allocatedCustomerId.name}</p>}</td>
-                        <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-zinc-300 whitespace-nowrap">{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1 text-zinc-500">{batch.ecruRollsCount} rolls</p></td>
-                        <td className="px-4 py-3 text-right text-xs">{batch.status === 'COMPLETED' ? <><p className="font-mono text-emerald-400 whitespace-nowrap">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-zinc-500">{batch.finishRollsCount} rolls</p></> : <span className="text-zinc-500">Waiting</span>}</td>
-                        <td className="px-4 py-3"><Badge variant={batch.status === 'COMPLETED' ? 'success' : batch.status === 'IN_PROCESS' ? 'default' : 'warning'} className="text-[10px]">{batch.status === 'COMPLETED' ? 'Received' : batch.status === 'IN_PROCESS' ? 'Being dyed' : 'At mill'}</Badge>{batch.status === 'COMPLETED' && <p className={'mt-2 text-xs ' + ((batch.shortagePercent || 0) > 5 ? 'text-amber-400' : 'text-zinc-400')}>Loss: {(batch.shortageWeightKg || 0).toFixed(2)} kg · {(batch.shortagePercent || 0).toFixed(1)}%</p>}</td>
+                      <tr key={batch._id} className="hover:bg-subtle/30">
+                        <td className="px-4 py-3"><p className="font-mono text-xs font-semibold text-brand">{batch.batchNo}</p><p className="mt-1 text-xs text-soft">{formatDateTime(batch.dateIssued, true)}</p>{batch.ogpNo && <p className="mt-1 text-xs text-soft">Challan {batch.ogpNo}</p>}</td>
+                        <td className="px-4 py-3 text-xs text-ink">{unitNameMap.get(batch.millName) || (batch.millName === 'OTHER' ? batch.customMillName || 'Other mill' : batch.millName.split('_').join(' '))}</td>
+                        <td className="px-4 py-3"><p className="text-strong">{batch.fabricType}</p><p className="mt-1 text-xs text-soft">{batch.yarnSpec} · {batch.targetColor}</p>{batch.allocatedCustomerId && <p className="mt-1 text-xs text-brand">{batch.allocatedCustomerId.name}</p>}</td>
+                        <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-ink whitespace-nowrap">{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1 text-soft">{batch.ecruRollsCount} rolls</p></td>
+                        <td className="px-4 py-3 text-right text-xs">{batch.status === 'COMPLETED' ? <><p className="font-mono text-brand whitespace-nowrap">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-soft">{batch.finishRollsCount} rolls</p></> : <span className="text-soft">Waiting</span>}</td>
+                        <td className="px-4 py-3"><Badge variant={batch.status === 'COMPLETED' ? 'success' : batch.status === 'IN_PROCESS' ? 'default' : 'warning'} className="text-xs">{batch.status === 'COMPLETED' ? 'Received' : batch.status === 'IN_PROCESS' ? 'Being dyed' : 'At mill'}</Badge>{batch.status === 'COMPLETED' && <p className={'mt-2 text-xs ' + ((batch.shortagePercent || 0) > 5 ? 'text-warning' : 'text-soft')}>Loss: {(batch.shortageWeightKg || 0).toFixed(2)} kg · {(batch.shortagePercent || 0).toFixed(1)}%</p>}</td>
                         <td className="px-4 py-3"><div className="flex flex-wrap gap-2">{batch.status !== 'COMPLETED' && <Button size="sm" onClick={() => setSettlingBatch(batch)}>Receive fabric</Button>}<Button variant="outline" size="sm" onClick={() => setEditingBatch(batch)}><Edit className="h-3.5 w-3.5" /> Edit</Button></div></td>
                       </tr>
                     ))}
@@ -249,7 +245,7 @@ export function DyeingPage() {
       {isIssueOpen && <IssueBatchModal isOpen initialMill={selectedMill === 'ALL' ? 'GHUMMAN_DYEING' : selectedMill} onClose={() => setIsIssueOpen(false)} onSuccess={refreshDyeing} />}
       {settlingBatch && <SettleBatchModal batch={settlingBatch} isOpen onClose={() => setSettlingBatch(null)} onSuccess={refreshDyeing} />}
       <EditBatchModal batch={editingBatch} isOpen={Boolean(editingBatch)} onClose={() => setEditingBatch(null)} onSuccess={refreshDyeing} />
-      <GatePassRegisterModal isOpen={isGatePassModalOpen} onClose={() => setIsGatePassModalOpen(false)} defaultType="OGP" />
+      {isGatePassModalOpen && <GatePassRegisterModal isOpen={isGatePassModalOpen} onClose={() => setIsGatePassModalOpen(false)} defaultType="OGP" />}
     </div>
   );
 }

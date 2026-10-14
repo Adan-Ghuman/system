@@ -1,4 +1,8 @@
-import { useState, useRef, FormEvent } from 'react';
+import { PaginationControls } from '../../../components/ui/Pagination.js';
+import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
+import { useDebounce } from '../../../hooks/useDebounce.js';
+import { QueryError } from '../../../components/ui/QueryError.js';
+import { useState, useRef, useEffect, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -20,6 +24,12 @@ export interface PartyLedgerModalProps {
 }
 
 export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyLedgerModalProps) {
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printEntries, setPrintEntries] = useState<PartyLedgerEntryItem[] | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<'ALL' | 'THIS_MONTH' | 'LAST_30'>('ALL');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
 
@@ -33,16 +43,28 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
   const isSubmittingRef = useRef(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<LedgerStatementResponse>({
-    queryKey: ['party-ledger-statement', partyId, dateFilter],
+  const { page, limit, setPage, setLimit } = useQueryPagination([partyId, dateFilter, debouncedSearch]);
+  useEffect(() => { setPrintEntries(null); }, [dateFilter, debouncedSearch, limit, page]);
+  useEffect(() => {
+    if (!printEntries) return;
+    const clear = () => setPrintEntries(null);
+    window.addEventListener('afterprint', clear);
+    const frame = requestAnimationFrame(() => window.print());
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('afterprint', clear); };
+  }, [printEntries]);
+
+  function statementParams() {
+    const params: Record<string, string> = {};
+    if (dateFilter === 'THIS_MONTH') { const now = new Date(); params.startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString(); }
+    if (dateFilter === 'LAST_30') params.startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    return params;
+  }
+
+  const { data, isLoading, isError, refetch } = useQuery<LedgerStatementResponse>({
+    queryKey: ['party-ledger-statement', partyId, dateFilter, debouncedSearch, page, limit],
     queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (dateFilter === 'THIS_MONTH') {
-        const now = new Date();
-        params.startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      } else if (dateFilter === 'LAST_30') {
-        params.startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      }
+      const params = { ...statementParams(), page, limit };
 
       const res = await api.get<{ success: boolean; data: LedgerStatementResponse }>(
         `/accounts/ledger/${partyId}`,
@@ -56,10 +78,25 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
   const party = data?.party;
   const entries = data?.entries || [];
 
-  function handleExportCsv() {
-    if (!party || !entries.length) return;
+  async function allEntries() {
+    const response = await api.get<{ data: LedgerStatementResponse }>(`/accounts/ledger/${partyId}`, { params: statementParams() });
+    return response.data.data.entries;
+  }
 
-    exportToCsv(
+  async function handlePrint() {
+    if (isPrinting) return;
+    setIsPrinting(true); setExportError(null);
+    try { setPrintEntries(await allEntries()); }
+    catch (error) { setExportError(error instanceof Error ? error.message : 'The statement could not be printed.'); }
+    finally { setIsPrinting(false); }
+  }
+
+  async function handleExportCsv() {
+    if (!party || isExportingCsv) return;
+    setIsExportingCsv(true); setExportError(null);
+    try {
+      const completeEntries = await allEntries();
+      exportToCsv<PartyLedgerEntryItem>(
       `statement_${party.code}_${new Date().toISOString().split('T')[0]}`,
       [
         { header: 'Bill / Voucher #', accessor: (e) => e.referenceNo || '—' },
@@ -69,13 +106,16 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
         { header: 'We Owe Them (-)', accessor: (e) => (e.entryType === 'CREDIT' ? e.amount : 0) },
         { header: 'Running Balance', accessor: (e) => e.runningBalance }
       ],
-      entries
-    );
+      completeEntries
+      );
+    } catch (error) { setExportError(error instanceof Error ? error.message : 'The CSV could not be downloaded.'); }
+    finally { setIsExportingCsv(false); }
   }
 
   async function handleExportExcel() {
     if (!party) return;
-    setIsExportingExcel(true);
+    if (isExportingExcel) return;
+    setIsExportingExcel(true); setExportError(null);
     try {
       let url = `/reports/party-ledger/${party._id}/excel`;
       if (dateFilter === 'THIS_MONTH') {
@@ -88,7 +128,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
       }
       await downloadExcelReport(url, `${party.name}_Ledger.xlsx`);
     } catch (err) {
-      console.error('Failed to export Excel:', err);
+      setExportError(err instanceof Error ? err.message : 'The Excel report could not be downloaded.');
     } finally {
       setIsExportingExcel(false);
     }
@@ -155,6 +195,11 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
   return (
     <Dialog
+      footer={<div className="flex items-center justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={party ? `Account Statement (Ledger) • ${party.name}` : 'Party Account Statement'}
@@ -166,8 +211,8 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
           <div
             className={`p-3 rounded-md flex items-center gap-2 text-xs ${
               feedback.type === 'success'
-                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-brand'
+                : 'bg-red-500/10 border border-red-500/30 text-danger'
             }`}
           >
             {feedback.type === 'success' ? (
@@ -181,14 +226,14 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
         {/* Delete Confirmation Banner */}
         {deletingEntry && (
-          <div className="p-3.5 bg-red-950/40 border border-red-800 rounded-lg space-y-2">
-            <div className="text-xs font-semibold text-red-300 flex items-center gap-1.5">
-              <Trash2 className="w-4 h-4 text-red-400" />
+          <div className="p-3.5 bg-danger-soft border border-line rounded-lg space-y-2">
+            <div className="text-xs font-semibold text-danger flex items-center gap-1.5">
+              <Trash2 className="w-4 h-4 text-danger" />
               Confirm Ledger Entry Deletion
             </div>
-            <p className="text-[11px] text-zinc-300">
-              Are you sure you want to delete entry <strong className="text-white font-mono">{deletingEntry.referenceNo || 'Record'}</strong> for{' '}
-              <strong className="text-emerald-400 font-mono">{formatCurrency(deletingEntry.amount)}</strong>?
+            <p className="text-xs text-ink">
+              Are you sure you want to delete entry <strong className="text-strong font-mono">{deletingEntry.referenceNo || 'Record'}</strong> for{' '}
+              <strong className="text-brand font-mono">{formatCurrency(deletingEntry.amount)}</strong>?
               {deletingEntry.referenceType === 'PAYMENT' && ' (This will also remove the linked payment voucher).'}{' '}
               This will automatically recalculate subsequent running balances and the party closing balance.
             </p>
@@ -218,16 +263,16 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
         {/* Inline Edit Form */}
         {editingEntry && (
-          <form onSubmit={handleSaveEdit} className="p-3.5 bg-zinc-950 border border-emerald-800/60 rounded-lg space-y-3">
-            <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+          <form onSubmit={handleSaveEdit} className="p-3.5 bg-canvas border border-line rounded-lg space-y-3">
+            <div className="text-xs font-semibold text-brand flex items-center gap-1.5">
               <Edit2 className="w-4 h-4" />
               Edit Ledger Entry • {editingEntry.referenceNo || 'Adjustment'}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
-                <label className="block text-[10px] text-zinc-400 mb-1">Date</label>
+                <label className="block text-xs text-soft mb-1">Date</label>
                 <Input
-                  type="date"
+                  aria-label="Date" type="date"
                   value={editDate}
                   onChange={(e) => setEditDate(e.target.value)}
                   className="text-xs h-8"
@@ -235,9 +280,9 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-zinc-400 mb-1">Amount (PKR)</label>
+                <label className="block text-xs text-soft mb-1">Amount (PKR)</label>
                 <Input
-                  type="number"
+                  aria-label="Amount (PKR)" type="number"
                   step="0.01"
                   min="0.01"
                   value={editAmount}
@@ -247,9 +292,9 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-zinc-400 mb-1">Description</label>
+                <label className="block text-xs text-soft mb-1">Description</label>
                 <Input
-                  value={editDescription}
+                  aria-label="Description" value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   className="text-xs h-8"
                 />
@@ -277,28 +322,32 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
           </form>
         )}
 
-        {party && (
-          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        {isError && <QueryError onRetry={() => { refetch(); }} />}
+        {exportError && <p role="alert" className="rounded-lg border border-line p-3 text-sm text-danger">{exportError}</p>}
+        <div id="print-area" className="ledger-print space-y-4">
+<h2 className="hidden print:block text-lg font-semibold">Account statement</h2>
+{party && (
+          <div className="p-3 rounded-lg bg-canvas border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
-              <div className="text-base font-bold text-white flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-emerald-500" />
+              <div className="text-base font-bold text-strong flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-brand" />
                 {party.name}
               </div>
-              <div className="text-zinc-400 mt-0.5 font-mono">
+              <div className="text-soft mt-0.5 font-mono">
                 {party.code} • {party.phone || 'No phone'} • {party.address || 'Sialkot'}
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-[10px] uppercase text-zinc-500 font-semibold">Net Closing Balance</div>
-                <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
+                <div className="text-xs normal-case text-soft font-semibold">Net Closing Balance</div>
+                <div className="text-sm font-bold font-mono text-brand mt-0.5">
                   {formatCurrency(party.currentBalance)}
                 </div>
               </div>
               <Badge
                 variant={party.currentBalance > 0 ? 'default' : party.currentBalance < 0 ? 'destructive' : 'outline'}
-                className="text-[10px]"
+                className="text-xs"
               >
                 {party.currentBalance > 0 ? 'They Owe Us' : party.currentBalance < 0 ? 'We Owe Them' : 'Settled (Zero)'}
               </Badge>
@@ -306,12 +355,13 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-2">
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-semibold text-zinc-400 mr-1 flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs font-semibold text-soft mr-1 flex items-center gap-1">
               <Calendar className="w-3 h-3" />
               Range:
             </span>
+            <span className="hidden print:inline">{dateFilter === 'ALL' ? 'All time' : dateFilter === 'THIS_MONTH' ? 'This month' : 'Last 30 days'}</span>
             {[
               { id: 'ALL', label: 'All Time' },
               { id: 'THIS_MONTH', label: 'This Month' },
@@ -322,8 +372,8 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 onClick={() => setDateFilter(f.id as typeof dateFilter)}
                 className={`px-2.5 py-1 rounded text-xs transition-colors ${
                   dateFilter === f.id
-                    ? 'bg-emerald-600 text-white font-semibold'
-                    : 'bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800'
+                    ? 'bg-primary text-white font-semibold'
+                    : 'bg-canvas text-soft hover:text-strong border border-line'
                 }`}
               >
                 {f.label}
@@ -331,33 +381,34 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExportExcel}
-              disabled={isExportingExcel}
-              className="gap-1.5 text-xs h-7 bg-emerald-950/30 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white"
+              isLoading={isExportingExcel}
+              className="gap-1.5 text-xs h-7 bg-brand-soft border-line text-brand hover:bg-brand-soft hover:text-strong"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-              {isExportingExcel ? 'Exporting...' : 'Export Excel (.xlsx)'}
+              <FileSpreadsheet className="w-3.5 h-3.5 text-brand" />
+              Export Excel (.xlsx)
             </Button>
 
-            <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-1.5 text-xs h-7">
+            <Button variant="outline" size="sm" onClick={handleExportCsv} isLoading={isExportingCsv} className="gap-1.5 text-xs h-7">
               <Download className="w-3 h-3" />
               Export CSV
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5 text-xs h-7">
+            <Button variant="outline" size="sm" onClick={handlePrint} isLoading={isPrinting} className="gap-1.5 text-xs h-7">
               <Printer className="w-3.5 h-3.5" />
               Print Statement
             </Button>
           </div>
         </div>
 
-        <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-950/60 max-h-80 overflow-y-auto">
+        <div className="print:hidden"><Input label="Find a ledger entry" placeholder="e.g. 1234" value={search} onChange={event => setSearch(event.target.value)} /></div>
+        <div className="border border-line rounded-lg overflow-hidden bg-canvas/60 max-h-96 overflow-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-900 sticky top-0 border-b border-zinc-800 text-zinc-400 uppercase font-semibold z-20">
+            <thead className="bg-surface sticky top-0 border-b border-line text-soft normal-case font-semibold z-20">
               <tr>
                 <th className="py-2.5 px-3 whitespace-nowrap">Bill / Voucher #</th>
                 <th className="py-2.5 px-3 whitespace-nowrap">Date</th>
@@ -365,46 +416,46 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 <th className="py-2.5 px-3 text-right whitespace-nowrap">They Owe Us (+)</th>
                 <th className="py-2.5 px-3 text-right whitespace-nowrap">We Owe Them (-)</th>
                 <th className="py-2.5 px-3 text-right whitespace-nowrap">Current Balance</th>
-                <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-900 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-surface z-20 border-l border-line shadow-sm">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/40">
+            <tbody className="divide-y divide-line/40">
               {isLoading ? (
                 <LoadingState isTableRow colSpan={7} message="Loading account statement entries..." />
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-500">
+                  <td colSpan={7} className="py-12 text-center text-soft">
                     No ledger entries found for this party.
                   </td>
                 </tr>
               ) : (
-                entries.map((e) => (
-                  <tr key={e._id} className="group hover:bg-zinc-900/40 transition-colors">
-                    <td className="py-2 px-3 font-mono font-semibold text-emerald-400 whitespace-nowrap">
+                (printEntries || entries).map((e) => (
+                  <tr key={e._id} className="group hover:bg-surface/40 transition-colors">
+                    <td className="py-2 px-3 font-mono font-semibold text-brand whitespace-nowrap">
                       {e.referenceNo || '—'}
                     </td>
 
-                    <td className="py-2 px-3 font-mono text-zinc-300 whitespace-nowrap">
+                    <td className="py-2 px-3 font-mono text-ink whitespace-nowrap">
                       {formatDateTime(e.date, true)}
                     </td>
 
-                    <td className="py-2 px-3 text-zinc-300 whitespace-nowrap truncate max-w-xs">
+                    <td className="py-2 px-3 text-ink whitespace-nowrap truncate max-w-xs">
                       {e.description || '—'}
                     </td>
 
-                    <td className="py-2 px-3 text-right font-mono font-medium text-zinc-200 whitespace-nowrap">
+                    <td className="py-2 px-3 text-right font-mono font-medium text-strong whitespace-nowrap">
                       {e.entryType === 'DEBIT' ? formatCurrency(e.amount) : '—'}
                     </td>
 
-                    <td className="py-2 px-3 text-right font-mono font-medium text-emerald-400 whitespace-nowrap">
+                    <td className="py-2 px-3 text-right font-mono font-medium text-brand whitespace-nowrap">
                       {e.entryType === 'CREDIT' ? formatCurrency(e.amount) : '—'}
                     </td>
 
-                    <td className="py-2 px-3 text-right font-mono font-bold text-white whitespace-nowrap">
+                    <td className="py-2 px-3 text-right font-mono font-bold text-strong whitespace-nowrap">
                       {formatCurrency(e.runningBalance)}
                     </td>
 
-                    <td className="py-2 px-3 text-center whitespace-nowrap sticky right-0 bg-zinc-950 group-hover:bg-zinc-900 z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
+                    <td className="py-2 px-3 text-center whitespace-nowrap sticky right-0 bg-canvas group-hover:bg-surface z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
@@ -416,7 +467,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                             setDeletingEntry(null);
                             setFeedback(null);
                           }}
-                          className="p-1 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors"
+                          className="p-1 rounded text-soft hover:text-brand hover:bg-subtle transition-colors"
                           title="Edit ledger entry"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -429,7 +480,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                             setEditingEntry(null);
                             setFeedback(null);
                           }}
-                          className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
+                          className="p-1 rounded text-soft hover:text-danger hover:bg-subtle transition-colors"
                           title="Delete ledger entry"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -443,28 +494,26 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
           </table>
         </div>
 
+        <div className="print:hidden"><PaginationControls page={page} limit={limit} total={data?.total || 0} totalPages={data?.totalPages || 1} onPageChange={setPage} onLimitChange={setLimit} /></div>
         {data && (
-          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 grid grid-cols-3 gap-2 text-xs font-mono">
+          <div className="p-3 rounded-lg bg-canvas border border-line grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
             <div>
-              <div className="text-[10px] text-zinc-500 uppercase">Total Billed / Added (+)</div>
-              <div className="font-bold text-zinc-200 mt-0.5">{formatCurrency(data.totalDebits)}</div>
+              <div className="text-xs text-soft normal-case">Total Billed / Added (+)</div>
+              <div className="font-bold text-strong mt-0.5">{formatCurrency(data.totalDebits)}</div>
             </div>
             <div className="text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Total Paid / Received (-)</div>
-              <div className="font-bold text-emerald-400 mt-0.5">{formatCurrency(data.totalCredits)}</div>
+              <div className="text-xs text-soft normal-case">Total Paid / Received (-)</div>
+              <div className="font-bold text-brand mt-0.5">{formatCurrency(data.totalCredits)}</div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-zinc-500 uppercase">Final Balance</div>
-              <div className="font-bold text-white mt-0.5">{formatCurrency(data.closingBalance)}</div>
+              <div className="text-xs text-soft normal-case">Final Balance</div>
+              <div className="font-bold text-strong mt-0.5">{formatCurrency(data.closingBalance)}</div>
             </div>
           </div>
         )}
+</div>
 
-        <div className="flex items-center justify-end pt-1">
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+
       </div>
     </Dialog>
   );

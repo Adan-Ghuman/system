@@ -104,11 +104,11 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
         <FormFeedback error={error} success={success} />
         <fieldset disabled={isLoading || Boolean(success)} className="min-w-0 space-y-6">
           <FormSection step={1} title="Which batch came back?">
-            <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/40 p-4 text-sm">
-              <p className="font-medium text-zinc-100">{batch.batchNo} · {batch.customMillName || batch.millName.split('_').join(' ')}</p>
-              <p className="text-zinc-400">{batch.fabricType} · {batch.yarnSpec} · {batch.targetColor}</p>
-              <p className="text-zinc-300">Sent: {batch.ecruRollsCount} rolls · {formatWeight(batch.ecruWeightKg)}</p>
-              {batch.ogpNo && <p className="text-xs text-zinc-500">Sending challan: {batch.ogpNo}</p>}
+            <div className="space-y-2 rounded-lg border border-line bg-canvas/40 p-4 text-sm">
+              <p className="font-medium text-strong">{batch.batchNo} · {batch.customMillName || batch.millName.split('_').join(' ')}</p>
+              <p className="text-soft">{batch.fabricType} · {batch.yarnSpec} · {batch.targetColor}</p>
+              <p className="text-ink">Sent: {batch.ecruRollsCount} rolls · {formatWeight(batch.ecruWeightKg)}</p>
+              {batch.ogpNo && <p className="text-xs text-soft">Sending challan: {batch.ogpNo}</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input id="settle-challan" label="Receiving challan number (optional)" value={igpNo} onChange={(e) => setIgpNo(e.target.value)} />
@@ -121,7 +121,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               <Input id="settle-weight" type="number" step="0.01" min="0.01" label="Actual received weight (kg)" value={finishWeightKg} onChange={(e) => setFinishWeightKg(e.target.value)} error={settlementMath.isExceeded ? 'Received weight cannot exceed the sent weight.' : undefined} required />
             </div>
             {Number(finishWeightKg) > 0 && (
-              <div className={`rounded-lg border p-3 text-sm ${settlementMath.isExceeded ? 'border-red-500/30 bg-red-500/10 text-red-300' : settlementMath.isAlert ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-zinc-800 bg-zinc-950/30 text-zinc-300'}`}>
+              <div className={`rounded-lg border p-3 text-sm ${settlementMath.isExceeded ? 'border-red-500/30 bg-red-500/10 text-danger' : settlementMath.isAlert ? 'border-amber-500/30 bg-amber-500/10 text-warning' : 'border-line bg-canvas/30 text-ink'}`}>
                 {settlementMath.isExceeded ? 'Please check the weight before saving.' : <>Weight loss: {formatWeight(settlementMath.lossKg)} ({settlementMath.shrinkagePercent.toFixed(2)}%).{settlementMath.isAlert && ' Above the 5% tolerance; the batch will be flagged.'}</>}
               </div>
             )}

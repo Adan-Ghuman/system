@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns } from '../excelStyles.js';
+import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns, sanitizeSheetName } from '../excelStyles.js';
 
 export interface PartyLedgerReportData {
   party: {
@@ -32,7 +32,7 @@ export function buildPartyLedgerWorkbook(data: PartyLedgerReportData): ExcelJS.W
   wb.creator = 'Rozain Textile ERP';
   wb.created = new Date();
 
-  const sheetName = (data.party.name || 'Ledger').substring(0, 31).replace(/[:\\\/\?\*\[\]]/g, '');
+  const sheetName = sanitizeSheetName(data.party.name, 'Ledger');
   const ws = wb.addWorksheet(sheetName, {
     views: [{ showGridLines: true }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 }

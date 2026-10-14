@@ -1,3 +1,4 @@
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -140,35 +141,44 @@ export function AddEditUnitModal({
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button type="submit" form="add-edit-unit-modal-form" size="sm" disabled={isLoading} className="gap-1.5 min-w-[110px]">
+            <Factory className="w-3.5 h-3.5" />
+            <span>{isLoading ? 'Saving...' : isEditing ? 'Update Unit' : 'Add Unit'}</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? `Edit Unit: ${editingUnit?.name}` : 'Add New Dyeing Unit / Godown'}
-      className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl"
+      className="max-w-md bg-canvas border-line text-strong shadow-2xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+      <form id="add-edit-unit-modal-form" onSubmit={handleSubmit} className="space-y-4 pt-1">
         {error && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-rose-950/50 border border-rose-800/80 text-xs text-rose-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+          <div role="alert" className="flex items-start gap-2.5 p-3 rounded-lg bg-danger-soft border border-line text-xs text-danger">
+            <AlertCircle className="w-4 h-4 shrink-0 text-danger mt-0.5" />
             <div className="leading-relaxed">{error}</div>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800 text-xs text-emerald-300">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+          <div role="status" className="flex items-center gap-2 p-3 rounded-lg bg-brand-soft border border-line text-xs text-brand">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-brand" />
             <div>{success}</div>
           </div>
         )}
 
-        {!isEditing && (
+        <FormSection step={1} title="Unit details">
+{!isEditing && (
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
-              <span>Unit Identifier Code <span className="text-rose-400">*</span></span>
-              <span className="text-[10px] text-zinc-500 font-normal">e.g., SITARA_DYEING</span>
+            <label className="text-xs font-semibold text-ink flex items-center justify-between">
+              <span>Unit Identifier Code <span className="text-danger">*</span></span>
+              <span className="text-xs text-soft font-normal">e.g., SITARA_DYEING</span>
             </label>
             <Input
-              value={code}
+              aria-label="Unit Identifier Code" value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
               placeholder="e.g. NEW_DYEING_MILL"
               required
@@ -178,19 +188,19 @@ export function AddEditUnitModal({
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
-            <span>Full Unit / Location Name <span className="text-rose-400">*</span></span>
-            <span className="text-[10px] text-zinc-500 font-normal">e.g., Ghumman Dyeing Unit</span>
+          <label className="text-xs font-semibold text-ink flex items-center justify-between">
+            <span>Full Unit / Location Name <span className="text-danger">*</span></span>
+            <span className="text-xs text-soft font-normal">e.g., Ghumman Dyeing Unit</span>
           </label>
           <Input
-            value={name}
+            aria-label="Full Unit / Location Name" value={name}
             onChange={(e) => {
               setName(e.target.value);
               if (!isEditing && !shortName) {
                 setShortName(e.target.value);
               }
             }}
-            placeholder="e.g. Ghumman Dyeing Unit"
+            placeholder="e.g. Example Dyeing Mill"
             required
             className="h-9 text-xs font-medium"
             autoFocus
@@ -199,38 +209,40 @@ export function AddEditUnitModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
-              Short Display Label <span className="text-rose-400">*</span>
+            <label className="text-xs font-semibold text-ink">
+              Short Display Label <span className="text-danger">*</span>
             </label>
             <Input
-              value={shortName}
+              aria-label="Short Display Label" value={shortName}
               onChange={(e) => setShortName(e.target.value)}
-              placeholder="e.g. Ghumman Unit"
+              placeholder="e.g. Example Mill"
               required
               className="h-9 text-xs font-medium"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
+            <label className="text-xs font-semibold text-ink">
               Location Type
             </label>
             <Select
-              value={type}
+              aria-label="Location Type" value={type}
               onChange={(e) => setType(e.target.value as DyeingUnitType)}
               options={TYPE_OPTIONS}
               className="h-9 text-xs"
             />
           </div>
         </div>
+</FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={2} title="Contact and status">
+<div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
+            <label className="text-xs font-semibold text-ink">
               Contact Phone (Optional)
             </label>
             <Input
-              value={contactPhone}
+              aria-label="Contact Phone (Optional)" value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="e.g. 0300-1234567"
               className="h-9 text-xs"
@@ -238,11 +250,11 @@ export function AddEditUnitModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
+            <label className="text-xs font-semibold text-ink">
               Display Sort Order
             </label>
             <Input
-              type="number"
+              aria-label="Display Sort Order" type="number"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
               placeholder="0"
@@ -252,11 +264,11 @@ export function AddEditUnitModal({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300">
+          <label className="text-xs font-semibold text-ink">
             Address / Location Description
           </label>
           <Input
-            value={address}
+            aria-label="Address / Location Description" value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="e.g. Small Industrial Estate, Faisalabad"
             className="h-9 text-xs"
@@ -269,22 +281,15 @@ export function AddEditUnitModal({
             id="isActiveUnit"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+            className="rounded border-control bg-surface text-brand focus:ring-emerald-500 w-4 h-4 cursor-pointer"
           />
-          <label htmlFor="isActiveUnit" className="text-xs text-zinc-300 cursor-pointer select-none">
+          <label htmlFor="isActiveUnit" className="text-xs text-ink cursor-pointer select-none">
             Active in production selectors &amp; filters
           </label>
         </div>
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800/80">
-          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button type="submit" size="sm" disabled={isLoading} className="gap-1.5 min-w-[110px]">
-            <Factory className="w-3.5 h-3.5" />
-            <span>{isLoading ? 'Saving...' : isEditing ? 'Update Unit' : 'Add Unit'}</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

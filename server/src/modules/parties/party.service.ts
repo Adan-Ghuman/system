@@ -1,3 +1,4 @@
+import { escapeRegex } from '../../utils/search.js';
 import { Party, IParty } from '../../models/Party.js';
 import { NotFoundError, ConflictError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult, PaginatedResult } from '../../utils/pagination.js';
@@ -76,8 +77,7 @@ export async function getPartyById(id: string): Promise<IParty> {
   return party;
 }
 
-export async function listParties(query: QueryPartiesInput): Promise<PaginatedResult<IParty>> {
-  const { page, limit, skip } = parsePagination(query, 20, 500);
+function partyFilter(query: Partial<QueryPartiesInput>) {
   const filter: Record<string, unknown> = {};
 
   if (query.tag) {
@@ -85,7 +85,7 @@ export async function listParties(query: QueryPartiesInput): Promise<PaginatedRe
   }
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { name: searchRegex },
       { code: searchRegex },
@@ -102,6 +102,12 @@ export async function listParties(query: QueryPartiesInput): Promise<PaginatedRe
     filter.currentBalance = 0;
   }
 
+  return filter;
+}
+
+export async function listParties(query: QueryPartiesInput): Promise<PaginatedResult<IParty>> {
+  const { page, limit, skip } = parsePagination(query, 20, 100);
+  const filter = partyFilter(query);
   let sortCriteria: Record<string, 1 | -1> = { createdAt: -1, _id: -1 };
   if (query.sortBy === 'oldest') {
     sortCriteria = { createdAt: 1, _id: 1 };
@@ -117,11 +123,23 @@ export async function listParties(query: QueryPartiesInput): Promise<PaginatedRe
 
   const [items, total] = await Promise.all([
     Party.find(filter)
-      .sort(sortCriteria)
+      .sort({ ...sortCriteria, _id: sortCriteria._id || 1 })
       .skip(skip)
       .limit(limit),
     Party.countDocuments(filter)
   ]);
 
   return formatPaginatedResult(items, total, page, limit);
+}
+
+export async function getPartySummary(query: Partial<QueryPartiesInput> = {}) {
+  const [summary] = await Party.aggregate([{ $match: partyFilter(query) }, { $group: {
+    _id: null, total: { $sum: 1 },
+    buyers: { $sum: { $cond: ['$tags.isFabricBuyer', 1, 0] } },
+    knitters: { $sum: { $cond: ['$tags.isKnitter', 1, 0] } },
+    mills: { $sum: { $cond: ['$tags.isDyeingMill', 1, 0] } },
+    totalDr: { $sum: { $cond: [{ $gt: ['$currentBalance', 0] }, '$currentBalance', 0] } },
+    totalCr: { $sum: { $cond: [{ $lt: ['$currentBalance', 0] }, { $multiply: ['$currentBalance', -1] }, 0] } }
+  } }]);
+  return { totalDr: summary?.totalDr || 0, totalCr: summary?.totalCr || 0, total: summary?.total || 0, buyers: summary?.buyers || 0, knitters: summary?.knitters || 0, mills: summary?.mills || 0 };
 }

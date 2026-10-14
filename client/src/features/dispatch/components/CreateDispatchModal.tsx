@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -52,12 +54,9 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
   const [success, setSuccess] = useState<string | null>(null);
 
   const { data: buyersData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', 'isFabricBuyer'],
+    queryKey: ['party-options', 'isFabricBuyer'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: 'isFabricBuyer', limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: 'isFabricBuyer' });
     },
     enabled: isOpen
   });
@@ -67,10 +66,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
   const { data: stockData } = useQuery<{ items: FabricInventoryItem[] }>({
     queryKey: ['inventory-items-for-dispatch', fromLocation],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: FabricInventoryItem[] } }>('/inventory/items', {
-        params: { location: fromLocation, state: 'FINISHED_DYED', limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, state: 'FINISHED_DYED' });
     },
     enabled: isOpen
   });
@@ -156,30 +152,39 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="create-dispatch-modal-form" isLoading={isLoading} className="gap-1.5">
+            <Truck className="w-4 h-4" />
+            <span>Save Delivery & Generate Bill</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Create Delivery Gate Pass & Invoice"
       description="Send fabric rolls to a customer, make an Outward Gate Pass (OGP), and generate their bill."
       className="max-w-2xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 relative">
+      <form id="create-dispatch-modal-form" onSubmit={handleSubmit} className="space-y-4 relative">
         <LoadingOverlay isLoading={isLoading} message="Creating gate pass & posting invoice..." />
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={1} title="Customer and fabric">
+<div className="grid grid-cols-2 gap-3">
           <PartyCombobox
             id="dispatchCustomer"
             label="Customer (Buyer)"
@@ -216,8 +221,10 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
                 }))
           }
         />
+</FormSection>
 
-        <RapidGridEntry rolls={rolls} onChange={setRolls} />
+        <FormSection step={2} title="Rolls and billing">
+<RapidGridEntry rolls={rolls} onChange={setRolls} />
 
         <div className="grid grid-cols-3 gap-3">
           <Input
@@ -232,15 +239,15 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           />
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-zinc-300">Invoice Type</label>
-            <div className="flex items-center gap-1 p-0.5 rounded-md bg-zinc-950 border border-zinc-800">
+            <label className="text-xs font-semibold text-ink">Invoice Type</label>
+            <div className="flex items-center gap-1 p-0.5 rounded-md bg-canvas border border-line">
               <button
                 type="button"
                 onClick={() => setInvoiceType('TAX_18_PERCENT')}
-                className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${
+                className={`flex-1 py-1 text-xs font-semibold rounded transition-colors ${
                   invoiceType === 'TAX_18_PERCENT'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-primary text-white'
+                    : 'text-soft hover:text-strong'
                 }`}
               >
                 18% GST Tax
@@ -248,10 +255,10 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
               <button
                 type="button"
                 onClick={() => setInvoiceType('NON_GST')}
-                className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${
+                className={`flex-1 py-1 text-xs font-semibold rounded transition-colors ${
                   invoiceType === 'NON_GST'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-primary text-white'
+                    : 'text-soft hover:text-strong'
                 }`}
               >
                 Non-GST
@@ -269,48 +276,50 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           />
         </div>
 
-        <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-zinc-200">
+        <div className="p-3.5 rounded-lg bg-canvas border border-line space-y-2">
+          <div className="flex items-center justify-between text-xs font-semibold text-strong">
             <span className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-emerald-400" />
+              <FileText className="w-3.5 h-3.5 text-brand" />
               Calculated Bill & Tax Amount
             </span>
-            <span className="text-[11px] font-mono text-zinc-400">
+            <span className="text-xs font-mono text-soft">
               {invoiceType === 'TAX_18_PERCENT' ? 'Standard Sales Tax (18%)' : 'Non-GST Bill (0%)'}
             </span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 pt-1">
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Goods Value (Before Tax)</div>
-              <div className="text-sm font-bold font-mono text-zinc-100 mt-0.5">
+            <div className="p-2 rounded bg-surface border border-line text-center">
+              <div className="text-xs text-soft normal-case">Goods Value (Before Tax)</div>
+              <div className="text-sm font-bold font-mono text-strong mt-0.5">
                 {formatCurrency(financials.baseAmount)}
               </div>
             </div>
 
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">18% Sales Tax (GST)</div>
-              <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">
+            <div className="p-2 rounded bg-surface border border-line text-center">
+              <div className="text-xs text-soft normal-case">18% Sales Tax (GST)</div>
+              <div className="text-sm font-bold font-mono text-warning mt-0.5">
                 {formatCurrency(financials.taxAmount)}
               </div>
             </div>
 
-            <div className="p-2 rounded bg-zinc-900 border border-zinc-800 text-center">
-              <div className="text-[10px] text-zinc-500 uppercase">Total Bill (Customer Owed)</div>
-              <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
+            <div className="p-2 rounded bg-surface border border-line text-center">
+              <div className="text-xs text-soft normal-case">Total Bill (Customer Owed)</div>
+              <div className="text-sm font-bold font-mono text-brand mt-0.5">
                 {formatCurrency(financials.grandTotal)}
               </div>
             </div>
           </div>
         </div>
+</FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={3} title="Delivery details">
+<div className="grid grid-cols-2 gap-3">
           <Input
             id="driverName"
             label="Driver / Loader Name"
             value={driverName}
             onChange={(e) => setDriverName(e.target.value)}
-            placeholder="e.g. Shafiq"
+            placeholder="e.g. Alex Smith"
           />
 
           <Input
@@ -327,18 +336,11 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           label="Delivery & Transport Notes"
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
-          placeholder="e.g. Goods delivered at buyer warehouse in Kotli Behram"
+          placeholder="e.g. Deliver to the main warehouse"
         />
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <Truck className="w-4 h-4" />
-            <span>Save Delivery & Generate Bill</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

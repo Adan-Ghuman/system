@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns } from '../excelStyles.js';
+import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns, sanitizeSheetName } from '../excelStyles.js';
 
 export interface KnittingReportItem {
   date: Date;
@@ -70,7 +70,7 @@ export function buildKnittingYarnWorkbook(data: KnittingReportData): ExcelJS.Wor
   usedSheetNames.add('main sheet');
 
   function getUniqueSheetName(baseName: string): string {
-    let clean = baseName.trim().replace(/[:\\\/\?\*\[\]]/g, '-').replace(/\s+/g, ' ');
+    let clean = sanitizeSheetName(baseName, 'Knitter', 25);
     if (clean.length > 25) {
       clean = clean.substring(0, 25).trim();
     }

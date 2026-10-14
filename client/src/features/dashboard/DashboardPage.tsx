@@ -1,46 +1,17 @@
+import { QueryError } from '../../components/ui/QueryError.js';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api.js';
 import { useAuthStore } from '../auth/stores/useAuthStore.js';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card.js';
-import { Badge } from '../../components/ui/Badge.js';
 import { Button } from '../../components/ui/Button.js';
-import {
-  Users,
-  Layers,
-  Palette,
-  Boxes,
-  Truck,
-  FileSpreadsheet,
-  ArrowRight,
-  RefreshCw,
-  TrendingUp,
-  Activity,
-  Warehouse,
-  Scale,
-  Building2,
-  ShieldCheck,
-  PackageCheck
-} from 'lucide-react';
+import { PageHeader } from '../../components/ui/PageHeader.js';
+import { formatCurrency, formatWeight } from '../../lib/formatters.js';
+import { Users, Layers, Palette, Boxes, Truck, FileSpreadsheet, RefreshCw, Plus, Wallet, ArrowUpRight } from 'lucide-react';
 import { InventorySummaryGroup } from '../inventory/types/inventory.types.js';
 
-interface PartySummary {
-  _id: string;
-  tags: {
-    isFabricBuyer: boolean;
-    isKnitter: boolean;
-    isDyeingMill: boolean;
-    isYarnClient: boolean;
-  };
-  currentBalance: number;
-}
-
-interface DyeingBatchSummary {
-  _id: string;
-  millName: 'GHUMMAN_DYEING' | 'RAJPUT_DYEING';
-  status: 'ISSUED' | 'IN_PROCESS' | 'COMPLETED';
-  shortagePercent?: number;
-}
+interface PartySummary { total: number; buyers: number; knitters: number; mills: number; }
+interface DyeingSummary { activeStats: { _id: string; count: number }[]; completedStats: { _id: string; count: number }[]; }
 
 interface AccountsStats {
   totalReceivables: number;
@@ -54,17 +25,15 @@ interface AccountsStats {
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
 
-  const { data: partiesData, refetch: refetchParties, isFetching: isFetchingParties } = useQuery<{ items: PartySummary[]; total: number }>({
+  const { isError: hasQueryError1,  data: partiesData, refetch: refetchParties, isFetching: isFetchingParties } = useQuery<PartySummary>({
     queryKey: ['dashboard-parties'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartySummary[]; total: number } }>('/parties', {
-        params: { limit: 200 }
-      });
+      const res = await api.get<{ success: boolean; data: PartySummary }>('/parties/summary');
       return res.data.data;
     }
   });
 
-  const { data: inventorySummaryData, refetch: refetchInventory } = useQuery<InventorySummaryGroup[]>({
+  const { isError: hasQueryError2,  data: inventorySummaryData, refetch: refetchInventory } = useQuery<InventorySummaryGroup[]>({
     queryKey: ['dashboard-inventory-summary'],
     queryFn: async () => {
       const res = await api.get<{ success: boolean; data: InventorySummaryGroup[] }>('/inventory/summary');
@@ -72,17 +41,15 @@ export function DashboardPage() {
     }
   });
 
-  const { data: batchesData, refetch: refetchBatches } = useQuery<{ items: DyeingBatchSummary[]; total: number }>({
+  const { isError: hasQueryError3,  data: batchesData, refetch: refetchBatches } = useQuery<DyeingSummary>({
     queryKey: ['dashboard-batches'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: DyeingBatchSummary[]; total: number } }>('/dyeing/batches', {
-        params: { limit: 200 }
-      });
+      const res = await api.get<{ success: boolean; data: DyeingSummary }>('/dyeing/metrics');
       return res.data.data;
     }
   });
 
-  const { data: accountsStats, refetch: refetchAccounts } = useQuery<AccountsStats>({
+  const { isError: hasQueryError4,  data: accountsStats, refetch: refetchAccounts } = useQuery<AccountsStats>({
     queryKey: ['dashboard-accounts'],
     queryFn: async () => {
       const res = await api.get<{ success: boolean; data: AccountsStats }>('/accounts/metrics');
@@ -97,14 +64,12 @@ export function DashboardPage() {
     refetchAccounts();
   }
 
-  const parties = partiesData?.items || [];
   const inventorySummary = inventorySummaryData || [];
-  const batches = batchesData?.items || [];
 
-  const buyersCount = parties.filter((p) => p?.tags?.isFabricBuyer).length;
-  const knittersCount = parties.filter((p) => p?.tags?.isKnitter).length;
-  const millsCount = parties.filter((p) => p?.tags?.isDyeingMill).length;
-  const totalParties = partiesData?.total || parties.length;
+  const buyersCount = partiesData?.buyers || 0;
+  const knittersCount = partiesData?.knitters || 0;
+  const millsCount = partiesData?.mills || 0;
+  const totalParties = partiesData?.total || 0;
 
   const totalRolls = inventorySummary.reduce((sum, g) => sum + (g.totalRolls || 0), 0);
   const totalWeightKg = inventorySummary.reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
@@ -130,27 +95,27 @@ export function DashboardPage() {
     .filter((g) => g._id.location === 'RAJPUT_DYEING')
     .reduce((sum, g) => sum + (g.totalWeightKg || 0), 0);
 
-  const activeGhummanBatches = batches.filter((b) => b.millName === 'GHUMMAN_DYEING' && b.status !== 'COMPLETED').length;
-  const activeRajputBatches = batches.filter((b) => b.millName === 'RAJPUT_DYEING' && b.status !== 'COMPLETED').length;
-  const totalBatches = batchesData?.total || batches.length;
+  const activeGhummanBatches = batchesData?.activeStats.find(group => group._id === 'GHUMMAN_DYEING')?.count || 0;
+  const activeRajputBatches = batchesData?.activeStats.find(group => group._id === 'RAJPUT_DYEING')?.count || 0;
+  const totalBatches = [...(batchesData?.activeStats || []), ...(batchesData?.completedStats || [])].reduce((sum, group) => sum + group.count, 0);
 
   const modules = [
     {
-      title: 'Parties & Contacts',
+      title: 'Parties',
       description: 'Manage Yarn Clients, Knitters, Fabric Buyers & Dyeing Units and view their balances.',
       to: '/parties',
       icon: Users,
-      badge: `${totalParties} Total Contacts`
+      badge: `${totalParties} Total Parties`
     },
     {
-      title: 'Knitting & Yarn',
+      title: 'Knitting',
       description: 'Send yarn to knitters, receive fabric rolls, and track 1% wastage.',
       to: '/knitting',
       icon: Layers,
       badge: `${knittersCount} Contract Knitters`
     },
     {
-      title: 'Dyeing Batches',
+      title: 'Dyeing',
       description: 'Track fabric sent to Ghumman & Rajput units, target colors, and weight loss.',
       to: '/dyeing',
       icon: Palette,
@@ -164,14 +129,14 @@ export function DashboardPage() {
       badge: `${totalRolls} Rolls (${Math.round(totalWeightKg).toLocaleString()} Kg)`
     },
     {
-      title: 'Deliveries & Bills',
+      title: 'Deliveries & invoices',
       description: 'Create delivery gate passes (OGP), deduct stock, and print bills or 18% GST tax invoices.',
       to: '/dispatch',
       icon: Truck,
       badge: 'Delivery & Invoicing'
     },
     {
-      title: 'Payments & Ledgers',
+      title: 'Accounts & ledgers',
       description: 'Record money received or paid, track who owes money, and view party account statements.',
       to: '/accounts',
       icon: FileSpreadsheet,
@@ -179,312 +144,63 @@ export function DashboardPage() {
     }
   ];
 
+  const stockLocations = [
+    { label: 'ZR godown', rolls: zrGodownRolls, weight: zrGodownKg },
+    { label: 'Ghumman Dyeing', rolls: ghummanRolls, weight: ghummanKg },
+    { label: 'Rajput Dyeing', rolls: rajputRolls, weight: rajputKg }
+  ];
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-white">Operations Dashboard</h1>
-            <Badge variant="success" className="gap-1 py-0.5 px-2 text-[10px]">
-              <ShieldCheck className="w-3 h-3" />
-              System Online
-            </Badge>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Operator: <span className="text-zinc-200 font-semibold">{user?.fullName}</span> | Rozain Textile Management System
-          </p>
-        </div>
+    <div className="space-y-7">
+      <PageHeader title="Overview" description={<>Welcome back, {user?.fullName?.split(' ')[0] || 'operator'}. Here is your workspace at a glance.</>}>
+        <Button variant="outline" size="sm" preventDoubleClick onClick={handleRefreshAll} isLoading={isFetchingParties}><RefreshCw className="h-4 w-4" />Refresh</Button>
+        <Link to="/dispatch" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-emerald-800"><Plus className="h-4 w-4" />New delivery</Link>
+      </PageHeader>
+      {(hasQueryError1 || hasQueryError2 || hasQueryError3 || hasQueryError4) && <QueryError onRetry={() => { refetchParties(); refetchInventory(); refetchBatches(); refetchAccounts(); }} />}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleRefreshAll} isLoading={isFetchingParties}>
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
-          </Button>
-          <Link to="/dyeing">
-            <Button size="sm" variant="outline" className="border-emerald-600/80 text-emerald-400 hover:bg-emerald-950/40 font-semibold gap-1.5">
-              <PackageCheck className="w-3.5 h-3.5" />
-              <span>Receive Dyeing (Challan)</span>
-            </Button>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Parties', value: totalParties.toLocaleString(), detail: `${buyersCount} buyers · ${knittersCount} knitters · ${millsCount} mills`, to: '/parties', icon: Users },
+          { label: 'Fabric in stock', value: totalRolls.toLocaleString() + ' rolls', detail: Math.round(totalWeightKg).toLocaleString() + ' kg across locations', to: '/inventory', icon: Boxes },
+          { label: 'Dyeing batches', value: String(activeGhummanBatches + activeRajputBatches) + ' active', detail: `${totalBatches} batches recorded`, to: '/dyeing', icon: Palette },
+          { label: 'Receivables', value: formatCurrency(accountsStats?.totalReceivables || 0), detail: 'Outstanding customer balances', to: '/accounts', icon: Wallet }
+        ].map(({ label, value, detail, to, icon: Icon }) => (
+          <Link key={label} to={to} className="group rounded-xl border border-line bg-surface p-5 transition-colors hover:border-control">
+            <div className="flex items-center justify-between text-soft"><span className="text-xs font-medium">{label}</span><Icon className="h-4 w-4" /></div>
+            <p className="mt-4 text-2xl font-semibold tracking-tight text-strong tabular-nums">{value}</p>
+            <p className="mt-2 text-xs leading-relaxed text-soft">{detail}</p>
           </Link>
-          <Link to="/knitting">
-            <Button size="sm" variant="outline" className="border-emerald-600/80 text-emerald-400 hover:bg-emerald-950/40 font-semibold gap-1.5">
-              <Layers className="w-3.5 h-3.5" />
-              <span>Receive Knitted (Challan)</span>
-            </Button>
-          </Link>
-          <Link to="/dispatch">
-            <Button size="sm">
-              <Truck className="w-3.5 h-3.5" />
-              <span>New Delivery (Gate Pass)</span>
-            </Button>
-          </Link>
+        ))}
+      </div>
+      <section className="space-y-3">
+        <div><h2 className="text-base font-semibold text-strong">Continue your work</h2><p className="mt-1 text-sm text-soft">Choose an area to send, receive, record or review.</p></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {modules.map(({ title, description, to, icon: Icon, badge }) => (
+            <Link key={to} to={to} className="group flex gap-4 rounded-xl border border-line bg-surface p-5 hover:border-brand/40">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-subtle text-brand"><Icon className="h-5 w-5" /></span>
+              <div className="min-w-0 flex-1"><h3 className="text-sm font-semibold text-strong">{title}</h3><p className="mt-1.5 text-xs leading-relaxed text-soft">{description}</p><p className="mt-3 text-xs text-brand">{badge}</p></div>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-soft group-hover:text-brand" />
+            </Link>
+          ))}
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Customers & Suppliers</span>
-              <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-white">{totalParties}</span>
-              <span className="text-xs text-zinc-400">registered</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span>{buyersCount} Buyers</span>
-              <span>•</span>
-              <span>{knittersCount} Knitters</span>
-              <span>•</span>
-              <span>{millsCount} Units</span>
-            </div>
+      </section>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Stock by location</CardTitle><Link to="/inventory" className="text-xs font-medium text-brand">View all stock <span aria-hidden="true">→</span></Link></div><CardDescription>Raw and finished fabric held in your warehouses.</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            {stockLocations.map((item) => <div key={item.label} className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3 last:border-0 last:pb-0"><p className="text-sm text-ink">{item.label}</p><p className="text-xs text-soft"><strong className="font-medium text-strong">{item.rolls} rolls</strong> · {formatWeight(item.weight)}</p></div>)}
           </CardContent>
         </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Total Fabric Stock</span>
-              <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <Warehouse className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-white">{totalRolls}</span>
-              <span className="text-xs text-zinc-400">rolls total</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span className="text-emerald-400 font-medium">{Math.round(totalWeightKg).toLocaleString()} Kg</span>
-              <span>Across 3 Locations</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Dyeing Operations</span>
-              <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <Palette className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-white">{activeGhummanBatches + activeRajputBatches}</span>
-              <span className="text-xs text-zinc-400">active batches</span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span>Ghumman: {activeGhummanBatches}</span>
-              <span>•</span>
-              <span>Rajput: {activeRajputBatches}</span>
-              <span>•</span>
-              <span>{totalBatches} Total</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Money We Have To Take</span>
-              <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-emerald-400">
-                Rs. {Math.round(accountsStats?.totalReceivables || 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-400 pt-2 border-t border-zinc-800/80">
-              <span>Received: Rs. {Math.round(accountsStats?.monthlyReceipts || 0).toLocaleString()}</span>
-              <span>We Owe: Rs. {Math.round(accountsStats?.totalPayables || 0).toLocaleString()}</span>
-            </div>
+        <Card>
+          <CardHeader><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle>Production & accounts</CardTitle><Link to="/accounts" className="text-xs font-medium text-brand">View accounts <span aria-hidden="true">→</span></Link></div><CardDescription>Quick references for work in progress and money movement.</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-soft">Ghumman / Rajput batches</span><Link to="/dyeing" className="text-ink">{activeGhummanBatches} / {activeRajputBatches} active</Link></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-soft">Contract knitting</span><Link to="/knitting" className="text-brand">{knittersCount} knitters · 1% standard wastage</Link></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-sm"><span className="text-soft">Receipts this month</span><strong className="font-medium text-strong">{formatCurrency(accountsStats?.monthlyReceipts || 0)}</strong></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-soft">Payables</span><strong className="font-medium text-strong">{formatCurrency(accountsStats?.totalPayables || 0)}</strong></div>
           </CardContent>
         </Card>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardHeader className="pb-3 border-b border-zinc-800">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Warehouse className="w-4 h-4 text-emerald-400" />
-                  Inventory Holding by Location
-                </CardTitle>
-                <CardDescription className="text-xs">Live physical stock across ZR Godown and partner units</CardDescription>
-              </div>
-              <Link to="/inventory">
-                <Button variant="ghost" size="sm" className="text-xs text-emerald-400 hover:text-emerald-300">
-                  Manage Inventory &rarr;
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-200">ZR Godown (Central Warehouse)</span>
-                <span className="text-zinc-400">{zrGodownRolls} rolls • {Math.round(zrGodownKg).toLocaleString()} Kg</span>
-              </div>
-              <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-2 rounded-full transition-all"
-                  style={{ width: `${totalWeightKg > 0 ? (zrGodownKg / totalWeightKg) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-200">Ghumman Dyeing Unit</span>
-                <span className="text-zinc-400">{ghummanRolls} rolls • {Math.round(ghummanKg).toLocaleString()} Kg</span>
-              </div>
-              <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-600 h-2 rounded-full transition-all"
-                  style={{ width: `${totalWeightKg > 0 ? (ghummanKg / totalWeightKg) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-zinc-200">Rajput Dyeing Unit</span>
-                <span className="text-zinc-400">{rajputRolls} rolls • {Math.round(rajputKg).toLocaleString()} Kg</span>
-              </div>
-              <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-emerald-700 h-2 rounded-full transition-all"
-                  style={{ width: `${totalWeightKg > 0 ? (rajputKg / totalWeightKg) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="pt-2 flex items-center justify-between text-xs text-zinc-400 border-t border-zinc-800">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Raw Ecru Available
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-700" />
-                Finished Dyed Stock
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xs">
-          <CardHeader className="pb-3 border-b border-zinc-800">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-400" />
-                  Dyeing Processing & Contract Knitting
-                </CardTitle>
-                <CardDescription className="text-xs">Job-work status and shrinkage loss monitoring</CardDescription>
-              </div>
-              <Link to="/dyeing">
-                <Button variant="ghost" size="sm" className="text-xs text-emerald-400 hover:text-emerald-300">
-                  View Batches &rarr;
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3">
-            <div className="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-200">Ghumman Dyeing Unit</div>
-                  <div className="text-[11px] text-zinc-400">Daska Road • Primary Processing Unit</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <Badge variant={activeGhummanBatches > 0 ? 'default' : 'secondary'} className="text-[10px]">
-                  {activeGhummanBatches} Active In-Process
-                </Badge>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-200">Rajput Dyeing Unit</div>
-                  <div className="text-[11px] text-zinc-400">Kashmir Road • Secondary Processing Unit</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <Badge variant={activeRajputBatches > 0 ? 'default' : 'secondary'} className="text-[10px]">
-                  {activeRajputBatches} Active In-Process
-                </Badge>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-zinc-950/60 border border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                  <Scale className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-zinc-200">Contract Knitting 1% Engine</div>
-                  <div className="text-[11px] text-zinc-400">{knittersCount} Registered Knitters with auto-wastage</div>
-                </div>
-              </div>
-              <Link to="/knitting">
-                <Badge variant="success" className="text-[10px]">
-                  Active Math Engine
-                </Badge>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-zinc-100">Operational Consoles</h2>
-            <p className="text-xs text-zinc-400">Direct shortcuts into the 6 specialized production modules</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {modules.map((m) => {
-            const Icon = m.icon;
-            return (
-              <Card key={m.title} className="hover:border-zinc-700 bg-zinc-900/80 transition-colors group">
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div className="p-2 rounded-md bg-zinc-800 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">{m.badge}</Badge>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <CardTitle className="text-sm text-zinc-100">{m.title}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2 text-zinc-400">{m.description}</CardDescription>
-                  <div className="pt-2">
-                    <Link to={m.to}>
-                      <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-zinc-300 hover:text-emerald-300">
-                        <span>Launch Console</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-emerald-400 transition-colors" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+      <div className="flex flex-wrap gap-4 border-t border-line pt-4 text-xs text-soft"><Link to="/dyeing" className="hover:text-brand">Receive dyed fabric →</Link><Link to="/knitting" className="hover:text-brand">Receive knitted fabric →</Link></div>
     </div>
   );
 }

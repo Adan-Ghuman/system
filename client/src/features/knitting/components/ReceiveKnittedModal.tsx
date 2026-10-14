@@ -1,3 +1,4 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -95,12 +96,9 @@ export function ReceiveKnittedModal({
 
   // Fetch all Knitters
   const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', 'isKnitter'],
+    queryKey: ['party-options', 'isKnitter'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: 'isKnitter', limit: 150 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: 'isKnitter' });
     },
     enabled: isOpen
   });
@@ -262,7 +260,7 @@ export function ReceiveKnittedModal({
     <Dialog isOpen={isOpen} onClose={() => { if (!isLoading) onClose(); }} title="Receive fabric from a knitter"
       description="Enter the actual rolls and weight on the knitter's delivery slip." className="max-w-2xl"
       footer={<FormFooter formId="knitted-receipt-form" onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)}
-        submitLabel="Save fabric receipt" summary={<><strong className="text-zinc-200">{totals.totalRolls} rolls</strong> · {totals.totalWeightKg.toFixed(2)} kg</>} />}>
+        submitLabel="Save fabric receipt" summary={<><strong className="text-strong">{totals.totalRolls} rolls</strong> · {totals.totalWeightKg.toFixed(2)} kg</>} />}>
       <form id="knitted-receipt-form" onSubmit={handleSubmit}>
         <fieldset disabled={isLoading || Boolean(success)} className="space-y-6">
           <FormFeedback error={error} success={success} />
@@ -270,11 +268,11 @@ export function ReceiveKnittedModal({
             <PartyCombobox id="knitted-party" label="Knitter" value={partyId} parties={knitters} required
               placeholder="Choose or type the knitter name"
               onChange={(value, selected) => { setPartyId(value); setPartyName(selected?.name || value); }} />
-            {preselectedBalance && <p className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-3 text-xs text-zinc-300">
-              Yarn at this knitter: <strong className="text-emerald-400">{preselectedBalance.remainingYarnKg.toFixed(2)} kg</strong> of {preselectedBalance.yarnSpec}.
+            {preselectedBalance && <p className="rounded-lg border border-line bg-brand-soft p-3 text-xs text-ink">
+              Yarn at this knitter: <strong className="text-brand">{preselectedBalance.remainingYarnKg.toFixed(2)} kg</strong> of {preselectedBalance.yarnSpec}.
             </p>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="knitted-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="Number on the delivery slip" required />
+              <Input id="knitted-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
               <Input id="knitted-date" label="Received date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
@@ -292,7 +290,7 @@ export function ReceiveKnittedModal({
                   <Input id={'knitted-rolls-' + row.id} label="Rolls received" type="number" min="1" step="1" value={row.rollsCount} required
                     onChange={(e) => handleRowChange(row.id, 'rollsCount', e.target.value)} placeholder="e.g. 10" />
                   <Input id={'knitted-weight-' + row.id} label="Weight received (kg)" type="number" min="0.01" step="0.01" value={row.weightKg} required
-                    onChange={(e) => handleRowChange(row.id, 'weightKg', e.target.value)} placeholder="Actual net weight" />
+                    onChange={(e) => handleRowChange(row.id, 'weightKg', e.target.value)} placeholder="e.g. 25.50" />
                 </div>
                 <OptionalDetails title="Item note (optional)">
                   <Input id={'knitted-note-' + row.id} label="Note for this fabric" value={row.remarks} onChange={(e) => handleRowChange(row.id, 'remarks', e.target.value)} />
@@ -300,7 +298,7 @@ export function ReceiveKnittedModal({
               </EntryCard>
             ))}
             <Button type="button" variant="outline" onClick={handleAddRow}><Plus className="h-4 w-4" /> Add another fabric</Button>
-            <p className="text-xs text-zinc-400">Received fabric is recorded as raw fabric in ZR godown.</p>
+            <p className="text-xs text-soft">Received fabric is recorded as raw fabric in ZR godown.</p>
           </FormSection>
           <OptionalDetails title="Driver and delivery note (optional)">
             <Input id="knitted-driver" label="Driver / vehicle" value={driverName} onChange={(e) => setDriverName(e.target.value)} />

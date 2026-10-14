@@ -194,8 +194,8 @@ export function buildGatePassRegisterWorkbook(data: GatePassRegisterData): Excel
       null,
       null,
       'TOTAL',
-      { formula: `SUM(G${startRow}:G${currentRow})`, result: totalRolls },
-      { formula: `SUM(H${startRow}:H${currentRow})`, result: totalFinish },
+      data.rows.length ? { formula: `SUM(G${startRow}:G${currentRow})`, result: totalRolls } : 0,
+      data.rows.length ? { formula: `SUM(H${startRow}:H${currentRow})`, result: totalFinish } : 0,
       'Kgs',
       null
     ];
@@ -208,9 +208,9 @@ export function buildGatePassRegisterWorkbook(data: GatePassRegisterData): Excel
       null,
       null,
       'TOTAL',
-      { formula: `SUM(H${startRow}:H${currentRow})`, result: totalRolls },
-      { formula: `SUM(I${startRow}:I${currentRow})`, result: totalEcru },
-      { formula: `SUM(J${startRow}:J${currentRow})`, result: totalFinish },
+      data.rows.length ? { formula: `SUM(H${startRow}:H${currentRow})`, result: totalRolls } : 0,
+      data.rows.length ? { formula: `SUM(I${startRow}:I${currentRow})`, result: totalEcru } : 0,
+      data.rows.length ? { formula: `SUM(J${startRow}:J${currentRow})`, result: totalFinish } : 0,
       'Kgs',
       null
     ];

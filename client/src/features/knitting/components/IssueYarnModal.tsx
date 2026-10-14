@@ -1,3 +1,4 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -96,12 +97,9 @@ export function IssueYarnModal({
 
   // Fetch relevant parties (Knitters or Yarn Suppliers/Clients)
   const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', targetTag],
+    queryKey: ['party-options', targetTag],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: targetTag, limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: targetTag });
     },
     enabled: isOpen
   });
@@ -270,7 +268,7 @@ export function IssueYarnModal({
       footer={
         <FormFooter formId="yarn-entry-form" onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)}
           submitLabel={isReceive ? 'Save yarn receipt' : 'Save yarn delivery'}
-          summary={<><strong className="text-zinc-200">{summary.totalBoxes} boxes</strong> · {formatWeight(summary.totalGrossKg)}</>} />
+          summary={<><strong className="text-strong">{summary.totalBoxes} boxes</strong> · {formatWeight(summary.totalGrossKg)}</>} />
       }
     >
       <form id="yarn-entry-form" onSubmit={handleSubmit}>
@@ -281,7 +279,7 @@ export function IssueYarnModal({
               placeholder={isReceive ? 'Choose or type the supplier name' : 'Choose or type the knitter name'}
               onChange={setPartyId} required />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="yarn-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="Number on the delivery slip" required />
+              <Input id="yarn-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
               <Input id="yarn-date" type="date" label="Delivery date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
@@ -300,14 +298,14 @@ export function IssueYarnModal({
                   <Input id={'yarn-weight-' + item.id} label="Weight per box (kg)" type="number" min="0.01" step="0.01" value={item.netWeightPerBox}
                     onChange={(e) => handleItemChange(item.id, 'netWeightPerBox', e.target.value)} placeholder="e.g. 33.33" required />
                 </div>
-                <p className="text-right text-xs text-zinc-400">Item total: <strong className="font-mono text-emerald-400">{formatWeight((parseInt(item.boxCount, 10) || 0) * (parseFloat(item.netWeightPerBox) || 0))}</strong></p>
+                <p className="text-right text-xs text-soft">Item total: <strong className="font-mono text-brand">{formatWeight((parseInt(item.boxCount, 10) || 0) * (parseFloat(item.netWeightPerBox) || 0))}</strong></p>
                 <OptionalDetails title="Item note (optional)">
                   <Input id={'yarn-note-' + item.id} label="Note for this yarn" value={item.remarks || ''} onChange={(e) => handleItemChange(item.id, 'remarks', e.target.value)} />
                 </OptionalDetails>
               </EntryCard>
             ))}
             <Button type="button" variant="outline" onClick={handleAddItem}><Plus className="h-4 w-4" /> Add another yarn count</Button>
-            {!isReceive && <p className="text-xs leading-relaxed text-zinc-400">The standard 1% yarn wastage is calculated automatically.</p>}
+            {!isReceive && <p className="text-xs leading-relaxed text-soft">The standard 1% yarn wastage is calculated automatically.</p>}
           </FormSection>
           <OptionalDetails title="Driver, vehicle or delivery note (optional)">
             <Input id="yarn-remarks" label="Delivery note" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Driver, vehicle, bilty or other details" />

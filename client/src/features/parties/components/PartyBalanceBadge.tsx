@@ -11,9 +11,9 @@ export function PartyBalanceBadge({ balance, className, showSubtext = false }: P
   const { text, type, formatted } = formatBalance(balance);
 
   const styleMap = {
-    Dr: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-    Cr: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    Nil: 'bg-zinc-800/40 text-zinc-400 border-zinc-700/50'
+    Dr: 'bg-emerald-500/10 text-brand border-emerald-500/30',
+    Cr: 'bg-amber-500/10 text-warning border-amber-500/30',
+    Nil: 'bg-subtle/40 text-soft border-control/50'
   };
 
   const labelMap = {
@@ -33,7 +33,7 @@ export function PartyBalanceBadge({ balance, className, showSubtext = false }: P
         {text}
       </span>
       {showSubtext && (
-        <span className="text-[10px] text-zinc-500 font-medium mt-0.5">
+        <span className="text-xs text-soft font-medium mt-0.5">
           {labelMap[type]} ({formatted})
         </span>
       )}

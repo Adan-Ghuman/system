@@ -1,3 +1,4 @@
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -128,34 +129,43 @@ export function AddEditYarnSpecModal({
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button type="submit" form="add-edit-yarn-spec-modal-form" size="sm" disabled={isLoading} className="gap-1.5 min-w-[100px]">
+            <Layers className="w-3.5 h-3.5" />
+            <span>{isLoading ? 'Saving...' : isEditing ? 'Update Spec' : 'Add Specification'}</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? `Edit Specification: ${editingSpec?.name}` : 'Add New Yarn Specification'}
-      className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl"
+      className="max-w-md bg-canvas border-line text-strong shadow-2xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      <form id="add-edit-yarn-spec-modal-form" onSubmit={handleSubmit} className="space-y-4 pt-2">
         {error && (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-rose-950/50 border border-rose-800/80 text-xs text-rose-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+          <div role="alert" className="flex items-start gap-2.5 p-3 rounded-lg bg-danger-soft border border-line text-xs text-danger">
+            <AlertCircle className="w-4 h-4 shrink-0 text-danger mt-0.5" />
             <div className="leading-relaxed">{error}</div>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800 text-xs text-emerald-300">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+          <div role="status" className="flex items-center gap-2 p-3 rounded-lg bg-brand-soft border border-line text-xs text-brand">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-brand" />
             <div>{success}</div>
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
-            <span>Specification Name <span className="text-rose-400">*</span></span>
-            <span className="text-[10px] text-zinc-500 font-normal">e.g., 75/72 Sim, 150/48 Rotto, 30/1 Cotton</span>
+        <FormSection step={1} title="Specification">
+<div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink flex items-center justify-between">
+            <span>Specification Name <span className="text-danger">*</span></span>
+            <span className="text-xs text-soft font-normal">e.g., 75/72 Sim, 150/48 Rotto, 30/1 Cotton</span>
           </label>
           <Input
-            value={name}
+            aria-label="Specification Name" value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. 100/144 Micro"
             required
@@ -166,11 +176,11 @@ export function AddEditYarnSpecModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
+            <label className="text-xs font-semibold text-ink">
               Fiber / Category
             </label>
             <Select
-              value={category}
+              aria-label="Fiber / Category" value={category}
               onChange={(e) => setCategory(e.target.value as YarnCategory)}
               options={CATEGORY_OPTIONS}
               className="h-9 text-xs"
@@ -178,11 +188,11 @@ export function AddEditYarnSpecModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300">
+            <label className="text-xs font-semibold text-ink">
               Display Sort Order
             </label>
             <Input
-              type="number"
+              aria-label="Display Sort Order" type="number"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
               placeholder="0"
@@ -190,13 +200,15 @@ export function AddEditYarnSpecModal({
             />
           </div>
         </div>
+</FormSection>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-zinc-300">
+        <FormSection step={2} title="Notes and status">
+<div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink">
             Notes / Description (Optional)
           </label>
           <Input
-            value={description}
+            aria-label="Notes / Description (Optional)" value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="e.g., Microfilament Terry, Dull, Spun"
             className="h-9 text-xs"
@@ -209,45 +221,38 @@ export function AddEditYarnSpecModal({
             id="isActiveSpec"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+            className="rounded border-control bg-surface text-brand focus:ring-emerald-500 w-4 h-4 cursor-pointer"
           />
-          <label htmlFor="isActiveSpec" className="text-xs text-zinc-300 cursor-pointer select-none">
-            Active in creation dropdowns <span className="text-zinc-500">(uncheck to archive)</span>
+          <label htmlFor="isActiveSpec" className="text-xs text-ink cursor-pointer select-none">
+            Active in creation dropdowns <span className="text-soft">(uncheck to archive)</span>
           </label>
         </div>
 
         {nameChanged && txCount > 0 && (
-          <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <div className="p-3 rounded-lg bg-warning-soft border border-line space-y-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-warning">
+              <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
               <span>Update Historical Transactions?</span>
             </div>
-            <p className="text-[11px] text-amber-200/80 leading-relaxed">
-              There are currently <strong className="text-white font-semibold">{txCount}</strong> yarn transactions recorded under the old name <code className="text-amber-300 bg-amber-900/50 px-1 py-0.5 rounded">{editingSpec?.name}</code>.
+            <p className="text-xs text-warning leading-relaxed">
+              There are currently <strong className="text-strong font-semibold">{txCount}</strong> yarn transactions recorded under the old name <code className="text-warning bg-warning-soft px-1 py-0.5 rounded">{editingSpec?.name}</code>.
             </p>
-            <label className="flex items-start gap-2 text-xs text-zinc-200 cursor-pointer select-none pt-1">
+            <label className="flex items-start gap-2 text-xs text-strong cursor-pointer select-none pt-1">
               <input
                 type="checkbox"
                 checked={propagateToTransactions}
                 onChange={(e) => setPropagateToTransactions(e.target.checked)}
-                className="rounded border-amber-600 bg-zinc-900 text-amber-500 focus:ring-amber-500 w-4 h-4 mt-0.5 cursor-pointer"
+                className="rounded border-amber-600 bg-surface text-warning focus:ring-amber-500 w-4 h-4 mt-0.5 cursor-pointer"
               />
               <span>
-                Also automatically update all {txCount} past transactions and knitter balance rows to <strong className="text-emerald-400 font-semibold">{name.trim() || 'the new name'}</strong>.
+                Also automatically update all {txCount} past transactions and knitter balance rows to <strong className="text-brand font-semibold">{name.trim() || 'the new name'}</strong>.
               </span>
             </label>
           </div>
         )}
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800/80">
-          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button type="submit" size="sm" disabled={isLoading} className="gap-1.5 min-w-[100px]">
-            <Layers className="w-3.5 h-3.5" />
-            <span>{isLoading ? 'Saving...' : isEditing ? 'Update Spec' : 'Add Specification'}</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

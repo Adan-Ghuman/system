@@ -1,3 +1,4 @@
+import { prepareWorkbook } from './engine/prepareWorkbook.js';
 import { Request, Response, NextFunction } from 'express';
 import { reportsService } from './reports.service.js';
 
@@ -12,6 +13,7 @@ export async function exportPartyLedgerExcel(req: Request, res: Response, next: 
       to ? String(to) : undefined
     );
 
+    prepareWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -34,6 +36,7 @@ export async function exportDyeingReportExcel(req: Request, res: Response, next:
       to ? String(to) : undefined
     );
 
+    prepareWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -59,6 +62,7 @@ export async function exportGatePassRegisterExcel(req: Request, res: Response, n
       to ? String(to) : undefined
     );
 
+    prepareWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -80,6 +84,7 @@ export async function exportKnittingYarnExcel(req: Request, res: Response, next:
       to ? String(to) : undefined
     );
 
+    prepareWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
@@ -95,6 +100,7 @@ export async function exportMasterBalanceExcel(_req: Request, res: Response, nex
   try {
     const { workbook, filename } = await reportsService.generateMasterBalanceExcel();
 
+    prepareWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');

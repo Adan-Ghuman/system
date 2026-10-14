@@ -1,3 +1,4 @@
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -121,36 +122,44 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="register-user-modal-form" isLoading={isLoading}>
+            Save User Account
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Create New Staff Account"
       description="Set up login email and password, and choose which features this staff member can access."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="register-user-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={1} title="Account details">
+<div className="grid grid-cols-2 gap-3">
           <Input
             id="fullName"
             label="Full Name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             required
-            placeholder="e.g. Asim Raza"
+            placeholder="e.g. Alex Smith"
           />
 
           <Input
@@ -160,7 +169,7 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="asim@domain.com"
+            placeholder="name@example.com"
           />
         </div>
 
@@ -187,15 +196,18 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
             ]}
           />
         </div>
+</FormSection>
 
-        {role !== 'admin' && (
-          <div className="space-y-2 pt-2 border-t border-zinc-800">
+        <FormSection step={2} title="Access permissions">
+          {role === 'admin' && <p className="text-sm text-soft">Administrators can access every feature in the workspace.</p>}
+{role !== 'admin' && (
+          <div className="space-y-2 pt-2 border-t border-line">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-zinc-300">Feature Access Permissions</label>
+              <label className="text-xs font-semibold text-ink">Feature Access Permissions</label>
               <button
                 type="button"
                 onClick={handleSelectAllPermissions}
-                className="text-[11px] text-emerald-400 hover:text-emerald-300 underline"
+                className="text-xs text-brand hover:text-brand underline"
               >
                 {selectedPermissions.length === AVAILABLE_PERMISSIONS.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -204,13 +216,13 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
               {AVAILABLE_PERMISSIONS.map((perm) => (
                 <label
                   key={perm.id}
-                  className="flex items-center gap-2 p-2 rounded-md bg-zinc-950 border border-zinc-800 hover:border-zinc-700 cursor-pointer text-xs text-zinc-300"
+                  className="flex items-center gap-2 p-2 rounded-md bg-canvas border border-line hover:border-control cursor-pointer text-xs text-ink"
                 >
                   <input
                     type="checkbox"
                     checked={selectedPermissions.includes(perm.id)}
                     onChange={() => togglePermission(perm.id)}
-                    className="rounded border-zinc-700 bg-zinc-900 text-emerald-600 focus:ring-emerald-500"
+                    className="rounded border-control bg-surface text-brand focus:ring-emerald-500"
                   />
                   <span>{perm.label}</span>
                 </label>
@@ -218,15 +230,9 @@ export function RegisterUserModal({ isOpen, onClose, onUserCreated }: RegisterUs
             </div>
           </div>
         )}
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading}>
-            Save User Account
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

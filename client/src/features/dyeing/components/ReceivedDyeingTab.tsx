@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { DyeingBatchItem, DyeingMillType, DyeingUnitItem } from '../types/dyeing.types.js';
@@ -21,10 +22,9 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const { page, limit, setPage, setLimit } = useQueryPagination([selectedMill, sortOrder, debouncedSearchTerm]);
 
   const { data: unitsData = [] } = useQuery<DyeingUnitItem[]>({
     queryKey: ['dyeing-units'],
@@ -91,7 +91,6 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
     }
   });
 
-  useEffect(() => { setPage(1); }, [selectedMill, sortOrder, debouncedSearchTerm]);
 
   const batches = data?.items || [];
 
@@ -126,37 +125,37 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
         <Select id="received-mill" label="Dyeing mill" value={selectedMill} onChange={(e) => setSelectedMill(e.target.value as DyeingMillType | 'ALL')} options={dynamicMillFilters.map((mill) => ({ value: mill.id, label: mill.label }))} />
         <Select id="received-order" label="Order" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')} options={[{value: 'desc', label: 'Newest first'}, {value: 'asc', label: 'Oldest first'}]} />
       </div>
-      <details className="rounded-lg border border-zinc-800 bg-zinc-900/50">
-        <summary className="cursor-pointer px-4 py-3 text-xs text-zinc-400">Received totals for this page</summary>
-        <div className="grid gap-3 border-t border-zinc-800 p-4 text-xs text-zinc-400 sm:grid-cols-3">
-          <p>Received weight <strong className="ml-2 text-emerald-400">{formatWeight(metrics.totalFinishKg)}</strong></p>
-          <p>Received rolls <strong className="ml-2 text-zinc-200">{metrics.totalFinishRolls}</strong></p>
-          <p>Weight loss <strong className="ml-2 text-zinc-200">{formatWeight(metrics.totalLossKg)} · {metrics.avgShrinkage.toFixed(2)}%</strong></p>
+      <details className="rounded-lg border border-line bg-surface/50">
+        <summary className="cursor-pointer px-4 py-3 text-xs text-soft">Received totals for this page</summary>
+        <div className="grid gap-3 border-t border-line p-4 text-xs text-soft sm:grid-cols-3">
+          <p>Received weight <strong className="ml-2 text-brand">{formatWeight(metrics.totalFinishKg)}</strong></p>
+          <p>Received rolls <strong className="ml-2 text-strong">{metrics.totalFinishRolls}</strong></p>
+          <p>Weight loss <strong className="ml-2 text-strong">{formatWeight(metrics.totalLossKg)} · {metrics.avgShrinkage.toFixed(2)}%</strong></p>
         </div>
       </details>
       <Card className="overflow-hidden">
         <ScrollableTable>
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-zinc-800 bg-zinc-950/70 text-zinc-400">
+            <thead className="border-b border-line bg-canvas/70 text-soft">
               <tr>{['Receiving challan', 'Mill', 'Fabric', 'Sent', 'Received', 'Weight loss'].map((label) => <th key={label} className="whitespace-nowrap px-4 py-3 font-medium">{label}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-line">
               {isLoading ? <LoadingState isTableRow colSpan={6} message="Loading received fabric..." /> : isError ? (
-                <tr><td colSpan={6} className="p-8 text-center text-red-300">Could not load received fabric. <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button></td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-danger">Could not load received fabric. <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button></td></tr>
               ) : batches.length === 0 ? (
-                <tr><td colSpan={6} className="space-y-3 p-8 text-center text-zinc-400"><p>No received fabric matches these filters.</p><Button size="sm" variant="outline" onClick={onOpenReceiveModal}>Receive dyed fabric</Button></td></tr>
+                <tr><td colSpan={6} className="space-y-3 p-8 text-center text-soft"><p>No received fabric matches these filters.</p><Button size="sm" variant="outline" onClick={onOpenReceiveModal}>Receive dyed fabric</Button></td></tr>
               ) : batches.map((batch) => (
-                <tr key={batch._id} className="hover:bg-zinc-800/30">
+                <tr key={batch._id} className="hover:bg-subtle/30">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-emerald-400">{batch.igpNo || 'No receiving challan'}</p>
-                    <p className="mt-1 text-zinc-400">{batch.dateReceived ? formatDateTime(batch.dateReceived, true) : '—'}</p>
-                    <p className="mt-1 text-zinc-500">{batch.batchNo}</p>
+                    <p className="font-medium text-brand">{batch.igpNo || 'No receiving challan'}</p>
+                    <p className="mt-1 text-soft">{batch.dateReceived ? formatDateTime(batch.dateReceived, true) : '—'}</p>
+                    <p className="mt-1 text-soft">{batch.batchNo}</p>
                   </td>
-                  <td className="px-4 py-3 text-zinc-300">{unitNameMap.get(batch.millName) || batch.customMillName || batch.millName.split('_').join(' ')}</td>
+                  <td className="px-4 py-3 text-ink">{unitNameMap.get(batch.millName) || batch.customMillName || batch.millName.split('_').join(' ')}</td>
                   <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-200">{batch.fabricType}</p>
-                    <p className="mt-1 text-zinc-400">{batch.yarnSpec} · {batch.targetColor}</p>
-                    <details className="mt-2 text-zinc-500"><summary className="cursor-pointer">Delivery details</summary>
+                    <p className="font-medium text-strong">{batch.fabricType}</p>
+                    <p className="mt-1 text-soft">{batch.yarnSpec} · {batch.targetColor}</p>
+                    <details className="mt-2 text-soft"><summary className="cursor-pointer">Delivery details</summary>
                       <div className="mt-2 space-y-1">
                         {batch.ogpNo && <p>Sending challan: {batch.ogpNo}</p>}
                         {batch.machineNo && <p>Machine: {batch.machineNo}</p>}
@@ -167,15 +166,15 @@ export function ReceivedDyeingTab({ onOpenReceiveModal }: ReceivedDyeingTabProps
                       </div>
                     </details>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-zinc-400"><p>{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1">{batch.ecruRollsCount} rolls</p></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-emerald-400"><p className="font-medium">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-zinc-400">{batch.finishRollsCount || 0} rolls</p></td>
-                  <td className="whitespace-nowrap px-4 py-3"><p className="text-zinc-300">{formatWeight(batch.shortageWeightKg || 0)}</p><Badge variant={(batch.shortagePercent || 0) > 5 ? 'warning' : 'success'} className="mt-1">{(batch.shortagePercent || 0).toFixed(2)}%</Badge></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-soft"><p>{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1">{batch.ecruRollsCount} rolls</p></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-brand"><p className="font-medium">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-soft">{batch.finishRollsCount || 0} rolls</p></td>
+                  <td className="whitespace-nowrap px-4 py-3"><p className="text-ink">{formatWeight(batch.shortageWeightKg || 0)}</p><Badge variant={(batch.shortagePercent || 0) > 5 ? 'warning' : 'success'} className="mt-1">{(batch.shortagePercent || 0).toFixed(2)}%</Badge></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </ScrollableTable>
-        {data && data.totalPages > 1 && <div className="border-t border-zinc-800 p-3"><PaginationControls page={page} totalPages={data.totalPages} total={data.total} limit={limit} onPageChange={setPage} onLimitChange={(value) => { setLimit(value); setPage(1); }} /></div>}
+        <PaginationControls page={page} totalPages={data?.totalPages || 1} total={data?.total || 0} limit={limit} onPageChange={setPage} onLimitChange={setLimit} />
       </Card>
     </div>
   );

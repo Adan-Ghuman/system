@@ -1,8 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
+import { QueryError } from '../../../components/ui/QueryError.js';
+import { PageHeader } from '../../../components/ui/PageHeader.js';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { PartyItem } from '../types/party.types.js';
 import { Button } from '../../../components/ui/Button.js';
+import { Select } from '../../../components/ui/Select.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Badge } from '../../../components/ui/Badge.js';
 import { Card, CardContent } from '../../../components/ui/Card.js';
@@ -14,20 +18,7 @@ import { EditPartyModal } from '../components/EditPartyModal.js';
 import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { ScrollableTable } from '../../../components/ui/ScrollableTable.js';
 import { formatCurrency, formatDateTime } from '../../../lib/formatters.js';
-import {
-  UserPlus,
-  Search,
-  RefreshCw,
-  Edit2,
-  Users,
-  ShoppingBag,
-  Scissors,
-  Palette,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ArrowUpDown,
-  Filter
-} from 'lucide-react';
+import { UserPlus, RefreshCw, Edit2, ShoppingBag, Scissors, Palette, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 
 type TagFilter = 'all' | 'isFabricBuyer' | 'isKnitter' | 'isYarnClient' | 'isDyeingMill';
 type SortByOption = 'latest' | 'oldest' | 'code' | 'name' | 'balance_desc' | 'balance_asc';
@@ -38,18 +29,14 @@ export function PartiesPage() {
   const [activeTag, setActiveTag] = useState<TagFilter>('all');
   const [sortBy, setSortBy] = useState<SortByOption>('latest');
   const [balanceFilter, setBalanceFilter] = useState<BalanceFilterOption>('all');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<PartyItem | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeTag, sortBy, balanceFilter, debouncedSearchTerm]);
+  const { page: page, limit: limit, setPage: setPage, setLimit: setLimit } = useQueryPagination([activeTag, sortBy, balanceFilter, debouncedSearchTerm]);
 
-  const { data, isLoading, refetch } = useQuery<{
+  const { isError: hasQueryError1,  data, isLoading, refetch } = useQuery<{
     items: PartyItem[];
     total: number;
     page: number;
@@ -77,43 +64,20 @@ export function PartiesPage() {
 
   const parties = data?.items || [];
 
-  const metrics = useMemo(() => {
-    let buyers = 0;
-    let knitters = 0;
-    let mills = 0;
-    let totalDr = 0;
-    let totalCr = 0;
-
-    parties.forEach((p) => {
-      if (p.tags.isFabricBuyer) buyers++;
-      if (p.tags.isKnitter) knitters++;
-      if (p.tags.isDyeingMill) mills++;
-
-      if (p.currentBalance > 0) {
-        totalDr += p.currentBalance;
-      } else if (p.currentBalance < 0) {
-        totalCr += Math.abs(p.currentBalance);
-      }
-    });
-
-    return { buyers, knitters, mills, totalDr, totalCr, total: parties.length };
-  }, [parties]);
+  const { data: summary, isError: summaryError, refetch: refetchSummary } = useQuery<{ total: number; buyers: number; knitters: number; mills: number; totalDr: number; totalCr: number }>({
+    queryKey: ['parties-summary', activeTag, balanceFilter, debouncedSearchTerm],
+    queryFn: async () => {
+      const response = await api.get('/parties/summary', { params: { balanceFilter, ...(activeTag !== 'all' ? { tag: activeTag } : {}), ...(debouncedSearchTerm.trim() ? { search: debouncedSearchTerm.trim() } : {}) } });
+      return response.data.data;
+    }
+  });
+  const metrics = summary || { total: 0, buyers: 0, knitters: 0, mills: 0, totalDr: 0, totalCr: 0 };
+  function refresh() { refetch(); refetchSummary(); }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-500 shrink-0" />
-            <span>Customers & Suppliers (Parties)</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Manage customers, knitters, yarn suppliers, and dyeing units and view their running balances.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => refetch()} title="Refresh directory" className="gap-1 whitespace-nowrap shrink-0">
+      <PageHeader title="Parties" description="Customers, suppliers, knitters and dyeing mills, all in one directory."><div className="flex max-w-full flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={refresh} preventDoubleClick title="Refresh directory" className="gap-1 whitespace-nowrap shrink-0">
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Refresh</span>
           </Button>
@@ -121,138 +85,75 @@ export function PartiesPage() {
             <UserPlus className="w-4 h-4" />
             <span>Add Customer / Supplier</span>
           </Button>
-        </div>
-      </div>
+        </div></PageHeader>
+      {(hasQueryError1 || summaryError) && <QueryError onRetry={refresh} />}
+
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="bg-zinc-900/80 border-zinc-800 p-3">
+        <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Total Parties</div>
-            <div className="text-lg font-bold text-white mt-1">{metrics.total}</div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">{metrics.buyers} Buyers, {metrics.knitters} Knitters</div>
+            <div className="text-xs font-medium text-soft normal-case tracking-normal">Total Parties</div>
+            <div className="text-lg font-bold text-strong mt-1">{metrics.total}</div>
+            <div className="text-xs text-soft mt-0.5">{metrics.buyers} Buyers, {metrics.knitters} Knitters</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-zinc-800 p-3">
+        <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-              <ShoppingBag className="w-3 h-3 text-emerald-400" />
+            <div className="text-xs font-medium text-soft normal-case tracking-normal flex items-center gap-1">
+              <ShoppingBag className="w-3 h-3 text-brand" />
               Fabric Buyers
             </div>
-            <div className="text-lg font-bold text-emerald-400 mt-1">{metrics.buyers}</div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Commercial clients</div>
+            <div className="text-lg font-bold text-brand mt-1">{metrics.buyers}</div>
+            <div className="text-xs text-soft mt-0.5">Commercial clients</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-zinc-800 p-3">
+        <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-              <Scissors className="w-3 h-3 text-purple-400" />
+            <div className="text-xs font-medium text-soft normal-case tracking-normal flex items-center gap-1">
+              <Scissors className="w-3 h-3 text-info" />
               Contract Knitters
             </div>
-            <div className="text-lg font-bold text-purple-400 mt-1">{metrics.knitters}</div>
-            <div className="text-[10px] text-zinc-500 mt-0.5">Outside knitting units</div>
+            <div className="text-lg font-bold text-info mt-1">{metrics.knitters}</div>
+            <div className="text-xs text-soft mt-0.5">Outside knitting units</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-emerald-950/40 p-3">
+        <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-medium text-brand normal-case tracking-normal flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" />
               They Owe Us (Receivable)
             </div>
-            <div className="text-lg font-bold text-emerald-400 mt-1">{formatCurrency(metrics.totalDr)}</div>
-            <div className="text-[10px] text-emerald-600 mt-0.5">Balance to collect from buyers</div>
+            <div className="text-lg font-bold text-brand mt-1">{formatCurrency(metrics.totalDr)}</div>
+            <div className="text-xs text-brand mt-0.5">Balance to collect from buyers</div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/80 border-amber-950/40 p-3">
+        <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
-            <div className="text-[11px] font-medium text-amber-400 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-xs font-medium text-warning normal-case tracking-normal flex items-center gap-1">
               <ArrowDownLeft className="w-3 h-3" />
               We Owe Them (Payable)
             </div>
-            <div className="text-lg font-bold text-amber-400 mt-1">{formatCurrency(metrics.totalCr)}</div>
-            <div className="text-[10px] text-amber-600 mt-0.5">Balance to pay to units & knitters</div>
+            <div className="text-lg font-bold text-warning mt-1">{formatCurrency(metrics.totalCr)}</div>
+            <div className="text-xs text-warning mt-0.5">Balance to pay to units & knitters</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-        <div className="flex items-center gap-1 overflow-x-auto w-full xl:w-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[
-            { id: 'all', label: 'All Parties' },
-            { id: 'isFabricBuyer', label: 'Fabric Buyers' },
-            { id: 'isKnitter', label: 'Contract Knitters' },
-            { id: 'isYarnClient', label: 'Yarn Clients' },
-            { id: 'isDyeingMill', label: 'Dyeing Units' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTag(tab.id as TagFilter)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors select-none ${
-                activeTag === tab.id
-                  ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full xl:w-auto">
-          {/* Balance Filter */}
-          <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
-            <Filter className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-            <select
-              value={balanceFilter}
-              onChange={(e) => setBalanceFilter(e.target.value as BalanceFilterOption)}
-              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-              title="Filter by account balance"
-            >
-              <option value="all" className="bg-zinc-900 text-zinc-200">All Balances</option>
-              <option value="receivable" className="bg-zinc-900 text-zinc-200">Receivable (Dr)</option>
-              <option value="payable" className="bg-zinc-900 text-zinc-200">Payable (Cr)</option>
-              <option value="zero" className="bg-zinc-900 text-zinc-200">Zero Balance</option>
-            </select>
-          </div>
-
-          {/* Sort By Dropdown (Latest First is Default) */}
-          <div className="flex items-center gap-1.5 bg-zinc-950/80 border border-zinc-800 rounded-md px-2 py-1 h-9">
-            <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortByOption)}
-              className="bg-transparent text-xs text-zinc-200 focus:outline-none cursor-pointer pr-1"
-              title="Sort order"
-            >
-              <option value="latest" className="bg-zinc-900 text-zinc-200">Sort: Latest First (Default)</option>
-              <option value="oldest" className="bg-zinc-900 text-zinc-200">Sort: Oldest First</option>
-              <option value="code" className="bg-zinc-900 text-zinc-200">Sort: Code (A-Z)</option>
-              <option value="name" className="bg-zinc-900 text-zinc-200">Sort: Name (A-Z)</option>
-              <option value="balance_desc" className="bg-zinc-900 text-zinc-200">Sort: Highest Receivable</option>
-              <option value="balance_asc" className="bg-zinc-900 text-zinc-200">Sort: Highest Payable</option>
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="w-full sm:w-60 relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5 pointer-events-none" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search code, name..."
-              className="pl-9 h-9 text-xs"
-            />
-          </div>
-        </div>
+      <div className="grid gap-3 rounded-xl border border-line bg-surface/50 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Select label="Party category" value={activeTag} onChange={event => setActiveTag(event.target.value as TagFilter)} options={[{label:'All parties',value:'all'},{label:'Fabric buyers',value:'isFabricBuyer'},{label:'Knitters',value:'isKnitter'},{label:'Yarn clients',value:'isYarnClient'},{label:'Dyeing units',value:'isDyeingMill'}]} />
+        <Select label="Account balance" value={balanceFilter} onChange={event => setBalanceFilter(event.target.value as BalanceFilterOption)} options={[{label:'All balances',value:'all'},{label:'They owe us',value:'receivable'},{label:'We owe them',value:'payable'},{label:'Settled',value:'zero'}]} />
+        <Select label="Order" value={sortBy} onChange={event => setSortBy(event.target.value as SortByOption)} options={[{label:'Newest first',value:'latest'},{label:'Oldest first',value:'oldest'},{label:'Code A–Z',value:'code'},{label:'Name A–Z',value:'name'},{label:'Highest receivable',value:'balance_desc'},{label:'Highest payable',value:'balance_asc'}]} />
+        <Input label="Find a party" placeholder="e.g. Example Textiles" value={searchTerm} onChange={event => setSearchTerm(event.target.value)} />
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-900/80 overflow-hidden">
+      <Card className="border-line bg-surface/80 overflow-hidden">
         <ScrollableTable>
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-950/90 border-b border-zinc-800 text-zinc-400 uppercase font-semibold">
+            <thead className="bg-canvas/90 border-b border-line text-soft normal-case font-semibold">
               <tr>
                 <th className="py-3 px-4 whitespace-nowrap">Code</th>
                 <th className="py-3 px-4 whitespace-nowrap">Date</th>
@@ -262,39 +163,39 @@ export function PartiesPage() {
                 <th className="py-3 px-4 whitespace-nowrap">Role Classification</th>
                 <th className="py-3 px-4 text-right whitespace-nowrap">Opening Bal.</th>
                 <th className="py-3 px-4 text-right whitespace-nowrap">Current Balance</th>
-                <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-950 z-20 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">Action</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-canvas z-20 border-l border-line shadow-sm">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
+            <tbody className="divide-y divide-line/60">
               {isLoading ? (
                 <LoadingState isTableRow colSpan={9} message="Loading customers & suppliers..." />
               ) : parties.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-zinc-500">
+                  <td colSpan={9} className="py-12 text-center text-soft">
                     No parties found matching criteria.
                   </td>
                 </tr>
               ) : (
                 parties.map((party) => (
-                  <tr key={party._id} className="group hover:bg-zinc-800/40 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-400 whitespace-nowrap">{party.code}</td>
-                    
-                    <td className="py-3 px-4 text-zinc-300 font-mono whitespace-nowrap">
+                  <tr key={party._id} className="group hover:bg-subtle/40 transition-colors">
+                    <td className="py-3 px-4 font-mono font-bold text-brand whitespace-nowrap">{party.code}</td>
+
+                    <td className="py-3 px-4 text-ink font-mono whitespace-nowrap">
                       {formatDateTime(party.updatedAt || party.createdAt, true)}
                     </td>
 
-                    <td className="py-3 px-4 font-semibold text-zinc-100 whitespace-nowrap">
+                    <td className="py-3 px-4 font-semibold text-strong whitespace-nowrap">
                       {party.name}
                     </td>
 
-                    <td className="py-3 px-4 text-zinc-300 whitespace-nowrap">
+                    <td className="py-3 px-4 text-ink whitespace-nowrap">
                       <span>{party.contactPerson || '—'}</span>
-                      {party.phone && <span className="text-[11px] font-mono text-zinc-500 ml-1.5">({party.phone})</span>}
+                      {party.phone && <span className="text-xs font-mono text-soft ml-1.5">({party.phone})</span>}
                     </td>
 
-                    <td className="py-3 px-4 text-zinc-300 whitespace-nowrap">
+                    <td className="py-3 px-4 text-ink whitespace-nowrap">
                       <span>{party.address || '—'}</span>
-                      {party.mlNo && <span className="text-[10px] text-zinc-500 font-mono ml-1.5">(ML: {party.mlNo})</span>}
+                      {party.mlNo && <span className="text-xs text-soft font-mono ml-1.5">(ML: {party.mlNo})</span>}
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
@@ -311,7 +212,7 @@ export function PartiesPage() {
                       </div>
                     </td>
 
-                    <td className="py-3 px-4 text-right font-mono text-zinc-400 whitespace-nowrap">
+                    <td className="py-3 px-4 text-right font-mono text-soft whitespace-nowrap">
                       {formatCurrency(party.openingBalance)}
                     </td>
 
@@ -319,10 +220,10 @@ export function PartiesPage() {
                       <PartyBalanceBadge balance={party.currentBalance} />
                     </td>
 
-                    <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-zinc-900 group-hover:bg-zinc-800/90 transition-colors z-10 border-l border-zinc-800 shadow-[-6px_0_12px_rgba(0,0,0,0.5)]">
+                    <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 transition-colors z-10 border-l border-line shadow-sm">
                       <button
                         onClick={() => setEditingParty(party)}
-                        className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors inline-flex items-center"
+                        className="p-1.5 rounded text-soft hover:text-strong hover:bg-subtle transition-colors inline-flex items-center"
                         title="Edit profile"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -344,17 +245,17 @@ export function PartiesPage() {
         />
       </Card>
 
-      <CreatePartyModal
+      {isCreateOpen && <CreatePartyModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => refetch()}
-      />
+        onSuccess={refresh}
+      />}
 
       <EditPartyModal
         party={editingParty}
         isOpen={Boolean(editingParty)}
         onClose={() => setEditingParty(null)}
-        onSuccess={() => refetch()}
+        onSuccess={refresh}
       />
     </div>
   );

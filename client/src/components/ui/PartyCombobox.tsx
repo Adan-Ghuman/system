@@ -1,207 +1,81 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
 import { cn } from '../../lib/cn.js';
 import { Search, ChevronDown, Check, Plus, X } from 'lucide-react';
 
-export interface ComboboxOption {
-  _id: string;
-  name: string;
-  code?: string;
-  phone?: string;
-}
-
+export interface ComboboxOption { _id: string; name: string; code?: string; phone?: string; }
 export interface PartyComboboxProps {
-  id?: string;
-  label?: string;
-  value: string; // either party._id or custom party name
-  onChange: (value: string, selectedParty?: ComboboxOption) => void;
-  parties: ComboboxOption[];
-  placeholder?: string;
-  allowCustom?: boolean;
-  required?: boolean;
-  error?: string;
-  className?: string;
+  id?: string; label?: string; value: string; onChange: (value: string, selectedParty?: ComboboxOption) => void;
+  parties: ComboboxOption[]; placeholder?: string; allowCustom?: boolean; required?: boolean; error?: string; className?: string;
 }
 
-export function PartyCombobox({
-  id,
-  label,
-  value,
-  onChange,
-  parties = [],
-  placeholder = 'Select or type party name...',
-  allowCustom = true,
-  required = false,
-  error,
-  className
-}: PartyComboboxProps) {
+export function PartyCombobox({ id, label, value, onChange, parties = [], placeholder = 'Search or enter a name', allowCustom = true, required = false, error, className }: PartyComboboxProps) {
+  const generated = useId();
+  const inputId = id || generated;
+  const listId = inputId + '-options';
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Find currently selected party if value is an _id or matching name
-  const selectedParty = useMemo(() => {
-    return parties.find((p) => p._id === value || p.name.toLowerCase() === value.toLowerCase());
-  }, [parties, value]);
-
-  // Sync search input with selected party or custom value
+  const selectedParty = useMemo(() => parties.find((party) => party._id === value || party.name.toLowerCase() === value.toLowerCase()), [parties, value]);
   useEffect(() => {
-    if (selectedParty) {
-      setSearch(selectedParty.name);
-    } else {
-      setSearch(value || '');
-    }
+    if (selectedParty) setSearch(selectedParty.name);
+    else if (document.activeElement !== inputRef.current) setSearch(value || '');
   }, [value, selectedParty]);
-
-  // Click outside to close
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const close = (event: MouseEvent) => { if (containerRef.current && !containerRef.current.contains(event.target as Node)) setIsOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, []);
-
-  const filteredParties = useMemo(() => {
-    if (!search.trim()) return parties;
-    const q = search.toLowerCase().trim();
-    return parties.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.code && p.code.toLowerCase().includes(q)) ||
-        (p.phone && p.phone.includes(q))
-    );
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    return parties.filter((party) => !query || party.name.toLowerCase().includes(query) || party.code?.toLowerCase().includes(query) || party.phone?.includes(query));
   }, [parties, search]);
-
-  const exactMatchExists = useMemo(() => {
-    if (!search.trim()) return false;
-    return parties.some((p) => p.name.toLowerCase() === search.toLowerCase().trim());
-  }, [parties, search]);
-
-  function handleSelect(p: ComboboxOption) {
-    onChange(p._id, p);
-    setSearch(p.name);
+  const canUseCustom = allowCustom && Boolean(search.trim()) && !parties.some((party) => party.name.toLowerCase() === search.toLowerCase().trim());
+  const optionCount = filtered.length + (canUseCustom ? 1 : 0);
+  useEffect(() => {
+    if (isOpen && activeIndex >= 0) document.getElementById(listId + '-' + activeIndex)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, isOpen, listId]);
+  function select(party?: ComboboxOption) {
+    if (party) { onChange(party._id, party); setSearch(party.name); }
+    else if (canUseCustom) { onChange(search.trim()); setSearch(search.trim()); }
     setIsOpen(false);
-  }
-
-  function handleUseCustom() {
-    if (!search.trim()) return;
-    onChange(search.trim(), undefined);
-    setIsOpen(false);
-  }
-
-  function handleClear() {
-    onChange('', undefined);
-    setSearch('');
     inputRef.current?.focus();
   }
-
   return (
-    <div ref={containerRef} className="w-full space-y-1.5 relative">
-      {label && (
-        <label htmlFor={id} className="block text-xs font-medium text-zinc-300">
-          {label} {required && <span className="text-red-400">*</span>}
-        </label>
-      )}
-
+    <div ref={containerRef} className="relative w-full min-w-0 space-y-1.5">
+      {label && <label htmlFor={inputId} className="block text-xs font-medium text-ink">{label}{required && <span className="ml-1 text-soft" aria-hidden="true">*</span>}</label>}
       <div className="relative">
-        <div className="relative flex items-center">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 pointer-events-none" />
-          <input
-            id={id}
-            ref={inputRef}
-            type="text"
-            value={search}
-            placeholder={placeholder}
-            onFocus={() => setIsOpen(true)}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setIsOpen(true);
-              if (allowCustom) {
-                // If user clears input or types custom directly
-                onChange(e.target.value, undefined);
-              }
-            }}
-            className={cn(
-              'flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-900/90 pl-8 pr-14 py-1 text-sm text-zinc-100 transition-colors',
-              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 focus-visible:border-emerald-500',
-              error && 'border-red-500',
-              className
-            )}
-          />
-
-          <div className="absolute right-2 flex items-center gap-1">
-            {search && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="text-zinc-500 hover:text-zinc-300 p-0.5"
-                title="Clear"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsOpen((prev) => !prev)}
-              className="text-zinc-500 hover:text-zinc-300 p-0.5"
-              tabIndex={-1}
-            >
-              <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', isOpen && 'rotate-180')} />
-            </button>
-          </div>
+        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-soft" aria-hidden="true" />
+        <input id={inputId} ref={inputRef} type="text" value={search} placeholder={placeholder} required={required} role="combobox" aria-expanded={isOpen} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={isOpen && optionCount && activeIndex >= 0 ? listId + '-' + Math.min(activeIndex, optionCount - 1) : undefined}
+          aria-invalid={Boolean(error)} aria-describedby={error ? inputId + '-error' : undefined} autoComplete="off"
+          onClick={() => setIsOpen(true)}
+          onBlur={(event) => { if (!containerRef.current?.contains(event.relatedTarget as Node)) setIsOpen(false); }}
+          onChange={(event) => { setSearch(event.target.value); setIsOpen(true); setActiveIndex(-1); onChange(allowCustom ? event.target.value : ''); }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setIsOpen(true); setActiveIndex((current) => Math.max(0, Math.min(optionCount - 1, current + (event.key === 'ArrowDown' ? 1 : -1)))); }
+            if (event.key === 'Enter' && isOpen && optionCount) { event.preventDefault(); select(filtered[Math.max(0, Math.min(activeIndex, optionCount - 1))]); }
+            if (event.key === 'Escape' && isOpen) { event.preventDefault(); event.stopPropagation(); setIsOpen(false); }
+          }}
+          className={cn('h-10 w-full rounded-lg border border-control bg-surface py-2 pl-10 pr-16 text-sm text-strong placeholder:text-soft focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand', error && 'border-danger', className)} />
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+          {search && <button type="button" aria-label="Clear selection" onClick={() => { onChange(''); setSearch(''); inputRef.current?.focus(); }} className="rounded-md p-2 text-soft hover:text-strong"><X className="h-3.5 w-3.5" /></button>}
+          <button type="button" aria-label="Show parties" tabIndex={-1} onClick={() => { setIsOpen((open) => !open); inputRef.current?.focus(); }} className="rounded-md p-2 text-soft"><ChevronDown className="h-3.5 w-3.5" /></button>
         </div>
-
         {isOpen && (
-          <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-md border border-zinc-800 bg-zinc-900 shadow-xl py-1 text-xs">
-            {filteredParties.length > 0 ? (
-              filteredParties.map((p) => {
-                const isSelected = selectedParty?._id === p._id;
-                return (
-                  <button
-                    key={p._id}
-                    type="button"
-                    onClick={() => handleSelect(p)}
-                    className={cn(
-                      'w-full flex items-center justify-between px-3 py-2 text-left transition-colors',
-                      isSelected
-                        ? 'bg-emerald-950/60 text-emerald-300 font-semibold'
-                        : 'text-zinc-200 hover:bg-zinc-800'
-                    )}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="truncate">{p.name}</span>
-                      {p.code && (
-                        <span className="text-[10px] text-zinc-500 font-mono">({p.code})</span>
-                      )}
-                    </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-2" />}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="px-3 py-2 text-zinc-500 text-center text-[11px]">
-                No matching parties found in database
-              </div>
-            )}
-
-            {allowCustom && search.trim() && !exactMatchExists && (
-              <button
-                type="button"
-                onClick={handleUseCustom}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left border-t border-zinc-800/80 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-950/40 font-semibold"
-              >
-                <Plus className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Use &quot;{search.trim()}&quot; (Custom Party)</span>
+          <div id={listId} role="listbox" aria-label={(label || 'Parties') + ' choices'} className="absolute left-0 right-0 z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-lg">
+            {filtered.map((party, index) => (
+              <button type="button" role="option" tabIndex={-1} aria-selected={selectedParty?._id === party._id} id={listId + '-' + index} key={party._id} onMouseDown={(event) => event.preventDefault()} onClick={() => select(party)}
+                className={cn('flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-xs', index === activeIndex ? 'bg-subtle text-strong' : 'text-ink hover:bg-subtle')}>
+                <span className="min-w-0 truncate">{party.name}{party.code && <span className="ml-2 text-soft">({party.code})</span>}</span>{selectedParty?._id === party._id && <Check className="h-4 w-4 shrink-0 text-brand" />}
               </button>
-            )}
+            ))}
+            {!optionCount && <p className="px-3 py-4 text-xs text-soft">No matching parties.</p>}
+            {canUseCustom && <button type="button" role="option" tabIndex={-1} aria-selected={false} id={listId + '-' + filtered.length} onMouseDown={(event) => event.preventDefault()} onClick={() => select()} className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-xs text-brand hover:bg-brand-soft"><Plus className="h-4 w-4 shrink-0" /><span className="truncate">Use “{search.trim()}”</span></button>}
           </div>
         )}
       </div>
-
-      {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+      {error && <p id={inputId + '-error'} className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

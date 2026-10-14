@@ -8,7 +8,8 @@ import {
   handleUpdateParty,
   handleGetParty,
   handleListParties,
-  handleGetNextCode
+  handleGetNextCode,
+  handlePartySummary
 } from './party.controller.js';
 
 const router = Router();
@@ -16,6 +17,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('parties:read'), validateQuery(queryPartiesSchema), asyncHandler(handleListParties));
+router.get('/summary', requirePermission('parties:read'), validateQuery(queryPartiesSchema), asyncHandler(handlePartySummary));
 router.get('/next-code', requirePermission('parties:read'), asyncHandler(handleGetNextCode));
 router.post('/', requirePermission('parties:write'), validateBody(createPartySchema), asyncHandler(handleCreateParty));
 router.get('/:id', requirePermission('parties:read'), asyncHandler(handleGetParty));

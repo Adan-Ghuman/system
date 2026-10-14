@@ -40,6 +40,10 @@ export interface PartyLedgerEntryItem {
 }
 
 export interface LedgerStatementResponse {
+  total: number;
+  totalPages: number;
+  page: number;
+  limit: number;
   party: {
     _id: string;
     code: string;

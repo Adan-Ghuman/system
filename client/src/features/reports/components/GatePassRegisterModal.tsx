@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -8,7 +9,9 @@ import { Select } from '../../../components/ui/Select.js';
 import { FileSpreadsheet, Printer, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { downloadExcelReport } from '../../../lib/reportExport.js';
 import { PartyItem } from '../../parties/types/party.types.js';
-import { DyeingUnitItem } from '../../dyeing/types/dyeing.types.js';
+import { DyeingUnitItem, DyeingBatchItem } from '../../dyeing/types/dyeing.types.js';
+import { GatePassRegisterDocument } from './GatePassRegisterDocument.js';
+import { FormFeedback } from '../../../components/ui/WorkflowForm.js';
 
 export interface GatePassRegisterModalProps {
   isOpen: boolean;
@@ -27,15 +30,25 @@ export function GatePassRegisterModal({
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printRows, setPrintRows] = useState<DyeingBatchItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPrintRows(null);
+  }, [passType, selectedPartyId, selectedMill, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (!isOpen || !printRows) return;
+    const frame = requestAnimationFrame(() => window.print());
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, printRows]);
 
   // Fetch parties for selector
   const { data: partiesData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties-for-register'],
+    queryKey: ['party-options', 'all'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { limit: 500 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { });
     },
     enabled: isOpen
   });
@@ -76,6 +89,8 @@ export function GatePassRegisterModal({
   }, [unitsData]);
 
   async function handleExportExcel() {
+    if (isExporting) return;
+    setError(null);
     setIsExporting(true);
     try {
       let url = `/reports/gate-pass-register/excel?type=${passType}`;
@@ -87,20 +102,78 @@ export function GatePassRegisterModal({
       const filename = `${passType}_Register_${new Date().toISOString().split('T')[0]}.xlsx`;
       await downloadExcelReport(url, filename);
     } catch (err) {
-      console.error('Failed to export Gate Pass Register:', err);
+      setError(err instanceof Error ? err.message : 'The register could not be exported. Please try again.');
     } finally {
       setIsExporting(false);
     }
   }
 
-  function handlePrintRegister() {
-    window.print();
+  async function handlePrintRegister() {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    setError(null);
+    try {
+      const rows: DyeingBatchItem[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const response = await api.get<{ success: boolean; data: { items: DyeingBatchItem[]; totalPages: number } }>('/dyeing/batches', {
+          params: { page, limit: 100, sortOrder: 'asc', ...(selectedMill !== 'ALL' ? { millName: selectedMill } : {}) }
+        });
+        rows.push(...response.data.data.items);
+        totalPages = response.data.data.totalPages;
+        page++;
+      } while (page <= totalPages);
+      const start = dateFrom ? new Date(dateFrom).getTime() : -Infinity;
+      const endDate = dateTo ? new Date(dateTo) : null;
+      endDate?.setHours(23, 59, 59, 999);
+      const end = endDate?.getTime() ?? Infinity;
+      setPrintRows(rows.filter(row => {
+        const issuedDate = new Date(row.dateIssued).getTime();
+        return (selectedPartyId === 'ALL' || row.allocatedCustomerId?._id === selectedPartyId)
+          && issuedDate >= start && issuedDate <= end;
+      }));
+    } catch {
+      setError('The printable register could not be loaded. Please try again.');
+    } finally {
+      setIsPrinting(false);
+    }
   }
 
   if (!isOpen) return null;
 
   return (
     <Dialog
+      footer={<div className="flex items-center justify-between pt-2 border-t border-line">
+          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+            Cancel
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePrintRegister}
+              isLoading={isPrinting}
+              className="gap-1.5 text-xs"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print / Save PDF
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleExportExcel}
+              isLoading={isExporting}
+              className="gap-1.5 text-xs bg-primary hover:bg-emerald-800 text-white"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              {`Export ${passType} (.xlsx)`}
+            </Button>
+          </div>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Gate Pass Register Generator (OGP & IGP)"
@@ -108,15 +181,17 @@ export function GatePassRegisterModal({
       className="max-w-2xl"
     >
       <div className="space-y-4">
+        <FormFeedback error={error} success={null} />
+        <fieldset disabled={isPrinting} className="space-y-4">
         {/* Register Type Selector Tabs */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-950 border border-zinc-800 rounded-lg">
+        <div className="grid grid-cols-2 gap-2 p-1 bg-canvas border border-line rounded-lg">
           <button
             type="button"
             onClick={() => setPassType('OGP')}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
               passType === 'OGP'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-soft hover:text-strong hover:bg-surface'
             }`}
           >
             <ArrowUpRight className="w-4 h-4" />
@@ -129,7 +204,7 @@ export function GatePassRegisterModal({
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-all ${
               passType === 'IGP'
                 ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                : 'text-soft hover:text-strong hover:bg-surface'
             }`}
           >
             <ArrowDownLeft className="w-4 h-4" />
@@ -138,11 +213,11 @@ export function GatePassRegisterModal({
         </div>
 
         {/* Filter Form */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-surface/60 border border-line rounded-lg">
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Party / Client</label>
+            <label className="block text-xs font-semibold text-soft mb-1">Party / Client</label>
             <Select
-              value={selectedPartyId}
+              aria-label="Party / Client" value={selectedPartyId}
               onChange={(e) => setSelectedPartyId(e.target.value)}
               className="text-xs"
               options={[
@@ -163,9 +238,9 @@ export function GatePassRegisterModal({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Dyeing Unit Location</label>
+            <label className="block text-xs font-semibold text-soft mb-1">Dyeing Unit Location</label>
             <Select
-              value={selectedMill}
+              aria-label="Dyeing Unit Location" value={selectedMill}
               onChange={(e) => setSelectedMill(e.target.value)}
               className="text-xs"
               options={millOptions}
@@ -173,9 +248,9 @@ export function GatePassRegisterModal({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">From Date</label>
+            <label className="block text-xs font-semibold text-soft mb-1">From Date</label>
             <Input
-              type="date"
+              aria-label="From Date" type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="text-xs"
@@ -183,9 +258,9 @@ export function GatePassRegisterModal({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1">To Date</label>
+            <label className="block text-xs font-semibold text-soft mb-1">To Date</label>
             <Input
-              type="date"
+              aria-label="To Date" type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               className="text-xs"
@@ -194,36 +269,9 @@ export function GatePassRegisterModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
-            Cancel
-          </Button>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handlePrintRegister}
-              className="gap-1.5 text-xs"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print / Save PDF
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleExportExcel}
-              disabled={isExporting}
-              className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              {isExporting ? 'Generating...' : `Export ${passType} (.xlsx)`}
-            </Button>
-          </div>
-        </div>
+        </fieldset>
       </div>
+      {printRows && <GatePassRegisterDocument rows={printRows} type={passType} partyName={parties.find(party => party._id === selectedPartyId)?.name || 'All parties'} millName={unitsData.find(unit => unit.code === selectedMill)?.name || (selectedMill === 'ALL' ? 'All units' : selectedMill)} dateFrom={dateFrom} dateTo={dateTo} />}
     </Dialog>
   );
 }

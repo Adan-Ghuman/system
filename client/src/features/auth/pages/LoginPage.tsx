@@ -4,15 +4,17 @@ import { useAuthStore, AuthUser } from '../stores/useAuthStore.js';
 import { api } from '../../../lib/api.js';
 import { Button } from '../../../components/ui/Button.js';
 import { Input } from '../../../components/ui/Input.js';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../../components/ui/Card.js';
-import { ShieldCheck, AlertCircle } from 'lucide-react';
+import { FormFeedback } from '../../../components/ui/WorkflowForm.js';
+import { ThemePicker } from '../../../components/ui/Theme.js';
+import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('12345678');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -46,63 +48,27 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-zinc-950">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 mb-2">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Rozain Textile</h1>
-          <p className="text-xs text-zinc-400">Factory Operations, Inventory & Accounts Management System</p>
+    <div className="relative flex min-h-screen items-center justify-center bg-canvas px-5 py-16">
+      <div className="absolute right-5 top-5"><ThemePicker /></div>
+      <div className="w-full max-w-[420px]">
+        <div className="mb-8 flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-lg font-semibold text-white">rt.</span>
+          <div><p className="text-base font-semibold text-strong">Rozain Textile</p><p className="mt-1 text-xs text-soft">Operations workspace</p></div>
         </div>
-
-        <Card className="border-zinc-800 bg-zinc-900/90 shadow-xl">
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your email and password to log in.</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              {error && (
-                <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <Input
-                id="email"
-                type="email"
-                label="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-                placeholder="operator@domain.com"
-              />
-
-              <Input
-                id="password"
-                type="password"
-                label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-              />
-
-              <div className="p-2.5 rounded-md bg-zinc-950/60 border border-zinc-800 text-[11px] text-zinc-400">
-                <span className="font-semibold text-zinc-300">Default Admin Login:</span> <br />
-                Email: <code className="text-emerald-400">admin@gmail.com</code> | Password: <code className="text-emerald-400">12345678</code>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" isLoading={isLoading}>
-                Sign In
-              </Button>
-            </CardFooter>
+        <div className="rounded-2xl border border-line bg-surface p-6 sm:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-strong">Welcome back</h1>
+          <p className="mt-2 text-sm leading-relaxed text-soft">Sign in to manage your production, stock and accounts.</p>
+          <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+            <FormFeedback error={error} success={null} />
+            <Input id="email" type="email" label="Email address" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus autoComplete="username" placeholder="name@example.com" />
+            <div className="relative">
+              <Input id="password" type={showPassword ? 'text' : 'password'} label="Password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" className="pr-12" />
+              <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)} className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-lg text-soft hover:text-strong">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+            </div>
+            <Button type="submit" className="w-full" isLoading={isLoading}>Sign in<ArrowRight className="h-4 w-4" /></Button>
           </form>
-        </Card>
+        </div>
+        <p className="mt-6 text-center text-xs leading-relaxed text-soft">Use the account provided by your administrator.</p>
       </div>
     </div>
   );

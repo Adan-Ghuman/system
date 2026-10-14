@@ -30,6 +30,9 @@ export const queryVouchersSchema = z.object({
 });
 
 export const queryLedgerSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  search: z.string().max(200).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional()
 });

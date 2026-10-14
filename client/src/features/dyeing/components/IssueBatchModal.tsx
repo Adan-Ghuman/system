@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -71,12 +73,9 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
   }, [isOpen]);
 
   const { data: buyersData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['parties', 'isFabricBuyer'],
+    queryKey: ['party-options', 'isFabricBuyer'],
     queryFn: async () => {
-      const res = await api.get<{ success: boolean; data: { items: PartyItem[] } }>('/parties', {
-        params: { tag: 'isFabricBuyer', limit: 100 }
-      });
-      return res.data.data;
+      return loadAllRecords<PartyItem>('/parties', { tag: 'isFabricBuyer' });
     },
     enabled: isOpen
   });
@@ -186,30 +185,38 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
   }
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="issue-batch-modal-form" isLoading={isLoading}>
+            Save & Issue Gate Pass
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Send Fabric to Dyeing Unit"
       description="Create a delivery gate pass to send raw fabric rolls to Ghumman, Rajput, or another unit for dyeing."
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="issue-batch-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-zinc-300">Select Target Processing Unit</label>
+        <FormSection step={1} title="Sending details">
+<div className="space-y-2">
+          <label className="text-xs font-semibold text-ink">Select Target Processing Unit</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {activeMills.map((unit) => (
               <button
@@ -218,8 +225,8 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
                 onClick={() => setMillName(unit.code as DyeingMillType)}
                 className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
                   millName === unit.code
-                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'bg-primary/20 border-emerald-500 text-brand'
+                    : 'bg-canvas border-line text-soft hover:border-control hover:text-strong'
                 }`}
               >
                 <Factory className="w-4 h-4" />
@@ -232,8 +239,8 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
               onClick={() => setMillName('OTHER')}
               className={`flex items-center justify-center gap-2 p-2 rounded-md border text-xs font-semibold transition-colors select-none ${
                 millName === 'OTHER'
-                  ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  ? 'bg-primary/20 border-emerald-500 text-brand'
+                  : 'bg-canvas border-line text-soft hover:border-control hover:text-strong'
               }`}
             >
               <Building2 className="w-4 h-4" />
@@ -248,7 +255,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
                 label="Custom Dyeing Unit Name"
                 value={customMillName}
                 onChange={(e) => setCustomMillName(e.target.value)}
-                placeholder="e.g. Master Dyeing Unit, Ittehad Dyeing..."
+                placeholder="e.g. Example Dyeing Mill"
                 required
               />
             </div>
@@ -262,7 +269,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             value={batchNo}
             onChange={(e) => setBatchNo(e.target.value.toUpperCase())}
             required
-            placeholder="BATCH-001"
+            placeholder="e.g. 1234"
           />
 
           <Input
@@ -270,7 +277,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             label="Outward Gate Pass (OGP)"
             value={ogpNo}
             onChange={(e) => setOgpNo(e.target.value)}
-            placeholder="e.g. OGP-551"
+            placeholder="e.g. 1234"
           />
 
           <Input
@@ -282,8 +289,10 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             required
           />
         </div>
+</FormSection>
 
-        <div className="space-y-3">
+        <FormSection step={2} title="Fabric and quantities">
+<div className="space-y-3">
           <div>
             <Select
               id="fabricTypeSelect"
@@ -362,8 +371,10 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
             placeholder="e.g. MINT GREEN / BABY PINK"
           />
         )}
+</FormSection>
 
-        <Select
+        <FormSection step={3} title="Customer and notes">
+<Select
           id="allocatedCustomer"
           label="Pre-Allocated Customer Order (Optional)"
           value={allocatedCustomerId}
@@ -384,15 +395,9 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Special dyeing instructions, temperature, or chemical specs"
         />
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading}>
-            Save & Issue Gate Pass
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

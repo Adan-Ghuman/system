@@ -22,7 +22,7 @@ setInterval(() => {
       completedCache.delete(key);
     }
   }
-}, 5000);
+}, 5000).unref();
 
 function generateFingerprint(req: Request): string {
   const method = req.method.toUpperCase();

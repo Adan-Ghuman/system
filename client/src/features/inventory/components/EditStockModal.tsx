@@ -1,3 +1,4 @@
+import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -125,29 +126,38 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
   if (!item) return null;
 
   return (
-    <Dialog
+    <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="edit-stock-modal-form" isLoading={isLoading} className="gap-1.5">
+            <Save className="w-4 h-4" />
+            <span>Save Stock Changes</span>
+          </Button>
+        </div>}
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Fabric Stock Details"
       description={`Update fabric variety, yarn spec, color, rolls, or weight for ${item.fabricType}.`}
       className="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="edit-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-red-400">
+          <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+          <div role="status" className="flex items-center gap-2 p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 text-brand">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={1} title="Fabric details">
+<div className="grid grid-cols-2 gap-3">
           <Select
             id="editLocation"
             label="Storage Location"
@@ -211,13 +221,15 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
             />
           ) : (
             <div className="flex flex-col justify-center">
-              <span className="text-[11px] text-zinc-500">Selected Shade</span>
-              <span className="text-xs font-semibold text-zinc-300 font-mono mt-1">{color}</span>
+              <span className="text-xs text-soft">Selected Shade</span>
+              <span className="text-xs font-semibold text-ink font-mono mt-1">{color}</span>
             </div>
           )}
         </div>
+</FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
+        <FormSection step={2} title="Stock quantities">
+<div className="grid grid-cols-2 gap-3">
           <Input
             id="editRolls"
             type="number"
@@ -240,25 +252,18 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
           />
         </div>
 
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="p-3 rounded-lg bg-canvas border border-line flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-soft">
+            <Sparkles className="w-3.5 h-3.5 text-brand" />
             <span>Calculated Roll Average:</span>
           </div>
-          <div className="font-mono text-zinc-200">
-            <strong className="text-emerald-400 font-bold">{avgWeight}</strong> Kg / Roll ({formatWeight(weightNum)} across {rollsNum} rolls)
+          <div className="font-mono text-strong">
+            <strong className="text-brand font-bold">{avgWeight}</strong> Kg / Roll ({formatWeight(weightNum)} across {rollsNum} rolls)
           </div>
         </div>
+</FormSection>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={isLoading} className="gap-1.5">
-            <Save className="w-4 h-4" />
-            <span>Save Stock Changes</span>
-          </Button>
-        </div>
+
       </form>
     </Dialog>
   );

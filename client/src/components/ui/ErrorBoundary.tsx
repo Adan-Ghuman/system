@@ -36,16 +36,16 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-[400px] flex items-center justify-center p-6">
-          <Card className="max-w-md w-full border-red-900/40 bg-zinc-900/90 text-center">
+          <Card className="max-w-md w-full border-line bg-surface/90 text-center">
             <CardContent className="pt-6 space-y-4">
-              <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+              <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-danger">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-zinc-100">
+                <h3 className="text-base font-bold text-strong">
                   {this.props.fallbackTitle || 'Component Error Encountered'}
                 </h3>
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-soft mt-1">
                   {this.state.error?.message || 'An unexpected runtime issue occurred.'}
                 </p>
               </div>
