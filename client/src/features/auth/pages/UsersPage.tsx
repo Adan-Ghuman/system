@@ -1,3 +1,4 @@
+import { StaffAccess } from '../../../business/StaffAccess.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
@@ -20,13 +21,13 @@ interface UserListItem {
   fullName: string;
   email: string;
   role: 'admin' | 'operator' | 'viewer';
-  permissions: string[];
+  permissions: string[]; businessIds?: string[];
   isActive: boolean;
   createdAt: string;
 }
 
 export function UsersPage() {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);const [editingAccess, setEditingAccess] = useState<UserListItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -118,7 +119,7 @@ export function UsersPage() {
                           <div className="w-6 h-6 rounded-full bg-subtle flex items-center justify-center text-ink">
                             {u.role === 'admin' ? <Shield className="w-3 h-3 text-brand" /> : <UserIcon className="w-3 h-3" />}
                           </div>
-                          <span className="font-semibold text-strong">{u.fullName}</span>
+                          <span className="font-semibold text-strong">{u.fullName}</span><Button size="sm" variant="ghost" onClick={() => setEditingAccess(u)}>Manage access</Button>
                           <span className="text-xs font-mono text-soft ml-1">({u.email})</span>
                         </div>
                       </td>
@@ -176,6 +177,7 @@ export function UsersPage() {
         />
       </Card>
 
+      {editingAccess && <StaffAccess user={editingAccess} onClose={() => setEditingAccess(null)} onSaved={() => { setEditingAccess(null);void refetch(); }} />}
       {isCreateOpen && <RegisterUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}

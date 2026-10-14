@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document } from 'mongoose';
 
 export interface IPartyTags {
@@ -98,4 +100,4 @@ partySchema.index({ 'tags.isKnitter': 1 });
 partySchema.index({ 'tags.isFabricBuyer': 1 });
 partySchema.index({ 'tags.isDyeingMill': 1 });
 
-export const Party = model<IParty>('Party', partySchema);
+export const Party = businessModel<IParty>('Party', partySchema);

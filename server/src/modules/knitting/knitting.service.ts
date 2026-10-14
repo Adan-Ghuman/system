@@ -1,3 +1,6 @@
+import { currentBusinessId } from '../../business/context.js';
+import { postYarnDelivery, postSingleYarnDelivery, postKnittingReceipt } from '../../business/knitting.js';
+import { referenceFields } from '../../business/references.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { YarnTransaction, IYarnTransaction } from '../../models/YarnTransaction.js';
@@ -29,6 +32,7 @@ export function calculateYarnMetrics(boxCount: number, netWeightPerBox: number, 
 }
 
 export async function recordYarnTransaction(input: CreateYarnTransactionInput): Promise<IYarnTransaction> {
+  if (currentBusinessId()) return await postSingleYarnDelivery(input) as unknown as IYarnTransaction;
   let party = null;
   if (Types.ObjectId.isValid(input.partyId)) {
     party = await Party.findById(input.partyId);
@@ -70,7 +74,8 @@ export async function recordYarnTransaction(input: CreateYarnTransactionInput): 
     netExpectedFabricKg,
     receivedFabricKg: 0,
     remainingYarnBalanceKg: grossWeightKg,
-    remarks: input.remarks || ''
+    ...referenceFields(input),
+          remarks: input.remarks || ''
   });
 
   return transaction;
@@ -82,6 +87,7 @@ export async function recordBulkYarnTransactions(input: CreateBulkYarnTransactio
   totalBoxes: number;
   totalGrossKg: number;
 }> {
+  if (currentBusinessId()) return await postYarnDelivery(input) as unknown as { transactions: IYarnTransaction[]; count: number; totalBoxes: number; totalGrossKg: number };
   let party = null;
   if (Types.ObjectId.isValid(input.partyId)) {
     party = await Party.findById(input.partyId);
@@ -172,6 +178,7 @@ export async function recordKnittedFabricReceipt(input: ReceiveFabricInput): Pro
   itemsCount: number;
   remainingYarnInFieldKg: number;
 }> {
+  if (currentBusinessId()) return postKnittingReceipt(input);
   // Normalize items array
   const items = input.items && input.items.length > 0
     ? input.items
@@ -181,6 +188,7 @@ export async function recordKnittedFabricReceipt(input: ReceiveFabricInput): Pro
           yarnSpec: input.yarnSpec || '75/72',
           rollsCount: input.rollsCount || 1,
           weightKg: input.weightKg || 0,
+          ...referenceFields(input),
           remarks: input.remarks || ''
         }
       ];
@@ -273,7 +281,7 @@ export async function recordKnittedFabricReceipt(input: ReceiveFabricInput): Pro
     {
       $match: {
         partyId: party._id,
-        transactionType: 'OUTWARD_TO_KNITTER'
+        transactionType: 'OUTWARD_TO_KNITTER', status: { $ne: 'REVERSED' }
       }
     },
     {
@@ -310,14 +318,14 @@ export async function getKnitterBalances(query: { page?: number; limit?: number;
   const pipeline: mongoose.PipelineStage[] = [
     {
       $match: {
-        transactionType: 'OUTWARD_TO_KNITTER'
+        transactionType: 'OUTWARD_TO_KNITTER', status: { $ne: 'REVERSED' }
       }
     },
     {
       $group: {
         _id: {
           partyId: '$partyId',
-          yarnSpec: '$yarnSpec'
+          yarnSpec: '$yarnSpec', ownerKey: { $ifNull: ['$ownerKey', 'OWN'] }
         },
         lastDate: { $max: '$date' },
         totalGrossKg: { $sum: '$grossWeightKg' },
@@ -341,15 +349,15 @@ export async function getKnitterBalances(query: { page?: number; limit?: number;
       $project: {
         _id: 0,
         partyId: { $toString: '$_id.partyId' },
-        yarnSpec: '$_id.yarnSpec',
+        yarnSpec: '$_id.yarnSpec', ownerKey: '$_id.ownerKey',
         partyCode: '$party.code',
         partyName: '$party.name',
         phone: '$party.phone',
         lastDate: 1,
-        totalGrossKg: { $round: ['$totalGrossKg', 2] },
-        totalExpectedKg: { $round: ['$totalExpectedKg', 2] },
-        totalReceivedKg: { $round: ['$totalReceivedKg', 2] },
-        remainingYarnKg: { $round: ['$remainingYarnKg', 2] }
+        totalGrossKg: { $round: ['$totalGrossKg', 3] },
+        totalExpectedKg: { $round: ['$totalExpectedKg', 3] },
+        totalReceivedKg: { $round: ['$totalReceivedKg', 3] },
+        remainingYarnKg: { $round: ['$remainingYarnKg', 3] }
       }
     },
     {
@@ -398,7 +406,7 @@ export async function listYarnTransactions(query: QueryTransactionsInput) {
     filter.$or = [
       { gatePassNo: searchRegex },
       { yarnSpec: searchRegex },
-      { remarks: searchRegex }
+      { remarks: searchRegex }, { poNo: searchRegex }, { externalReference: searchRegex }
     ];
   }
 
@@ -422,6 +430,7 @@ export async function updateYarnTransaction(id: string, input: UpdateYarnTransac
     throw new NotFoundError('Yarn transaction not found');
   }
 
+  if (currentBusinessId()) throw new BadRequestError('Posted yarn movements cannot be overwritten. Use a stock adjustment or return so the original receipt and balances remain traceable.');
   if (input.partyId && input.partyId !== transaction.partyId.toString()) {
     const party = await Party.findById(input.partyId);
     if (!party) {
@@ -463,6 +472,7 @@ export async function updateYarnTransaction(id: string, input: UpdateYarnTransac
 }
 
 export async function deleteYarnTransaction(id: string): Promise<void> {
+  if (currentBusinessId()) throw new BadRequestError('Posted yarn movements cannot be deleted. Use a return or adjustment.');
   const transaction = await YarnTransaction.findById(id);
   if (!transaction) {
     throw new NotFoundError('Yarn transaction not found');

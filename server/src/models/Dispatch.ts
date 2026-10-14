@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 import { InventoryLocation } from './FabricInventory.js';
 
@@ -9,6 +11,8 @@ export interface IDispatchRoll {
 }
 
 export interface IDispatch extends Document {
+  status: 'POSTED' | 'REVERSED';
+  state: 'RAW_ECRU' | 'FINISHED_DYED';
   dispatchNo: string;
   ogpNo: string;
   customerId: Types.ObjectId;
@@ -39,6 +43,8 @@ const dispatchRollSchema = new Schema<IDispatchRoll>(
 
 const dispatchSchema = new Schema<IDispatch>(
   {
+    status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' },
+    state: { type: String, enum: ['RAW_ECRU', 'FINISHED_DYED'], default: 'FINISHED_DYED' },
     dispatchNo: {
       type: String,
       required: true,
@@ -55,13 +61,12 @@ const dispatchSchema = new Schema<IDispatch>(
     },
     customerId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       required: true,
       index: true
     },
     fromLocation: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },
@@ -124,4 +129,4 @@ const dispatchSchema = new Schema<IDispatch>(
 
 dispatchSchema.index({ date: -1 });
 
-export const Dispatch = model<IDispatch>('Dispatch', dispatchSchema);
+export const Dispatch = businessModel<IDispatch>('Dispatch', dispatchSchema);

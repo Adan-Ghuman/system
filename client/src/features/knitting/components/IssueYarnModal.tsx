@@ -1,3 +1,6 @@
+import { CatalogField } from '../../../components/ui/CatalogField.js';
+import { yarnLineWeight } from '../../../lib/yarnWeight.js';
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -47,6 +50,9 @@ function createDefaultItem(defaultSpec = ''): YarnGatePassLineItem {
     customSpec: '',
     boxCount: '',
     netWeightPerBox: '',
+    totalWeightKg: '',
+    packageUnit: 'cartons',
+    weightMode: 'TOTAL',
     remarks: ''
   };
 }
@@ -57,8 +63,12 @@ export function IssueYarnModal({
   onSuccess,
   initialType = 'OUTWARD_TO_KNITTER'
 }: IssueYarnModalProps) {
+  const [references, setReferences] = useDocumentReferences();
   const [transactionType, setTransactionType] = useState<YarnTransactionType>(initialType);
   const [partyId, setPartyId] = useState('');
+  const [ownership, setOwnership] = useState<'OWN' | 'CLIENT'>('OWN');
+  const [ownerPartyId, setOwnerPartyId] = useState('');
+  const { data: owners } = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties'), enabled: isOpen });
   const [gatePassNo, setGatePassNo] = useState('');
   const [date, setDate] = useState(getLocalDateInput());
   const [remarks, setRemarks] = useState('');
@@ -109,8 +119,7 @@ export function IssueYarnModal({
 
   // Row Manipulation Handlers
   function handleAddItem() {
-    const defaultSpec = items[items.length - 1]?.yarnSpec || '';
-    setItems((prev) => [...prev, createDefaultItem(defaultSpec)]);
+    setItems((prev) => [...prev, createDefaultItem()]);
   }
 
   function handleDuplicateItem(index: number) {
@@ -120,7 +129,8 @@ export function IssueYarnModal({
       ...source,
       id: generateRowId(),
       boxCount: '',
-      netWeightPerBox: ''
+      netWeightPerBox: '',
+      totalWeightKg: ''
     };
     setItems((prev) => [
       ...prev.slice(0, index + 1),
@@ -151,9 +161,9 @@ export function IssueYarnModal({
 
     items.forEach((item) => {
       const boxes = parseInt(item.boxCount, 10) || 0;
-      const netPerBox = parseFloat(item.netWeightPerBox) || 0;
+
       totalBoxes += boxes;
-      totalGrossKg += boxes * netPerBox;
+      totalGrossKg += yarnLineWeight(item);
     });
 
     return {
@@ -200,9 +210,9 @@ export function IssueYarnModal({
         setError(`Row #${i + 1} (${activeSpec}): Box count must be at least 1`);
         return;
       }
-      const netPerBox = parseFloat(item.netWeightPerBox);
+      const netPerBox = yarnLineWeight(item);
       if (isNaN(netPerBox) || netPerBox <= 0) {
-        setError(`Row #${i + 1} (${activeSpec}): Net weight per box must be greater than 0`);
+        setError(`Row #${i + 1} (${activeSpec}): Enter the measured total weight`);
         return;
       }
     }
@@ -214,7 +224,10 @@ export function IssueYarnModal({
 
     try {
       const payload: BulkCreateYarnTransactionPayload = {
+        ...references,
         transactionType,
+        ownership,
+        ownerPartyId: ownership === 'CLIENT' ? ownerPartyId : undefined,
         partyId,
         gatePassNo: gatePassNo.trim(),
         date: new Date(date).toISOString(),
@@ -224,7 +237,9 @@ export function IssueYarnModal({
           return {
             yarnSpec: spec,
             boxCount: parseInt(item.boxCount, 10),
-            netWeightPerBox: parseFloat(item.netWeightPerBox),
+            netWeightPerBox: yarnLineWeight(item) / Number(item.boxCount),
+            totalWeightKg: yarnLineWeight(item),
+            packageUnit: item.packageUnit,
             remarks: item.remarks?.trim() || undefined
           };
         })
@@ -283,29 +298,27 @@ export function IssueYarnModal({
               <Input id="yarn-date" type="date" label="Delivery date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
-          <FormSection step={2} title="What yarn is on this delivery?" description="Add one item for each yarn count. Total weight is calculated from boxes and weight per box.">
+          <div className="space-y-3"><Select label="Who owns this yarn?" value={ownership} onChange={event => setOwnership(event.target.value as 'OWN' | 'CLIENT')} options={[{value:'OWN',label:'This business owns the yarn'},{value:'CLIENT',label:'A client owns the yarn'}]} />{ownership === 'CLIENT' && !isReceive && <Select label="Yarn owner" value={ownerPartyId} onChange={event => setOwnerPartyId(event.target.value)} required options={[{value:'',label:'Choose the client'},...(owners?.items || []).map(party => ({value:party._id,label:party.name}))]} />}</div><DocumentReferences value={references} onChange={setReferences} />
+          <FormSection step={2} title="What yarn is on this delivery?" description="Record the package count and actual total weight from the challan. Use the calculator only when the paper gives weight per package.">
             {items.map((item, index) => (
               <EntryCard key={item.id} title={'Yarn item ' + (index + 1)} onCopy={() => handleDuplicateItem(index)}
                 onRemove={() => handleRemoveItem(item.id)} canRemove={items.length > 1}>
-                <Select id={'yarn-spec-' + item.id} label="Yarn count" value={item.yarnSpec} required
-                  onChange={(e) => handleItemChange(item.id, 'yarnSpec', e.target.value)}
-                  options={[{ label: 'Choose yarn count', value: '' }, ...availableSpecs.map((name) => ({ label: name, value: name })), { label: 'Other yarn count', value: 'OTHER' }]} />
-                {item.yarnSpec === 'OTHER' && <Input id={'yarn-custom-' + item.id} label="Custom yarn count" value={item.customSpec || ''}
-                  onChange={(e) => handleItemChange(item.id, 'customSpec', e.target.value)} placeholder="e.g. 40/1 Cotton" required />}
+                <CatalogField kind="YARN" id={'yarn-spec-' + item.id} label="Yarn name / count" value={item.yarnSpec} required suggestions={availableSpecs} onChange={value => handleItemChange(item.id, 'yarnSpec', value)} />
+                <div className="grid gap-4 sm:grid-cols-2"><Select label="Package unit" value={item.packageUnit} onChange={event => handleItemChange(item.id, 'packageUnit', event.target.value)} options={['cartons','bags','cones','packages'].map(value => ({value,label:value}))} /><Select label="Weight entry" value={item.weightMode} onChange={event => handleItemChange(item.id, 'weightMode', event.target.value)} options={[{value:'TOTAL',label:'Measured total kg'},{value:'PER_PACKAGE',label:'Calculate from kg per package'}]} /></div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input id={'yarn-boxes-' + item.id} label="Number of boxes / bags" type="number" min="1" step="1" value={item.boxCount}
+                  <Input id={'yarn-boxes-' + item.id} label="Number of packages" type="number" min="1" step="1" value={item.boxCount}
                     onChange={(e) => handleItemChange(item.id, 'boxCount', e.target.value)} placeholder="e.g. 10" required />
-                  <Input id={'yarn-weight-' + item.id} label="Weight per box (kg)" type="number" min="0.01" step="0.01" value={item.netWeightPerBox}
-                    onChange={(e) => handleItemChange(item.id, 'netWeightPerBox', e.target.value)} placeholder="e.g. 33.33" required />
+                  <Input id={'yarn-weight-' + item.id} label={item.weightMode === 'TOTAL' ? 'Total yarn weight (kg)' : 'Weight per package (kg)'} type="number" min="0.001" step="0.001" value={item.weightMode === 'TOTAL' ? item.totalWeightKg : item.netWeightPerBox}
+                    onChange={event => handleItemChange(item.id, item.weightMode === 'TOTAL' ? 'totalWeightKg' : 'netWeightPerBox', event.target.value)} placeholder="e.g. 36.000" required />
                 </div>
-                <p className="text-right text-xs text-soft">Item total: <strong className="font-mono text-brand">{formatWeight((parseInt(item.boxCount, 10) || 0) * (parseFloat(item.netWeightPerBox) || 0))}</strong></p>
+                <p className="text-right text-xs text-soft">Item total: <strong className="font-mono text-brand">{formatWeight(yarnLineWeight(item))}</strong></p>
                 <OptionalDetails title="Item note (optional)">
                   <Input id={'yarn-note-' + item.id} label="Note for this yarn" value={item.remarks || ''} onChange={(e) => handleItemChange(item.id, 'remarks', e.target.value)} />
                 </OptionalDetails>
               </EntryCard>
             ))}
             <Button type="button" variant="outline" onClick={handleAddItem}><Plus className="h-4 w-4" /> Add another yarn count</Button>
-            {!isReceive && <p className="text-xs leading-relaxed text-soft">The standard 1% yarn wastage is calculated automatically.</p>}
+            {!isReceive && <p className="text-xs leading-relaxed text-soft">Actual wastage is entered when fabric is received. No percentage is deducted here.</p>}
           </FormSection>
           <OptionalDetails title="Driver, vehicle or delivery note (optional)">
             <Input id="yarn-remarks" label="Delivery note" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Driver, vehicle, bilty or other details" />

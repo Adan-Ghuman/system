@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type DyeingUnitLocationType = 'DYEING_MILL' | 'GODOWN' | 'OTHER';
@@ -47,7 +49,7 @@ const dyeingUnitSchema = new Schema<IDyeingUnit>(
     },
     partyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party'
+      ref: partyModelName
     },
     address: {
       type: String,
@@ -126,4 +128,4 @@ export const DEFAULT_DYEING_UNITS = [
   }
 ];
 
-export const DyeingUnit = model<IDyeingUnit>('DyeingUnit', dyeingUnitSchema);
+export const DyeingUnit = businessModel<IDyeingUnit>('DyeingUnit', dyeingUnitSchema);

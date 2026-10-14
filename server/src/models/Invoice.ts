@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type InvoiceType = 'TAX_18_PERCENT' | 'NON_GST';
@@ -42,7 +44,7 @@ const invoiceSchema = new Schema<IInvoice>(
     },
     customerId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       required: true,
       index: true
     },
@@ -93,4 +95,4 @@ const invoiceSchema = new Schema<IInvoice>(
 
 invoiceSchema.index({ date: -1 });
 
-export const Invoice = model<IInvoice>('Invoice', invoiceSchema);
+export const Invoice = businessModel<IInvoice>('Invoice', invoiceSchema);

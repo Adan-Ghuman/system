@@ -8,6 +8,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: UserRole;
   permissions: string[];
+  businessIds: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,7 @@ const userSchema = new Schema<IUser>(
       enum: ['admin', 'operator', 'viewer'],
       default: 'operator'
     },
+    businessIds: [{ type: Schema.Types.ObjectId, ref: 'Business' }],
     permissions: {
       type: [String],
       default: []

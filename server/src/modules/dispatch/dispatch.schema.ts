@@ -1,3 +1,4 @@
+import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 import { locationEnum } from '../inventory/inventory.schema.js';
 
@@ -5,10 +6,14 @@ export const dispatchRollInputSchema = z.object({
   rollNumber: z.number().int().min(1),
   grossWeightKg: z.number().positive(),
   tareKg: z.number().min(0).default(0),
-  netWeightKg: z.number().positive()
+  netWeightKg: z.number().default(0)
 });
 
 export const createDispatchSchema = z.object({
+  ...documentReferenceFields,
+  billNow: z.boolean().default(true),
+  draftId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
+  state: z.enum(['RAW_ECRU', 'FINISHED_DYED']).default('FINISHED_DYED'),
   customerId: z.string().min(1, 'Customer is required'),
   fromLocation: locationEnum,
   fabricType: z.string().min(1, 'Fabric type is required').trim(),

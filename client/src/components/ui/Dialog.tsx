@@ -116,7 +116,7 @@ export function Dialog({ isOpen, onClose, title, description, children, footer, 
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">{children}</div>
-          {footer && <div className="shrink-0 border-t border-line bg-surface px-4 py-3 sm:px-6">{footer}</div>}
+          {footer && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line bg-surface px-4 py-3 sm:px-6">{footer}</div>}
         </div>
       </div>
     </div>, document.body

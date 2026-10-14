@@ -25,8 +25,8 @@ export async function connectDatabase(): Promise<string> {
     await mongoose.connect(env.MONGODB_URI, {
       serverSelectionTimeoutMS: 15000
     });
-    await seedInitialAdmin();
-    await seedRazaData();
+    if (env.NODE_ENV !== 'production') await seedInitialAdmin();
+    if (env.ENABLE_DEMO_SEED === 'true') await seedRazaData();
     return env.MONGODB_URI;
   } catch (error) {
     if (env.NODE_ENV === 'production' || env.MONGODB_URI.includes('mongodb+srv://')) {
@@ -41,7 +41,7 @@ export async function connectDatabase(): Promise<string> {
     const uri = replSet.getUri();
     await mongoose.connect(uri);
     await seedInitialAdmin();
-    await seedRazaData();
+    if (env.ENABLE_DEMO_SEED === 'true') await seedRazaData();
     return uri;
   }
 }

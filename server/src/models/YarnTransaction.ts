@@ -1,8 +1,11 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type YarnTransactionType = 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT';
 
 export interface IYarnTransaction extends Document {
+  status: 'POSTED' | 'REVERSED';
   transactionType: YarnTransactionType;
   partyId: Types.ObjectId;
   yarnSpec: string;
@@ -11,6 +14,11 @@ export interface IYarnTransaction extends Document {
   boxCount: number;
   netWeightPerBox: number;
   grossWeightKg: number;
+  actualWastageKg: number;
+  totalWeightKg?: number;
+  packageUnit: string;
+  ownerKey: string;
+  returnedPackages: number;
   wastagePercent: number;
   wastageWeightKg: number;
   netExpectedFabricKg: number;
@@ -23,6 +31,7 @@ export interface IYarnTransaction extends Document {
 
 const yarnTransactionSchema = new Schema<IYarnTransaction>(
   {
+    status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' },
     transactionType: {
       type: String,
       enum: ['OUTWARD_TO_KNITTER', 'INWARD_FROM_CLIENT'],
@@ -30,7 +39,7 @@ const yarnTransactionSchema = new Schema<IYarnTransaction>(
     },
     partyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       required: true,
       index: true
     },
@@ -59,8 +68,13 @@ const yarnTransactionSchema = new Schema<IYarnTransaction>(
     netWeightPerBox: {
       type: Number,
       required: true,
-      min: 0.01
+      min: 0.000001
     },
+    actualWastageKg: { type: Number, default: 0 },
+    totalWeightKg: { type: Number },
+    packageUnit: { type: String, default: 'cartons' },
+    ownerKey: { type: String, default: 'OWN' },
+    returnedPackages: { type: Number, default: 0 },
     grossWeightKg: {
       type: Number,
       required: true
@@ -99,4 +113,4 @@ const yarnTransactionSchema = new Schema<IYarnTransaction>(
 yarnTransactionSchema.index({ partyId: 1, yarnSpec: 1 });
 yarnTransactionSchema.index({ transactionType: 1, date: -1 });
 
-export const YarnTransaction = model<IYarnTransaction>('YarnTransaction', yarnTransactionSchema);
+export const YarnTransaction = businessModel<IYarnTransaction>('YarnTransaction', yarnTransactionSchema);

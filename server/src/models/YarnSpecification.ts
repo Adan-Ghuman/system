@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document } from 'mongoose';
 
 export type YarnCategory = 'Polyester' | 'Cotton' | 'Spandex' | 'Blended' | 'Viscose' | 'Other';
@@ -62,4 +64,4 @@ export const DEFAULT_YARN_SPECIFICATIONS = [
   { name: '70D Spandex', category: 'Spandex' as YarnCategory, description: 'Heavy Spandex Inlay' }
 ];
 
-export const YarnSpecification = model<IYarnSpecification>('YarnSpecification', yarnSpecificationSchema);
+export const YarnSpecification = businessModel<IYarnSpecification>('YarnSpecification', yarnSpecificationSchema);

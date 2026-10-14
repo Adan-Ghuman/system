@@ -1,6 +1,6 @@
 export type YarnTransactionType = 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT';
 
-export interface YarnTransactionItem {
+export interface YarnTransactionItem { status?: "POSTED" | "REVERSED"; packageUnit?: string; actualWastageKg?: number;
   _id: string;
   transactionType: YarnTransactionType;
   partyId: {
@@ -25,7 +25,7 @@ export interface YarnTransactionItem {
   updatedAt: string;
 }
 
-export interface KnitterBalanceSummary {
+export interface KnitterBalanceSummary { ownerKey?: string;
   partyId: string;
   partyCode: string;
   partyName: string;
@@ -44,11 +44,16 @@ export interface YarnGatePassLineItem {
   customSpec?: string;
   boxCount: string;
   netWeightPerBox: string;
+  totalWeightKg: string;
+  packageUnit: string;
+  weightMode: 'TOTAL' | 'PER_PACKAGE';
   wastagePercent?: string;
   remarks?: string;
 }
 
 export interface BulkCreateYarnTransactionPayload {
+  ownership?: 'OWN' | 'CLIENT';
+  ownerPartyId?: string;
   transactionType: YarnTransactionType;
   partyId: string;
   gatePassNo: string;
@@ -58,6 +63,8 @@ export interface BulkCreateYarnTransactionPayload {
     yarnSpec: string;
     boxCount: number;
     netWeightPerBox: number;
+    totalWeightKg?: number;
+    packageUnit?: string;
     wastagePercent?: number;
     remarks?: string;
   }>;
@@ -76,6 +83,7 @@ export interface CreateYarnTransactionPayload {
 }
 
 export interface ReceiveFabricLineItem {
+  wastageKg?: number; components?: Array<{ yarnSpec: string; weightKg: number }>;
   fabricType?: string;
   yarnSpec: string;
   rollsCount: number;
@@ -83,7 +91,7 @@ export interface ReceiveFabricLineItem {
   remarks?: string;
 }
 
-export interface ReceiveFabricPayload {
+export interface ReceiveFabricPayload { ownerKey?: string;
   partyId: string;
   partyName?: string;
   date?: string;

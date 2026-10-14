@@ -1,3 +1,4 @@
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
@@ -7,6 +8,7 @@ import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
 import { Button } from '../../../components/ui/Button.js';
+import { LoadingState } from '../../../components/ui/LoadingState.js';
 import { Plus } from 'lucide-react';
 import {
   DyeingBatchItem,
@@ -81,6 +83,7 @@ export function ReceiveGatePassModal({
   initialMill = 'HB_DYEING'
 }: ReceiveGatePassModalProps) {
   // Mode toggle: 'DIRECT' (Mirror Paper Challan) vs 'LINK_BATCHES' (Select from Sent Batches)
+  const [references, setReferences] = useDocumentReferences();
   const [entryMode, setEntryMode] = useState<'DIRECT' | 'LINK_BATCHES'>('LINK_BATCHES');
 
   // Header Details
@@ -97,7 +100,7 @@ export function ReceiveGatePassModal({
 
   // Mode B: Link Existing Batches Search & Selected States
   const [batchSearch, setBatchSearch] = useState('');
-  const [selectedBatchIds, setSelectedBatchIds] = useState<Record<string, { finishRolls: string; finishKg: string }>>({});
+  const [selectedBatchIds, setSelectedBatchIds] = useState<Record<string, { finishRolls: string; finishKg: string; rawRolls: string; rawKg: string }>>({});
 
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -165,17 +168,16 @@ export function ReceiveGatePassModal({
 
   // Add / Duplicate / Remove direct rows
   function handleAddRow() {
-    const lastRow = rows[rows.length - 1];
     setRows((prev) => [
       ...prev,
       {
         id: generateRowId(),
         lotNo: '',
-        fabricType: lastRow ? lastRow.fabricType : 'Interlock',
-        yarnSpec: lastRow ? lastRow.yarnSpec : '75/72',
-        targetColor: lastRow ? lastRow.targetColor : 'WHITE',
-        gsm: lastRow ? lastRow.gsm : '140',
-        width: lastRow ? lastRow.width : '60"',
+        fabricType: '',
+        yarnSpec: '',
+        targetColor: '',
+        gsm: '',
+        width: '',
         rolls: '',
         lotWeightKg: '',
         finishWeightKg: '',
@@ -291,7 +293,7 @@ export function ReceiveGatePassModal({
         delete next[b._id];
       } else {
         next[b._id] = {
-          finishRolls: String(b.ecruRollsCount),
+          finishRolls: String(b.ecruRollsCount - (b.receivedRawRolls || 0)), rawRolls: String(b.ecruRollsCount - (b.receivedRawRolls || 0)), rawKg: (b.ecruWeightKg - (b.receivedRawKg || 0)).toFixed(3),
           finishKg: ''
         };
       }
@@ -403,14 +405,14 @@ export function ReceiveGatePassModal({
           vehicleNo: vehicleNo.trim(),
           remarks: remarks.trim(),
           items: selectedEntries.map(([bId, vals]) => ({
-            batchId: bId,
+            batchId: bId, ecruRollsCount: Number(vals.rawRolls), ecruWeightKg: Number(vals.rawKg),
             finishRollsCount: parseInt(vals.finishRolls, 10) || 1,
             finishWeightKg: parseFloat(vals.finishKg) || 0
           }))
         };
       }
 
-      await api.post('/dyeing/gate-passes/receive', payload);
+      await api.post('/dyeing/gate-passes/receive', { ...payload, ...references });
 
       setSuccess(`Inward Challan ${igpNo} successfully recorded. Finished dyed stock credited.`);
       onSuccess();
@@ -460,7 +462,7 @@ export function ReceiveGatePassModal({
               <Input id="receive-dyeing-date" label="Received date" type="date" value={dateReceived} onChange={(e) => setDateReceived(e.target.value)} required />
             </div>
           </FormSection>
-          <FormSection step={2} title="Which fabric are you receiving?">
+          <DocumentReferences value={references} onChange={setReferences} /><FormSection step={2} title="Which fabric are you receiving?">
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" aria-pressed={entryMode === 'LINK_BATCHES'} onClick={() => setEntryMode('LINK_BATCHES')}
                 className={'rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ' + (entryMode === 'LINK_BATCHES' ? 'border-emerald-500/60 bg-brand-soft' : 'border-control bg-canvas/40')}>
@@ -470,21 +472,21 @@ export function ReceiveGatePassModal({
               <button type="button" aria-pressed={entryMode === 'DIRECT'} onClick={() => setEntryMode('DIRECT')}
                 className={'rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ' + (entryMode === 'DIRECT' ? 'border-emerald-500/60 bg-brand-soft' : 'border-control bg-canvas/40')}>
                 <span className="block text-sm font-medium text-strong">From a paper challan</span>
-                <span className="mt-1 block text-xs text-soft">Enter a delivery that has no sent batch in the system.</span>
+                <span className="mt-1 block text-xs text-soft">Match the paper lot number to its recorded outgoing batch.</span>
               </button>
             </div>
             {entryMode === 'LINK_BATCHES' ? (
               <div className="space-y-3">
                 <Input id="receive-batch-search" label="Find a sent batch" value={batchSearch} onChange={(e) => setBatchSearch(e.target.value)} placeholder="Batch number, challan, fabric or color" />
                 <p className="text-xs text-soft">{Object.keys(selectedBatchIds).length} batches selected</p>
-                {isBatchesLoading ? <p role="status" className="py-5 text-sm text-soft">Loading sent batches...</p> : isBatchesError ? (
+                {isBatchesLoading ? <LoadingState /> : isBatchesError ? (
                   <div role="alert" className="space-y-2 rounded-lg border border-line p-3 text-sm text-danger">
                     <p>Sent batches could not be loaded.</p><Button type="button" variant="outline" onClick={() => refetchBatches()}>Try again</Button>
                   </div>
                 ) : filteredActiveBatches.length === 0 ? (
                   <div className="space-y-2 rounded-lg border border-dashed border-control p-4 text-sm text-soft">
                     <p>{batchSearch ? 'No sent batches match this search.' : 'No fabric is awaiting receipt at this mill.'}</p>
-                    <Button type="button" variant="outline" onClick={() => setEntryMode('DIRECT')}>Enter a paper challan instead</Button>
+                    <Button type="button" variant="outline" onClick={() => setEntryMode('DIRECT')}>Match a recorded paper lot instead</Button>
                   </div>
                 ) : filteredActiveBatches.map((batch) => {
                   const selected = selectedBatchIds[batch._id];
@@ -504,7 +506,7 @@ export function ReceiveGatePassModal({
                         <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
                           <Input id={'receive-batch-rolls-' + batch._id} label="Rolls received" type="number" min="1" step="1" value={selected.finishRolls} required
                             onChange={(e) => setSelectedBatchIds((current) => ({ ...current, [batch._id]: { ...selected, finishRolls: e.target.value } }))} />
-                          <Input id={'receive-batch-weight-' + batch._id} label="Weight received (kg)" type="number" min="0.01" max={batch.ecruWeightKg || undefined} step="0.01" value={selected.finishKg} required
+                          <Input label="Raw rolls covered by this return" type="number" min="1" step="1" required value={selected.rawRolls} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawRolls: event.target.value } }))} /><Input label="Raw kg covered by this return" type="number" min="0.001" step="0.001" required value={selected.rawKg} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawKg: event.target.value } }))} /><Input id={'receive-batch-weight-' + batch._id} label="Weight received (kg)" type="number" min="0.001" max={batch.ecruWeightKg || undefined} step="0.001" value={selected.finishKg} required
                             placeholder="e.g. 25.50" error={overWeight ? 'Cannot exceed the sent weight.' : undefined}
                             onChange={(e) => setSelectedBatchIds((current) => ({ ...current, [batch._id]: { ...selected, finishKg: e.target.value } }))} />
                         </div>
@@ -536,11 +538,11 @@ export function ReceiveGatePassModal({
                       <div className="grid grid-cols-2 gap-4">
                         <Input id={'receive-rolls-' + row.id} label="Rolls received" type="number" min="1" step="1" value={row.rolls} required
                           onChange={(e) => handleRowChange(row.id, 'rolls', e.target.value)} placeholder="e.g. 10" />
-                        <Input id={'receive-weight-' + row.id} label="Weight received (kg)" type="number" min="0.01" step="0.01" value={row.finishWeightKg} required
+                        <Input id={'receive-weight-' + row.id} label="Weight received (kg)" type="number" min="0.001" step="0.001" value={row.finishWeightKg} required
                           onChange={(e) => handleRowChange(row.id, 'finishWeightKg', e.target.value)} placeholder="e.g. 25.50"
                           error={overWeight ? 'Cannot exceed the sent weight.' : undefined} />
                       </div>
-                      <Input id={'receive-sent-' + row.id} label="Raw weight sent (kg, if known)" type="number" min="0.01" step="0.01" value={row.lotWeightKg} readOnly={Boolean(row.matchedBatchId)}
+                      <Input id={'receive-sent-' + row.id} label="Raw weight sent (kg, if known)" type="number" min="0.001" step="0.001" value={row.lotWeightKg} readOnly={Boolean(row.matchedBatchId)}
                         onChange={(e) => handleRowChange(row.id, 'lotWeightKg', e.target.value)} placeholder="e.g. 25.50" />
                       {sentKg > 0 && receivedKg > 0 && !overWeight && <p className="text-xs text-soft">Weight loss: <strong className="text-strong">{(sentKg - receivedKg).toFixed(2)} kg ({((sentKg - receivedKg) / sentKg * 100).toFixed(1)}%)</strong></p>}
                       <OptionalDetails title="Fabric specifications and note (optional)">

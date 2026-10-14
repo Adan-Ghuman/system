@@ -1,3 +1,4 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
@@ -186,7 +187,7 @@ export function InventoryPage() {
         ...(debouncedSearchTerm.trim() ? { search: debouncedSearchTerm.trim() } : {})
       });
       exportToCsv<FabricInventoryItem>(
-      `inventory_holdings_${new Date().toISOString().split('T')[0]}`,
+      `inventory_holdings_${getLocalDateInput()}`,
       [
         { header: 'Location', accessor: (i) => i.location },
         { header: 'Fabric Variety', accessor: (i) => i.fabricType },

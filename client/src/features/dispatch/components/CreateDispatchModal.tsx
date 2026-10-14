@@ -1,13 +1,18 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
+import { OperationDocument } from '../../../business/types.js';
+import { useBusinessStore } from '../../../business/store.js';
+import { DyeingUnitItem } from '../../dyeing/types/dyeing.types.js';
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
-import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
+import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
-import { PartyCombobox } from '../../../components/ui/PartyCombobox.js';
+import { PartySelector } from '../../../business/PartySelector.js';
 import { LoadingOverlay } from '../../../components/ui/LoadingOverlay.js';
 import { formatCurrency, formatWeight } from '../../../lib/formatters.js';
 import { RapidGridEntry } from './RapidGridEntry.js';
@@ -21,6 +26,7 @@ import { InventoryLocation, FabricInventoryItem } from '../../inventory/types/in
 import { PartyItem } from '../../parties/types/party.types.js';
 
 export interface CreateDispatchModalProps {
+  draft?: OperationDocument;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -34,19 +40,24 @@ const LOCATIONS: { label: string; value: InventoryLocation }[] = [
   { label: 'HB Dyeing Unit (Direct Unit Dispatch)', value: 'HB_DYEING' }
 ];
 
-export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispatchModalProps) {
-  const [customerId, setCustomerId] = useState('');
-  const [fromLocation, setFromLocation] = useState<InventoryLocation>('ZR_GODOWN');
-  const [selectedStockId, setSelectedStockId] = useState('');
-  const [ratePerKg, setRatePerKg] = useState('850');
-  const [invoiceType, setInvoiceType] = useState<InvoiceType>('TAX_18_PERCENT');
-  const [rolls, setRolls] = useState<DispatchRollItem[]>([
-    { rollNumber: 1, grossWeightKg: 22.5, tareKg: 0, netWeightKg: 22.5 }
+export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: CreateDispatchModalProps) {
+  const saved = draft?.draft as Partial<CreateDispatchPayload & { inventoryId: string; poNo: string; externalReference: string; requestId: string }> | undefined;
+  const businessId = useBusinessStore(state => state.id);
+  const [billNow, setBillNow] = useState(saved?.billNow ?? true);const [condition, setCondition] = useState<'RAW_ECRU' | 'FINISHED_DYED'>(saved?.state || 'FINISHED_DYED');
+  const units = useQuery({ queryKey: ['dyeing-units'], queryFn: async () => (await api.get<{ data: DyeingUnitItem[] }>('/dyeing/units')).data.data });
+  const [freshReferences] = useDocumentReferences();const [references, setReferences] = useState({ ...freshReferences, poNo: saved?.poNo || '', externalReference: saved?.externalReference || '', requestId: saved?.requestId || freshReferences.requestId });
+  const [customerId, setCustomerId] = useState(saved?.customerId || '');
+  const [fromLocation, setFromLocation] = useState<InventoryLocation>(saved?.fromLocation || 'ZR_GODOWN');
+  const [selectedStockId, setSelectedStockId] = useState(saved?.inventoryId || '');
+  const [ratePerKg, setRatePerKg] = useState(saved?.ratePerKg ? String(saved.ratePerKg) : '');
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>(saved?.invoiceType || 'TAX_18_PERCENT');
+  const [rolls, setRolls] = useState<DispatchRollItem[]>(saved?.rolls || [
+    { rollNumber: 1, grossWeightKg: 0, tareKg: 0, netWeightKg: 0 }
   ]);
-  const [driverName, setDriverName] = useState('');
-  const [vehicleNo, setVehicleNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [remarks, setRemarks] = useState('');
+  const [driverName, setDriverName] = useState(saved?.driverName || '');
+  const [vehicleNo, setVehicleNo] = useState(saved?.vehicleNo || '');
+  const [date, setDate] = useState(saved?.date?.slice(0, 10) || getLocalDateInput());
+  const [remarks, setRemarks] = useState(saved?.remarks || '');
 
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -64,26 +75,14 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
   const buyers = buyersData?.items || [];
 
   const { data: stockData } = useQuery<{ items: FabricInventoryItem[] }>({
-    queryKey: ['inventory-items-for-dispatch', fromLocation],
+    queryKey: ['inventory-items-for-dispatch', fromLocation, condition],
     queryFn: async () => {
-      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, state: 'FINISHED_DYED' });
+      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, state: condition });
     },
     enabled: isOpen
   });
 
-  const availableStock = stockData?.items || [];
-
-  useEffect(() => {
-    if (buyers.length > 0 && !customerId) {
-      setCustomerId(buyers[0]._id);
-    }
-  }, [buyers, customerId]);
-
-  useEffect(() => {
-    if (availableStock.length > 0 && !selectedStockId) {
-      setSelectedStockId(availableStock[0]._id);
-    }
-  }, [availableStock, selectedStockId]);
+  const availableStock = (stockData?.items || []).filter(item => !(item as FabricInventoryItem & { ownerKey?: string }).ownerKey || (item as FabricInventoryItem & { ownerKey?: string }).ownerKey === 'OWN');
 
   const activeStock = availableStock.find((s) => s._id === selectedStockId);
 
@@ -119,13 +118,14 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
     try {
       const payload: CreateDispatchPayload = {
-        customerId,
+        ...references, draftId: draft?._id,
+        billNow, state: condition, customerId,
         fromLocation,
         fabricType: activeStock.fabricType,
         yarnSpec: activeStock.yarnSpec,
         color: activeStock.color,
         rolls,
-        ratePerKg: parseFloat(ratePerKg),
+        ratePerKg: billNow ? parseFloat(ratePerKg) : 1,
         invoiceType,
         driverName: driverName.trim(),
         vehicleNo: vehicleNo.trim().toUpperCase(),
@@ -135,7 +135,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
 
       await api.post('/dispatch', payload);
 
-      setSuccess('Dispatch logged, commercial invoice created, and ledger debited');
+      setSuccess(billNow ? 'Delivery and customer bill saved.' : 'Delivery saved. You can bill it later under Bills & charges.');
       onSuccess();
 
       setTimeout(() => {
@@ -151,14 +151,15 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
     }
   }
 
+  async function saveDraft() { setIsLoading(true);setError(null);try { const body = { ...references, customerId, fromLocation, inventoryId: selectedStockId, fabricType: activeStock?.fabricType, yarnSpec: activeStock?.yarnSpec, color: activeStock?.color, rolls, ratePerKg: Number(ratePerKg), invoiceType, billNow, state: condition, driverName, vehicleNo, date: new Date(date).toISOString(), remarks };if (draft) await api.patch('/dispatch/drafts/' + draft._id, body);else await api.post('/dispatch/drafts', body);onSuccess();onClose(); } catch { setError('Could not save the draft. Your entries are still here.'); } finally { setIsLoading(false); } }
   return (
     <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button variant="ghost" disabled={isLoading} onClick={saveDraft}>Save draft</Button><Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" form="create-dispatch-modal-form" isLoading={isLoading} className="gap-1.5">
             <Truck className="w-4 h-4" />
-            <span>Save Delivery & Generate Bill</span>
+            <span>{billNow ? 'Save delivery & bill' : 'Save delivery only'}</span>
           </Button>
         </div>}
       isOpen={isOpen}
@@ -183,9 +184,9 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           </div>
         )}
 
-        <FormSection step={1} title="Customer and fabric">
-<div className="grid grid-cols-2 gap-3">
-          <PartyCombobox
+        <FormSection step={1} title="Customer and fabric"><Select label="Fabric condition" value={condition} onChange={event => { setCondition(event.target.value as typeof condition);setSelectedStockId(""); }} options={[{ value: "FINISHED_DYED", label: "Finished / dyed" }, { value: "RAW_ECRU", label: "Raw / undyed" }]} />
+<div className="grid gap-3 sm:grid-cols-2">
+          <PartySelector
             id="dispatchCustomer"
             label="Customer (Buyer)"
             value={customerId}
@@ -203,7 +204,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
               setFromLocation(e.target.value as InventoryLocation);
               setSelectedStockId('');
             }}
-            options={LOCATIONS}
+            options={businessId ? [{ value: 'ZR_GODOWN', label: 'Main store' }, ...(units.data || []).filter(unit => unit.isActive).map(unit => ({ value: unit.code as InventoryLocation, label: unit.name }))] : LOCATIONS}
           />
         </div>
 
@@ -215,18 +216,19 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
           options={
             availableStock.length === 0
               ? [{ label: '— No finished dyed stock available at this location —', value: '' }]
-              : availableStock.map((s) => ({
+              : [{ value: '', label: 'Choose fabric from stock' }, ...availableStock.map((s) => ({
                   label: `${s.fabricType} [${s.color}] (${s.yarnSpec}) - ${s.totalRolls} rolls (${formatWeight(s.totalWeightKg)} available)`,
                   value: s._id
-                }))
+                }))]
           }
         />
 </FormSection>
 
-        <FormSection step={2} title="Rolls and billing">
-<RapidGridEntry rolls={rolls} onChange={setRolls} />
+        <DocumentReferences value={references} onChange={setReferences} />
+          <FormSection step={2} title="Rolls and billing">
+<Select label="Posting option" value={billNow ? "BILL" : "DELIVERY"} onChange={event => setBillNow(event.target.value === "BILL")} options={[{ value: "BILL", label: "Deliver & bill together" }, { value: "DELIVERY", label: "Deliver only · bill later" }]} /><RapidGridEntry rolls={rolls} onChange={setRolls} />
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Input
             id="ratePerKg"
             type="number"
@@ -235,7 +237,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess }: CreateDispat
             label="Sale Rate / Kg (PKR)"
             value={ratePerKg}
             onChange={(e) => setRatePerKg(e.target.value)}
-            required
+            required={billNow}
           />
 
           <div className="space-y-1">

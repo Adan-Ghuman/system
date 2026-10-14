@@ -1,7 +1,7 @@
 export type DyeingMillType = 'GHUMMAN_DYEING' | 'RAJPUT_DYEING' | 'HAFIZ_SAAD_DYEING' | 'HB_DYEING' | 'OTHER';
 export type DyeingBatchStatus = 'ISSUED' | 'IN_PROCESS' | 'COMPLETED';
 
-export interface DyeingBatchItem {
+export interface DyeingBatchItem { receivedRawKg?: number; receivedRawRolls?: number;
   _id: string;
   batchNo: string;
   millName: DyeingMillType;
@@ -79,7 +79,7 @@ export interface GatePassEntryItem {
   remarks?: string;
 }
 
-export interface CreateGatePassPayload {
+export interface CreateGatePassPayload { ownerKey?: string;
   ogpNo: string;
   dateIssued?: string;
   millName: DyeingMillType;

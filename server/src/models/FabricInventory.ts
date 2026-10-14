@@ -1,12 +1,9 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document } from 'mongoose';
 
 export type FabricState = 'RAW_ECRU' | 'FINISHED_DYED';
-export type InventoryLocation =
-  | 'ZR_GODOWN'
-  | 'GHUMMAN_DYEING'
-  | 'RAJPUT_DYEING'
-  | 'HAFIZ_SAAD_DYEING'
-  | 'HB_DYEING';
+export type InventoryLocation = string;
 
 export interface IFabricInventory extends Document {
   fabricType: string;
@@ -48,7 +45,6 @@ const fabricInventorySchema = new Schema<IFabricInventory>(
     },
     location: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },
@@ -73,4 +69,4 @@ fabricInventorySchema.index(
   { unique: true }
 );
 
-export const FabricInventory = model<IFabricInventory>('FabricInventory', fabricInventorySchema);
+export const FabricInventory = businessModel<IFabricInventory>('FabricInventory', fabricInventorySchema);

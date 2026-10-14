@@ -16,16 +16,11 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal uppercase text-slate-900">
-            Rozain Textile
+            {dispatch.businessName || 'Historical records'}
           </h1>
           <p className="text-xs font-semibold text-slate-700 mt-0.5 tracking-wide">
-            Manufacturers & Processors • Sambrial Road, Sialkot, Pakistan
+            Fabric operations
           </p>
-          <div className="text-[11px] text-zinc-600 mt-1 space-x-3">
-            <span>NTN: <strong>3918204-7</strong></span>
-            <span>STRN: <strong>3277876123456</strong></span>
-            <span>Phone: <strong>+92-300-1234567</strong></span>
-          </div>
         </div>
 
         <div className="text-right">
@@ -41,7 +36,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-xs mb-5 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
+      <p className="mb-3 text-xs">{dispatch.status === "REVERSED" ? "REVERSED · " : ""}PO: {dispatch.poNo || "—"} · External reference: {dispatch.externalReference || "—"}</p><div className="grid grid-cols-2 gap-4 text-xs mb-5 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
         <div>
           <div className="text-[10px] uppercase font-bold text-zinc-500">Billed To (Customer)</div>
           <div className="font-bold text-base text-slate-900 mt-0.5">{dispatch.customerId?.name}</div>
@@ -132,12 +127,6 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
             </span>
           </div>
 
-          <div className="p-2.5 border border-zinc-200 rounded-sm text-[11px] text-zinc-600">
-            <span className="font-bold uppercase text-[9px] text-zinc-500 block mb-1">Bank Wire Transfer Account</span>
-            <div>Bank: <strong>Meezan Bank Ltd, Sialkot Branch</strong></div>
-            <div>Account Title: <strong>Rozain Textile</strong></div>
-            <div>IBAN: <strong className="font-mono">PK92MEZN0001092837123401</strong></div>
-          </div>
         </div>
 
         <div className="border border-zinc-950 rounded-sm p-3.5 bg-zinc-100 space-y-2 text-xs font-mono">
@@ -170,7 +159,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
 
         <div>
           <div className="border-t border-slate-300 pt-1.5 font-bold text-slate-800 uppercase">
-            For Rozain Textile
+            For {dispatch.businessName || 'Historical records'}
           </div>
           <div className="text-zinc-500 text-[10px] mt-0.5">Authorized Signatory & Stamp</div>
         </div>

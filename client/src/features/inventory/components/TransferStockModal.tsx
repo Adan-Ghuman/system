@@ -1,6 +1,9 @@
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
+import { getLocalDateInput } from '../../../lib/formatters.js';
+import { useLocations } from '../../../business/useLocations.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -36,15 +39,17 @@ export function TransferStockModal({
   onSuccess,
   preselectedItem
 }: TransferStockModalProps) {
-  const [fromLocation, setFromLocation] = useState<InventoryLocation>('GHUMMAN_DYEING');
-  const [toLocation, setToLocation] = useState<InventoryLocation>('ZR_GODOWN');
-  const [selectedItemId, setSelectedItemId] = useState<string>('');
-  const [rollsCount, setRollsCount] = useState('10');
-  const [weightKg, setWeightKg] = useState('220.00');
+  const [references, setReferences] = useDocumentReferences();
+  const locations = useLocations(LOCATIONS);
+  const [fromLocation, setFromLocation] = useState<InventoryLocation>(preselectedItem?.location || 'GHUMMAN_DYEING');
+  const [toLocation, setToLocation] = useState<InventoryLocation>(preselectedItem?.location === 'ZR_GODOWN' ? 'GHUMMAN_DYEING' : 'ZR_GODOWN');
+  const [selectedItemId, setSelectedItemId] = useState<string>(preselectedItem?._id || '');
+  const [rollsCount, setRollsCount] = useState(preselectedItem ? String(preselectedItem.totalRolls) : '');
+  const [weightKg, setWeightKg] = useState(preselectedItem ? String(preselectedItem.totalWeightKg) : '');
   const [gatePassNo, setGatePassNo] = useState('');
   const [driverName, setDriverName] = useState('');
   const [vehicleNo, setVehicleNo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateInput());
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -61,20 +66,9 @@ export function TransferStockModal({
   });
 
   const availableItems = stockData?.items || [];
+  const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<{ _id: string; name: string }>('/parties'), enabled: isOpen });
 
-  useEffect(() => {
-    if (preselectedItem) {
-      setFromLocation(preselectedItem.location);
-      setToLocation(preselectedItem.location === 'ZR_GODOWN' ? 'GHUMMAN_DYEING' : 'ZR_GODOWN');
-      setSelectedItemId(preselectedItem._id);
-      setRollsCount(String(preselectedItem.totalRolls));
-      setWeightKg(String(preselectedItem.totalWeightKg));
-    } else if (availableItems.length > 0 && !selectedItemId) {
-      setSelectedItemId(availableItems[0]._id);
-      setRollsCount(String(availableItems[0].totalRolls));
-      setWeightKg(String(availableItems[0].totalWeightKg));
-    }
-  }, [preselectedItem, availableItems, selectedItemId]);
+
 
   const activeItem = availableItems.find((i) => i._id === selectedItemId);
 
@@ -93,7 +87,7 @@ export function TransferStockModal({
     setIsLoading(true);
 
     try {
-      const payload: CreateTransferPayload = {
+      const payload: CreateTransferPayload = { ...references, ownerKey: activeItem.ownerKey || 'OWN',
         fromLocation,
         toLocation,
         fabricType: activeItem.fabricType,
@@ -143,7 +137,7 @@ export function TransferStockModal({
       description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Unit."
       className="max-w-xl"
     >
-      <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><DocumentReferences value={references} onChange={setReferences} />
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -172,7 +166,7 @@ export function TransferStockModal({
               }
               setSelectedItemId('');
             }}
-            options={LOCATIONS}
+            options={locations}
           />
 
           <Select
@@ -180,7 +174,7 @@ export function TransferStockModal({
             label="Destination Location (Target)"
             value={toLocation}
             onChange={(e) => setToLocation(e.target.value as InventoryLocation)}
-            options={LOCATIONS.filter((l) => l.value !== fromLocation)}
+            options={locations.filter((l) => l.value !== fromLocation)}
           />
         </div>
 
@@ -199,10 +193,10 @@ export function TransferStockModal({
           options={
             availableItems.length === 0
               ? [{ label: 'No stock available at source location', value: '' }]
-              : availableItems.map((i) => ({
-                  label: `${i.fabricType} [${i.color}] (${i.state === 'FINISHED_DYED' ? 'Dyed' : 'Ecru'}) - ${i.totalRolls} rolls (${formatWeight(i.totalWeightKg)})`,
+              : [{ value: '', label: 'Choose fabric from stock' }, ...availableItems.map((i) => ({
+                  label: `${i.fabricType} [${i.color}] (${i.state === 'FINISHED_DYED' ? 'Dyed' : 'Ecru'}) - ${i.totalRolls} rolls (${formatWeight(i.totalWeightKg)}) · ${i.ownerKey && i.ownerKey !== 'OWN' ? owners.data?.items.find(party => party._id === i.ownerKey)?.name || 'Client-owned' : 'Business-owned'}`,
                   value: i._id
-                }))
+                }))]
           }
         />
 

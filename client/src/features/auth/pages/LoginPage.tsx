@@ -8,6 +8,9 @@ import { FormFeedback } from '../../../components/ui/WorkflowForm.js';
 import { ThemePicker } from '../../../components/ui/Theme.js';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
+const testingAdmin = { email: 'admin@gmail.com', password: '12345678' };
+const showTestingAdmin = import.meta.env.DEV || import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true';
+
 export function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -67,6 +70,16 @@ export function LoginPage() {
             </div>
             <Button type="submit" className="w-full" isLoading={isLoading}>Sign in<ArrowRight className="h-4 w-4" /></Button>
           </form>
+          {showTestingAdmin && (
+            <div className="mt-6 space-y-3 rounded-lg border border-line bg-subtle p-4">
+              <p className="text-xs font-semibold text-strong">Testing admin account</p>
+              <dl className="space-y-2 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Email</dt><dd className="select-all break-all font-mono text-ink">{testingAdmin.email}</dd></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Password</dt><dd className="select-all font-mono text-ink">{testingAdmin.password}</dd></div>
+              </dl>
+              <Button type="button" variant="outline" size="sm" className="w-full" disabled={isLoading} onClick={() => { setEmail(testingAdmin.email); setPassword(testingAdmin.password); setError(null); }}>Use testing admin</Button>
+            </div>
+          )}
         </div>
         <p className="mt-6 text-center text-xs leading-relaxed text-soft">Use the account provided by your administrator.</p>
       </div>

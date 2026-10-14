@@ -1,3 +1,4 @@
+import { useBusinessStore } from '../../../business/store.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
@@ -44,6 +45,7 @@ export function EditVoucherModal({
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const businessId = useBusinessStore(state => state.id);const requestId = useRef(crypto.randomUUID());
   const isSubmittingRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isDeletingRef = useRef(false);
@@ -63,7 +65,7 @@ export function EditVoucherModal({
       setChequeDate(voucher.chequeDate ? voucher.chequeDate.split('T')[0] : '');
       setTransactionRef(voucher.transactionRef || '');
       setRemarks(voucher.remarks || '');
-      setConfirmDelete(false);
+      setConfirmDelete(false);requestId.current = crypto.randomUUID();
       setError(null);
       setSuccess(null);
     }
@@ -88,7 +90,7 @@ export function EditVoucherModal({
     setIsLoading(true);
 
     try {
-      const payload: UpdateVoucherPayload = {
+      const payload: UpdateVoucherPayload = { requestId: requestId.current,
         voucherType,
         paymentMode,
         partyId,
@@ -127,7 +129,7 @@ export function EditVoucherModal({
 
     try {
       await api.delete(`/accounts/vouchers/${voucher._id}`);
-      setSuccess('Payment voucher deleted and ledger updated');
+      setSuccess('Payment voucher reversed and ledger updated');
       onSuccess();
 
       setTimeout(() => {
@@ -157,7 +159,7 @@ export function EditVoucherModal({
                 className="text-xs h-8 gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete Voucher
+                {businessId ? 'Reverse voucher' : 'Delete voucher'}
               </Button>
             )}
           </div>
@@ -174,7 +176,7 @@ export function EditVoucherModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`Edit Payment Voucher • ${voucher.voucherNo}`}
-      description="Update payment details or delete this voucher. Changes will automatically recompute the party ledger."
+      description="Correct payment details by reversing and replacing the voucher, or reverse it. The original stays in history."
       className="max-w-xl"
     >
       <form id="edit-voucher-modal-form" onSubmit={handleSubmit} className="space-y-4">
@@ -199,8 +201,8 @@ export function EditVoucherModal({
               Confirm Voucher Deletion
             </div>
             <p className="text-xs text-ink">
-              Are you sure you want to permanently delete <strong className="text-strong font-mono">{voucher.voucherNo}</strong>?
-              This will remove this record, delete its ledger entry, and restore the party's account balance.
+              Confirm correcting this record: <strong className="text-strong font-mono">{voucher.voucherNo}</strong>?
+              The original payment is retained in history. Its effect on the party balance is reversed.
             </p>
             <div className="flex items-center gap-2 pt-1">
               <Button
@@ -211,7 +213,7 @@ export function EditVoucherModal({
                 isLoading={isDeleting}
                 className="h-7 text-xs"
               >
-                Yes, Delete Voucher
+                {businessId ? 'Yes, reverse voucher' : 'Yes, delete voucher'}
               </Button>
               <Button
                 type="button"

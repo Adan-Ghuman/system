@@ -39,6 +39,7 @@ export async function seedInitialAdmin(): Promise<void> {
     });
   }
 
+  if (process.env.ENABLE_DEMO_SEED !== 'true') return;
   const existingGhumman = await Party.findOne({ code: 'PRT-001' });
   if (!existingGhumman) {
     await Party.create({

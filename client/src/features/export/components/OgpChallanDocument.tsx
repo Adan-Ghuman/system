@@ -16,21 +16,19 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
     <div className="bg-white text-slate-900 p-8 max-w-4xl mx-auto font-sans leading-relaxed border border-zinc-200 shadow-xs print:border-none print:shadow-none print:p-0">
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 text-center">
         <h1 className="text-2xl font-semibold tracking-normal uppercase text-slate-900">
-          Rozain Textile
+          {dispatch.businessName || 'Historical records'}
         </h1>
         <p className="text-xs font-semibold text-slate-700 mt-0.5 tracking-wide">
-          Manufacturers & Job-Work Processors • Sambrial Road, Sialkot, Pakistan
+          Fabric operations
         </p>
-        <p className="text-[11px] text-zinc-600">
-          Phone: +92-300-1234567 • NTN: 3918204-7 • STRN: 3277876123456
-        </p>
+        <p className="text-[11px] text-zinc-600">—</p>
 
         <div className="inline-block mt-3 px-4 py-1 bg-zinc-950 text-white text-xs font-bold uppercase tracking-widest rounded-sm">
           Outward Gate Pass (OGP) • Delivery Challan
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
+      <p className="mb-3 text-xs">{dispatch.status === "REVERSED" ? "REVERSED · " : ""}PO: {dispatch.poNo || "—"} · External reference: {dispatch.externalReference || "—"}</p><div className="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
         <div>
           <div className="text-[10px] uppercase font-bold text-zinc-500">Delivered To (Customer)</div>
           <div className="font-bold text-sm text-slate-900 mt-0.5">{dispatch.customerId?.name}</div>

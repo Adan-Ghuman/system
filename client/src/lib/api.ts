@@ -1,3 +1,4 @@
+import { useBusinessStore } from '../business/store.js';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { createRequestPolicy } from './requestPolicy.js';
 import { useAuthStore } from '../features/auth/stores/useAuthStore.js';
@@ -29,9 +30,11 @@ export const api = axios.create({
   }
 });
 
-api.defaults.adapter = createRequestPolicy(axios.getAdapter(api.defaults.adapter), () => useAuthStore.getState().user?.id || 'anonymous');
+api.defaults.adapter = createRequestPolicy(axios.getAdapter(api.defaults.adapter), () => (useAuthStore.getState().user?.id || 'anonymous') + ':' + useBusinessStore.getState().id);
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const businessId = useBusinessStore.getState().id;
+  if (businessId && config.url && !/^\/(auth|users|businesses|legacy-review)(\/|$)/.test(config.url)) config.url = `/businesses/${businessId}${config.url}`;
   const token = useAuthStore.getState().accessToken;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;

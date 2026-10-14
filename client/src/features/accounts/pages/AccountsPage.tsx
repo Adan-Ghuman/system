@@ -1,3 +1,4 @@
+import { PartyLink } from '../../../business/PartyLink.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
@@ -332,7 +333,7 @@ export function AccountsPage() {
                     parties.map((p) => (
                       <tr key={p._id} className="group hover:bg-subtle/40 transition-colors">
                         <td className="py-2.5 px-3 whitespace-nowrap">
-                          <span className="font-semibold text-strong">{p.name}</span>
+                          <PartyLink party={p} />
                           <span className="text-xs font-mono text-soft ml-2 bg-subtle/70 px-1.5 py-0.5 rounded border border-control/50">
                             {p.code}
                           </span>
@@ -532,7 +533,7 @@ export function AccountsPage() {
                       </td>
 
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span className="font-semibold text-strong">{v.partyId?.name || '—'}</span>
+                        <PartyLink party={v.partyId} />
                         {v.partyId?.code && (
                           <span className="text-xs font-mono text-soft ml-1.5 bg-subtle/70 px-1.5 py-0.5 rounded border border-control/50">
                             {v.partyId.code}

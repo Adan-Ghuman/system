@@ -138,6 +138,11 @@ main > div, [data-erp-dialog] form, [data-erp-dialog] .grid > * { min-width: 0; 
   .ledger-print th:last-child, .ledger-print td:last-child { display: none !important; }
   #print-area .overflow-auto, #print-area.overflow-x-auto { overflow: visible !important; max-height: none !important; }
   #print-area .sticky { position: static !important; }
+  #print-area table { min-width: 0 !important; width: 100% !important; font-size: 9px !important; }
+  #print-area th, #print-area td { white-space: normal !important; overflow-wrap: anywhere; }
+  #print-area th { overflow-wrap: normal; }
+  #print-area[data-inactive-print] { display: none !important; visibility: hidden !important; }
+  #print-area thead { display: table-header-group; }
 }
 
 select { appearance: none; padding-right: 2.25rem !important; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' stroke='%237c8797' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .75rem center; }

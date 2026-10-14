@@ -1,26 +1,36 @@
+import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
 export const createYarnTransactionSchema = z.object({
+  ownership: z.enum(['OWN', 'CLIENT']).default('OWN'),
+  ownerPartyId: z.string().optional(),
+  ...documentReferenceFields,
   transactionType: z.enum(['OUTWARD_TO_KNITTER', 'INWARD_FROM_CLIENT']),
   partyId: z.string().min(1, 'Party ID is required'),
   yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
   gatePassNo: z.string().min(1, 'Gate Pass number is required').trim(),
   date: z.string().datetime().optional().default(() => new Date().toISOString()),
   boxCount: z.number().int().min(1, 'Box count must be at least 1'),
-  netWeightPerBox: z.number().positive('Net weight per box must be positive'),
-  wastagePercent: z.number().min(0).max(10).optional().default(1.0),
+  netWeightPerBox: z.number().nonnegative().default(0),
+  totalWeightKg: z.number().positive().optional(),
+  packageUnit: z.enum(['cartons', 'bags', 'cones', 'packages']).default('cartons'),
+  wastagePercent: z.number().min(0).max(10).optional().default(0),
   remarks: z.string().optional().default('')
 });
 
 export const receiveFabricItemSchema = z.object({
+  components: z.array(z.object({ yarnSpec: z.string().trim().min(1), weightKg: z.number().positive() })).max(10).optional(),
   fabricType: z.string().trim().optional().default('Single Jersey'),
   yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
   rollsCount: z.number().int().min(1, 'Roll count must be at least 1'),
   weightKg: z.number().positive('Received weight must be positive'),
+  wastageKg: z.number().nonnegative().optional(),
   remarks: z.string().optional().default('')
 });
 
 export const receiveFabricSchema = z.object({
+  ownerKey: z.string().default("OWN"),
+  ...documentReferenceFields,
   partyId: z.string().min(1, 'Party is required'),
   partyName: z.string().optional(),
   date: z.string().datetime().optional().default(() => new Date().toISOString()),
@@ -31,6 +41,7 @@ export const receiveFabricSchema = z.object({
   fabricType: z.string().trim().optional(),
   rollsCount: z.number().int().min(1).optional(),
   weightKg: z.number().positive().optional(),
+  wastageKg: z.number().nonnegative().optional(),
   // Multi-item array
   items: z.array(receiveFabricItemSchema).optional()
 }).refine(
@@ -50,6 +61,7 @@ export const queryTransactionsSchema = z.object({
 });
 
 export const updateYarnTransactionSchema = z.object({
+  ...documentReferenceFields,
   partyId: z.string().optional(),
   yarnSpec: z.string().min(1).trim().optional(),
   gatePassNo: z.string().min(1).trim().optional(),
@@ -87,12 +99,17 @@ export const bulkRenameYarnSpecSchema = z.object({
 export const yarnLineItemSchema = z.object({
   yarnSpec: z.string().min(1, 'Yarn specification is required').trim(),
   boxCount: z.number().int().min(1, 'Box count must be at least 1'),
-  netWeightPerBox: z.number().positive('Net weight per box must be positive'),
-  wastagePercent: z.number().min(0).max(10).optional().default(1.0),
+  netWeightPerBox: z.number().nonnegative().default(0),
+  totalWeightKg: z.number().positive().optional(),
+  packageUnit: z.enum(['cartons', 'bags', 'cones', 'packages']).default('cartons'),
+  wastagePercent: z.number().min(0).max(10).optional().default(0),
   remarks: z.string().optional().default('')
 });
 
 export const createBulkYarnTransactionSchema = z.object({
+  ownership: z.enum(['OWN', 'CLIENT']).default('OWN'),
+  ownerPartyId: z.string().optional(),
+  ...documentReferenceFields,
   transactionType: z.enum(['OUTWARD_TO_KNITTER', 'INWARD_FROM_CLIENT']),
   partyId: z.string().min(1, 'Party ID is required'),
   gatePassNo: z.string().min(1, 'Gate Pass number is required').trim(),

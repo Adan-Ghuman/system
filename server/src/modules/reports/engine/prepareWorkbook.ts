@@ -1,9 +1,19 @@
 import ExcelJS from 'exceljs';
+import { businessContext } from '../../../business/context.js';
 import { BORDERS, COLORS } from './excelStyles.js';
 
 export function prepareWorkbook(workbook: ExcelJS.Workbook): void {
   workbook.calcProperties.fullCalcOnLoad = true;
   workbook.eachSheet(sheet => {
+    const company = businessContext.getStore()?.name;
+    if (company) {
+      workbook.creator = company;
+      sheet.eachRow(row => row.eachCell(cell => {
+        if (typeof cell.value !== 'string') return;
+        if (/^ROZAIN TEXTILE$/i.test(cell.value)) cell.value = company;
+        else if (/Opp Hbl Bank|Near Saga Sports|Ghulam Yaseen|0323-8710104/i.test(cell.value)) cell.value = '';
+      }));
+    }
     const numberAt = (address: string): number => {
       const cell = sheet.getCell(address);
       return typeof cell.value === 'number' ? cell.value : typeof cell.result === 'number' ? cell.result : 0;

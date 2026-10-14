@@ -1,12 +1,7 @@
+import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
-export const locationEnum = z.enum([
-  'ZR_GODOWN',
-  'GHUMMAN_DYEING',
-  'RAJPUT_DYEING',
-  'HAFIZ_SAAD_DYEING',
-  'HB_DYEING'
-]);
+export const locationEnum = z.string().trim().min(1).max(80);
 export const stateEnum = z.enum(['RAW_ECRU', 'FINISHED_DYED']);
 export const reasonEnum = z.enum([
   'AUDIT_DISCREPANCY',
@@ -18,6 +13,8 @@ export const reasonEnum = z.enum([
 
 export const createTransferSchema = z
   .object({
+  ...documentReferenceFields,
+    ownerKey: z.string().default('OWN'),
     fromLocation: locationEnum,
     toLocation: locationEnum,
     fabricType: z.string().min(1, 'Fabric type is required').trim(),
@@ -38,6 +35,8 @@ export const createTransferSchema = z
   });
 
 export const createAdjustmentSchema = z.object({
+  ...documentReferenceFields,
+  ownerKey: z.string().default('OWN'),
   fabricType: z.string().min(1, 'Fabric type is required').trim(),
   yarnSpec: z.string().min(1, 'Yarn spec is required').trim(),
   state: stateEnum,

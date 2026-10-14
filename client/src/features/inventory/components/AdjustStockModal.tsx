@@ -1,3 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
+import { getLocalDateInput } from '../../../lib/formatters.js';
+import { useLocations } from '../../../business/useLocations.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
@@ -37,6 +42,10 @@ const REASONS: { label: string; value: StockAdjustmentReason }[] = [
 ];
 
 export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModalProps) {
+  const [ownerKey, setOwnerKey] = useState('OWN');
+  const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<{ _id: string; name: string }>('/parties') });
+  const [references, setReferences] = useDocumentReferences();
+  const locations = useLocations(LOCATIONS);
   const [location, setLocation] = useState<InventoryLocation>('ZR_GODOWN');
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
   const [fabricType, setFabricType] = useState('Fleece 3-Thread');
@@ -46,7 +55,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
   const [adjustmentRolls, setAdjustmentRolls] = useState('1');
   const [adjustmentWeightKg, setAdjustmentWeightKg] = useState('22.50');
   const [reason, setReason] = useState<StockAdjustmentReason>('AUDIT_DISCREPANCY');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateInput());
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +78,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
         throw new Error('Please specify a color');
       }
 
-      const payload: CreateAdjustmentPayload = {
+      const payload: CreateAdjustmentPayload = { ...references, ownerKey,
         location,
         state,
         fabricType: fabricType.trim(),
@@ -116,7 +125,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
       description="Enter brand new fabric received into warehouse, or adjust roll and weight counts."
       className="max-w-xl"
     >
-      <form id="adjust-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
+      <form id="adjust-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><Select label="Fabric owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "This business" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -138,7 +147,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
             label="Location to Adjust"
             value={location}
             onChange={(e) => setLocation(e.target.value as InventoryLocation)}
-            options={LOCATIONS}
+            options={locations}
           />
 
           <Select

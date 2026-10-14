@@ -16,7 +16,7 @@ export function formatCurrency(amount: number): string {
 export function formatWeight(kg: number): string {
   const formatted = kg.toLocaleString('en-PK', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 3
   });
   return `${formatted} Kg`;
 }

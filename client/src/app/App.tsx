@@ -1,5 +1,15 @@
+import { ReasonDialog } from '../components/ui/ReasonDialog.js';
+import { LegacyReviewPage } from '../business/LegacyReviewPage.js';
+import { IntercompanyPage } from '../business/IntercompanyPage.js';
+import { LedgerPage } from '../business/LedgerPage.js';
+import { CatalogPage } from '../business/CatalogPage.js';
+import { WorkspacePage } from '../business/WorkspacePage.js';
+import { YarnPage } from '../business/YarnPage.js';
+import { ProductionPage } from '../business/ProductionPage.js';
+import { useBusinessStore } from '../business/store.js';
+import { useMemo } from 'react';
 import { useEffect, ReactNode, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../features/auth/stores/useAuthStore.js';
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage.js').then(module => ({ default: module.LoginPage })));
@@ -15,7 +25,7 @@ import { AppLayout } from './AppLayout.js';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary.js';
 import { ThemedLoadingScreen } from '../components/ui/ThemedLoadingScreen.js';
 
-const queryClient = new QueryClient({
+function createQueryClient() { return new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -24,7 +34,7 @@ const queryClient = new QueryClient({
       gcTime: 300000
     }
   }
-});
+}); }
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -49,15 +59,28 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   return <>{children}</>;
 }
 
+function BusinessRoute() {
+  const { businessId = '' } = useParams();const current = useBusinessStore(state => state.id);const setBusiness = useBusinessStore(state => state.setBusiness);
+  useEffect(() => { if (current !== businessId) setBusiness(businessId); }, [businessId, current, setBusiness]);
+  if (current !== businessId) return <ThemedLoadingScreen />;
+  return <ProtectedRoute><ErrorBoundary fallbackTitle="Application Interface Error"><AppLayout /></ErrorBoundary></ProtectedRoute>;
+}
+
 export function App() {
+  const businessId = useBusinessStore(state => state.id);
+  const queryClient = useMemo(createQueryClient, [businessId]);
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
+  useEffect(() => {
+    const preparePrint = () => { const areas = Array.from(document.querySelectorAll('#print-area'));areas.forEach((area, index) => area.toggleAttribute('data-inactive-print', index !== areas.length - 1)); };
+    window.addEventListener('beforeprint', preparePrint);return () => window.removeEventListener('beforeprint', preparePrint);
+  }, []);
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider key={businessId || 'legacy'} client={queryClient}>
       <BrowserRouter>
         <Suspense fallback={<ThemedLoadingScreen />}><Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -73,7 +96,32 @@ export function App() {
             }
           >
             <Route index element={<DashboardPage />} />
-            <Route path="users" element={<UsersPage />} />
+            <Route path="users" element={<UsersPage />} /><Route path="legacy-review" element={<LegacyReviewPage />} />
+            <Route path="catalog" element={<CatalogPage />} />
+            <Route path="buying" element={<WorkspacePage mode="buying" />} />
+            <Route path="bills" element={<WorkspacePage mode="bills" />} />
+            <Route path="yarn" element={<YarnPage />} />
+            <Route path="production" element={<ProductionPage />} />
+            <Route path="intercompany" element={<IntercompanyPage />} />
+            <Route path="accounts/parties/:partyId/ledger" element={<LedgerPage />} />
+            <Route path="parties" element={<PartiesPage />} />
+            <Route path="knitting" element={<KnittingPage />} />
+            <Route path="dyeing" element={<DyeingPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="dispatch" element={<DispatchPage />} />
+            <Route path="accounts" element={<AccountsPage />} />
+          </Route>
+
+          <Route path="/b/:businessId" element={<BusinessRoute />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="users" element={<UsersPage />} /><Route path="legacy-review" element={<LegacyReviewPage />} />
+            <Route path="catalog" element={<CatalogPage />} />
+            <Route path="buying" element={<WorkspacePage mode="buying" />} />
+            <Route path="bills" element={<WorkspacePage mode="bills" />} />
+            <Route path="yarn" element={<YarnPage />} />
+            <Route path="production" element={<ProductionPage />} />
+            <Route path="intercompany" element={<IntercompanyPage />} />
+            <Route path="accounts/parties/:partyId/ledger" element={<LedgerPage />} />
             <Route path="parties" element={<PartiesPage />} />
             <Route path="knitting" element={<KnittingPage />} />
             <Route path="dyeing" element={<DyeingPage />} />
@@ -84,7 +132,7 @@ export function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes></Suspense>
-      </BrowserRouter>
+      </BrowserRouter><ReasonDialog />
     </QueryClientProvider>
   );
 }

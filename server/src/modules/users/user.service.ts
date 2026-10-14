@@ -1,5 +1,7 @@
 import { escapeRegex } from '../../utils/search.js';
 import bcrypt from 'bcrypt';
+import { Business } from '../../business/Business.js';
+import { BadRequestError } from '../../utils/errors.js';
 import { User, IUser } from '../../models/User.js';
 import { ConflictError, NotFoundError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult, PaginatedResult } from '../../utils/pagination.js';
@@ -17,6 +19,7 @@ export interface SanitizedUser {
 }
 
 export async function createNewUser(input: CreateUserInput): Promise<SanitizedUser> {
+  if (await Business.countDocuments({ _id: { $in: input.businessIds }, isActive: true }) !== new Set(input.businessIds).size) throw new BadRequestError('Choose active businesses only.');
   const existing = await User.findOne({ email: input.email });
   if (existing) {
     throw new ConflictError('A user with this email already exists');
@@ -31,6 +34,7 @@ export async function createNewUser(input: CreateUserInput): Promise<SanitizedUs
     passwordHash,
     role: input.role,
     permissions: input.permissions,
+    businessIds: input.businessIds,
     isActive: true
   });
 

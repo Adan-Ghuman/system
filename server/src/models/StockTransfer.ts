@@ -1,7 +1,10 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document } from 'mongoose';
 import { InventoryLocation, FabricState } from './FabricInventory.js';
 
 export interface IStockTransfer extends Document {
+  ownerKey: string;
   transferNo: string;
   fromLocation: InventoryLocation;
   toLocation: InventoryLocation;
@@ -22,6 +25,7 @@ export interface IStockTransfer extends Document {
 
 const stockTransferSchema = new Schema<IStockTransfer>(
   {
+    ownerKey: { type: String, default: 'OWN' },
     transferNo: {
       type: String,
       required: true,
@@ -31,13 +35,11 @@ const stockTransferSchema = new Schema<IStockTransfer>(
     },
     fromLocation: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },
     toLocation: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },
@@ -108,4 +110,4 @@ const stockTransferSchema = new Schema<IStockTransfer>(
 
 stockTransferSchema.index({ date: -1 });
 
-export const StockTransfer = model<IStockTransfer>('StockTransfer', stockTransferSchema);
+export const StockTransfer = businessModel<IStockTransfer>('StockTransfer', stockTransferSchema);

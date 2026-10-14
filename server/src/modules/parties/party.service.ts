@@ -1,10 +1,13 @@
 import { escapeRegex } from '../../utils/search.js';
+import { currentBusinessId } from '../../business/context.js';
+import { nextDocumentNo } from '../../business/posting.js';
 import { Party, IParty } from '../../models/Party.js';
 import { NotFoundError, ConflictError } from '../../utils/errors.js';
 import { parsePagination, formatPaginatedResult, PaginatedResult } from '../../utils/pagination.js';
 import { CreatePartyInput, UpdatePartyInput, QueryPartiesInput } from './party.schema.js';
 
 export async function generateNextPartyCode(): Promise<string> {
+  if (currentBusinessId()) return nextDocumentNo('PRT');
   const lastParty = await Party.findOne({ code: /^PRT-\d+$/ }).sort({ code: -1 });
   if (!lastParty) {
     return 'PRT-001';

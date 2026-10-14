@@ -22,7 +22,7 @@ export interface DispatchInvoiceSummary {
   date: string;
 }
 
-export interface DispatchItem {
+export interface DispatchItem { businessName?: string; status?: 'POSTED' | 'REVERSED'; poNo?: string; externalReference?: string;
   _id: string;
   dispatchNo: string;
   ogpNo: string;
@@ -48,7 +48,7 @@ export interface DispatchItem {
   createdAt: string;
 }
 
-export interface CreateDispatchPayload {
+export interface CreateDispatchPayload { draftId?: string; billNow?: boolean; state?: 'RAW_ECRU' | 'FINISHED_DYED';
   customerId: string;
   fromLocation: InventoryLocation;
   fabricType: string;

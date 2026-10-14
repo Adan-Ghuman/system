@@ -15,7 +15,7 @@ declare global {
 export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new UnauthorizedError('Missing or invalid authorization token');
+    next(new UnauthorizedError('Missing or invalid authorization token'));return;
   }
 
   const token = authHeader.split(' ')[1];

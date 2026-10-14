@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../server/.env') });
 
 const envSchema = z.object({
+  ENABLE_DEMO_SEED: z.enum(['true', 'false']).default('false'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(5000),
   MONGODB_URI: z.string().default('mongodb://127.0.0.1:27017/ghuman_textile_erp'),

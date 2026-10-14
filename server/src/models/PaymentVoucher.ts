@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type VoucherType = 'RECEIPT' | 'PAYMENT' | 'JOURNAL';
@@ -5,6 +7,7 @@ export type PaymentMode = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE';
 
 export interface IPaymentVoucher extends Document {
   voucherNo: string;
+  status: string;
   voucherType: VoucherType;
   paymentMode: PaymentMode;
   partyId: Types.ObjectId;
@@ -21,6 +24,7 @@ export interface IPaymentVoucher extends Document {
 
 const paymentVoucherSchema = new Schema<IPaymentVoucher>(
   {
+    status: { type: String, enum: ['POSTED','REVERSED'], default: 'POSTED' },
     voucherNo: {
       type: String,
       required: true,
@@ -42,7 +46,7 @@ const paymentVoucherSchema = new Schema<IPaymentVoucher>(
     },
     partyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       required: true,
       index: true
     },
@@ -88,4 +92,4 @@ const paymentVoucherSchema = new Schema<IPaymentVoucher>(
 
 paymentVoucherSchema.index({ date: -1 });
 
-export const PaymentVoucher = model<IPaymentVoucher>('PaymentVoucher', paymentVoucherSchema);
+export const PaymentVoucher = businessModel<IPaymentVoucher>('PaymentVoucher', paymentVoucherSchema);

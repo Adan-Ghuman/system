@@ -12,7 +12,7 @@ export type StockAdjustmentReason =
   | 'SCRAP'
   | 'MANUAL_CORRECTION';
 
-export interface FabricInventoryItem {
+export interface FabricInventoryItem { ownerKey?: string;
   _id: string;
   fabricType: string;
   yarnSpec: string;
@@ -58,7 +58,7 @@ export interface StockAdjustmentItem {
   createdAt: string;
 }
 
-export interface CreateTransferPayload {
+export interface CreateTransferPayload { ownerKey?: string;
   fromLocation: InventoryLocation;
   toLocation: InventoryLocation;
   fabricType: string;
@@ -74,7 +74,7 @@ export interface CreateTransferPayload {
   remarks?: string;
 }
 
-export interface CreateAdjustmentPayload {
+export interface CreateAdjustmentPayload { ownerKey?: string;
   fabricType: string;
   yarnSpec: string;
   state: FabricState;

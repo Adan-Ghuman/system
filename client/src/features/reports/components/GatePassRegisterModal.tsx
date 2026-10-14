@@ -1,3 +1,6 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
+import { RegisterModal } from '../../../business/RegisterModal.js';
+import { useBusinessStore } from '../../../business/store.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -19,7 +22,7 @@ export interface GatePassRegisterModalProps {
   defaultType?: 'OGP' | 'IGP';
 }
 
-export function GatePassRegisterModal({
+function LegacyGatePassRegisterModal({
   isOpen,
   onClose,
   defaultType = 'OGP'
@@ -99,7 +102,7 @@ export function GatePassRegisterModal({
       if (dateFrom) url += `&from=${dateFrom}`;
       if (dateTo) url += `&to=${dateTo}`;
 
-      const filename = `${passType}_Register_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const filename = `${passType}_Register_${getLocalDateInput()}.xlsx`;
       await downloadExcelReport(url, filename);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The register could not be exported. Please try again.');
@@ -275,3 +278,5 @@ export function GatePassRegisterModal({
     </Dialog>
   );
 }
+
+export function GatePassRegisterModal(props: GatePassRegisterModalProps) { const businessId = useBusinessStore(state => state.id);if (!props.isOpen) return null;return businessId ? <RegisterModal onClose={props.onClose} defaultType={props.defaultType} /> : <LegacyGatePassRegisterModal {...props} />; }

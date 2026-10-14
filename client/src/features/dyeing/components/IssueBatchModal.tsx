@@ -1,3 +1,4 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
@@ -45,7 +46,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
   const [color, setColor] = useState(COMMON_COLORS[0]);
   const [customColor, setCustomColor] = useState('');
   const [ogpNo, setOgpNo] = useState('');
-  const [dateIssued, setDateIssued] = useState(new Date().toISOString().split('T')[0]);
+  const [dateIssued, setDateIssued] = useState(getLocalDateInput());
   const [ecruRollsCount, setEcruRollsCount] = useState('20');
   const [ecruWeightKg, setEcruWeightKg] = useState('420.00');
   const [allocatedCustomerId, setAllocatedCustomerId] = useState('');

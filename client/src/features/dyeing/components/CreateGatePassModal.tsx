@@ -1,3 +1,5 @@
+import { CatalogField } from '../../../components/ui/CatalogField.js';
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -58,6 +60,9 @@ export function CreateGatePassModal({
   initialMill = 'GHUMMAN_DYEING'
 }: CreateGatePassModalProps) {
   // Gate Pass Header Fields
+  const [ownerKey, setOwnerKey] = useState('OWN');
+  const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties') });
+  const [references, setReferences] = useDocumentReferences();
   const [ogpNo, setOgpNo] = useState('');
   const [dateIssued, setDateIssued] = useState(getLocalDateInput());
   const [millName, setMillName] = useState<DyeingMillType>(initialMill);
@@ -143,20 +148,19 @@ export function CreateGatePassModal({
   }, [entries]);
 
   function handleAddRow() {
-    const lastRow = entries[entries.length - 1];
     setEntries((prev) => [
       ...prev,
       {
         id: generateRowId(),
         machineNo: '',
-        fabricType: lastRow ? lastRow.fabricType : 'Single Strips',
-        yarnSpec: lastRow ? lastRow.yarnSpec : '75/72',
-        targetColor: lastRow ? lastRow.targetColor : 'WHITE',
-        width: lastRow ? lastRow.width : '',
-        gsm: lastRow ? lastRow.gsm : '',
+        fabricType: '',
+        yarnSpec: '',
+        targetColor: '',
+        width: '',
+        gsm: '',
         ecruRollsCount: '',
         ecruWeightKg: '',
-        allocatedCustomerId: lastRow ? lastRow.allocatedCustomerId : undefined,
+        allocatedCustomerId: undefined,
         remarks: ''
       }
     ]);
@@ -242,7 +246,8 @@ export function CreateGatePassModal({
     setIsLoading(true);
 
     try {
-      const payload: CreateGatePassPayload = {
+      const payload: CreateGatePassPayload = { ownerKey,
+        ...references,
         ogpNo: ogpNo.trim(),
         dateIssued: new Date(dateIssued).toISOString(),
         millName,
@@ -301,22 +306,23 @@ export function CreateGatePassModal({
               <Input id="send-dyeing-date" label="Sent date" type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
             </div>
           </FormSection>
+          <Select label="Fabric owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "This business" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
           <FormSection step={2} title="What fabric are you sending?" description="One item per fabric and color. You can add several items to the same challan.">
             {entries.map((entry, index) => (
               <EntryCard key={entry.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}
                 onRemove={() => handleRemoveRow(entry.id)} canRemove={entries.length > 1}>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Input id={'send-fabric-' + entry.id} label="Fabric type" list="send-fabric-types" value={entry.fabricType}
-                    onChange={(e) => handleRowChange(entry.id, 'fabricType', e.target.value)} placeholder="e.g. Interlock" required />
-                  <Input id={'send-yarn-' + entry.id} label="Yarn count" list="send-yarn-counts" value={entry.yarnSpec}
-                    onChange={(e) => handleRowChange(entry.id, 'yarnSpec', e.target.value)} placeholder="e.g. 75/72 or 75/72 + 150/48" required />
+                  <CatalogField kind="FABRIC" id={'send-fabric-' + entry.id} label="Fabric name" value={entry.fabricType}
+                    onChange={value => handleRowChange(entry.id, 'fabricType', value)} placeholder="e.g. Interlock" required />
+                  <CatalogField kind="YARN" id={'send-yarn-' + entry.id} label="Yarn name / count" value={entry.yarnSpec}
+                    onChange={value => handleRowChange(entry.id, 'yarnSpec', value)} placeholder="e.g. 75/72 or 75/72 + 150/48" required />
                 </div>
-                <Input id={'send-color-' + entry.id} label="Color to dye" list="send-dyeing-colors" value={entry.targetColor}
-                  onChange={(e) => handleRowChange(entry.id, 'targetColor', e.target.value)} placeholder="e.g. Navy blue" required />
+                <CatalogField kind="COLOR" id={'send-color-' + entry.id} label="Color / shade to dye" value={entry.targetColor}
+                  onChange={value => handleRowChange(entry.id, 'targetColor', value)} placeholder="e.g. Navy blue" required />
                 <div className="grid grid-cols-2 gap-4">
                   <Input id={'send-rolls-' + entry.id} label="Rolls sent" type="number" min="1" step="1" value={entry.ecruRollsCount}
                     onChange={(e) => handleRowChange(entry.id, 'ecruRollsCount', e.target.value)} placeholder="e.g. 10" required />
-                  <Input id={'send-weight-' + entry.id} label="Raw weight sent (kg)" type="number" min="0.01" step="0.01" value={entry.ecruWeightKg}
+                  <Input id={'send-weight-' + entry.id} label="Raw weight sent (kg)" type="number" min="0.001" step="0.001" value={entry.ecruWeightKg}
                     onChange={(e) => handleRowChange(entry.id, 'ecruWeightKg', e.target.value)} placeholder="e.g. 25.50" required />
                 </div>
                 <OptionalDetails title="Machine, fabric specifications and buyer (optional)">

@@ -36,7 +36,7 @@ Group party, fabric, quantity, billing and transport fields into meaningful step
 
 ## Printing exception
 
-Printed invoices, gate passes, statements and registers use white paper and dark text in both themes. Print media forces a light browser color scheme to keep page margins white. `#print-area` isolates the document, removes app controls, and resets scrolling and sticky elements for A4 output. Paper typography and widths may differ from screen controls. Register printing fetches every batch page and applies the same party, mill and issue-date filter meaning as the existing Excel report.
+Printed invoices, gate passes, statements and registers use white paper and dark text in both themes. Print media forces a light browser color scheme to keep page margins white. `#print-area` isolates the active document, removes app controls, and resets scrolling and sticky elements for A4 output. Source references remain visible on paper while interactive controls are hidden. Business registers use actual inward/outward source events; filtered printing includes every matching page. Paper typography and widths may differ from screen controls.
 
 ## Lists, requests and exports
 
@@ -48,4 +48,16 @@ Use `useQueryPagination` for server lists and `useListPagination` for small cach
 
 ## Validation
 
+The development login shows the seeded testing admin account and a button to fill the form without submitting it. A testing production build can opt in with `VITE_SHOW_TEST_CREDENTIALS=true`; normal production builds omit the hint.
+
 Use isolated fixture data for destructive or transactional browser checks. Verify keyboard entry, request payloads, failed-save retry, desktop/mobile layouts, system/light/dark behavior, and actual PDF output. Run `npm run build --prefix client` and `npm run build --prefix server` from the repository root. Download and reopen each workbook type, inspect CSV contents beyond one list page, and inspect first/last pages of long PDF documents.
+
+## Business workflow patterns
+
+`BusinessPicker` changes the business scope and cache, preserving independent stock and accounts. Ledger links include the business in their route. `CatalogField` supports a reusable fabric/yarn/shade name without leaving the form; `PartySelector` provides explicit inline party creation. Dynamic location choices use `useLocations`.
+
+`DocumentReferences` retains plain PO/external reference strings. `EntryCard` keeps Add another blank and Copy details explicit. `OperationForm` separates goods receipt from bill posting and supports editable drafts. `DocumentPreview` is the common paper renderer; `ReasonDialog` collects a reversal reason using the same accessible themed dialog instead of a native prompt.
+
+Actual measured kg use up to three decimals. New knitting receipts require manually entered wastage, including zero. Source-linked billing exposes only unbilled quantities and identifies fully billed sources. Posted records are corrected from their sources; independent stock, bill and ledger edits must not diverge.
+
+`npm run verify` runs the saved build, request-policy, isolated API, real-browser and downloaded-file checks. Operator notes and the historical ownership review condition are documented in `docs/verification/README.md`.

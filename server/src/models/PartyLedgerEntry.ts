@@ -1,7 +1,9 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type LedgerEntryType = 'DEBIT' | 'CREDIT';
-export type LedgerReferenceType = 'INVOICE' | 'PAYMENT' | 'OPENING_BALANCE' | 'ADJUSTMENT';
+export type LedgerReferenceType = 'INVOICE' | 'PAYMENT' | 'OPENING_BALANCE' | 'ADJUSTMENT' | 'BILL';
 
 export interface IPartyLedgerEntry extends Document {
   partyId: Types.ObjectId;
@@ -21,7 +23,7 @@ const partyLedgerEntrySchema = new Schema<IPartyLedgerEntry>(
   {
     partyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       required: true,
       index: true
     },
@@ -42,7 +44,7 @@ const partyLedgerEntrySchema = new Schema<IPartyLedgerEntry>(
     },
     referenceType: {
       type: String,
-      enum: ['INVOICE', 'PAYMENT', 'OPENING_BALANCE', 'ADJUSTMENT'],
+      enum: ['INVOICE', 'PAYMENT', 'OPENING_BALANCE', 'ADJUSTMENT', 'BILL'],
       required: true,
       index: true
     },
@@ -73,4 +75,4 @@ const partyLedgerEntrySchema = new Schema<IPartyLedgerEntry>(
 
 partyLedgerEntrySchema.index({ partyId: 1, date: -1 });
 
-export const PartyLedgerEntry = model<IPartyLedgerEntry>('PartyLedgerEntry', partyLedgerEntrySchema);
+export const PartyLedgerEntry = businessModel<IPartyLedgerEntry>('PartyLedgerEntry', partyLedgerEntrySchema);

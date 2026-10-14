@@ -9,7 +9,9 @@
     "build": "npm run build:server && npm run build:client",
     "seed": "cd server && npx tsx src/scripts/seedRazaAll.ts",
     "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev"
+    "dev:client": "cd client && npm run dev",
+    "verify": "node tests/run-verification.mjs",
+    "test:business": "node tests/business-flows.e2e.mjs"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

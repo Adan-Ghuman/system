@@ -5,7 +5,8 @@ export const createUserSchema = z.object({
   email: z.string().email('Valid email address is required').toLowerCase().trim(),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   role: z.enum(['admin', 'operator', 'viewer']).default('operator'),
-  permissions: z.array(z.string()).default([])
+  permissions: z.array(z.string()).default([]),
+  businessIds: z.array(z.string().regex(/^[a-f0-9]{24}$/i)).default([])
 });
 
 export const queryUsersSchema = z.object({

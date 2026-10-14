@@ -1,3 +1,6 @@
+import { requestReason } from '../../../components/ui/ReasonDialog.js';
+import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
+import { useBusinessStore } from '../../../business/store.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
 import { useState } from 'react';
@@ -29,8 +32,9 @@ import { RefreshCw, ArrowUpRight, ArrowDownLeft, PackageCheck, Edit, FileSpreads
 
 export function KnittingPage() {
   const queryClient = useQueryClient();
+  const businessId = useBusinessStore(state => state.id);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'balances' | 'transactions' | 'specs'>('balances');
+  const [activeTab, setActiveTab] = useState<'balances' | 'transactions' | 'specs' | 'receipts'>('balances');
   const [isExportingKnitting, setIsExportingKnitting] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [issueType, setIssueType] = useState<YarnTransactionType>('OUTWARD_TO_KNITTER');
@@ -59,7 +63,7 @@ export function KnittingPage() {
     items: KnitterBalanceSummary[]; total: number; totalPages: number;
     summary: { totalGross: number; totalExpected: number; totalReceived: number; totalRemaining: number };
   }>({
-    enabled: activeTab !== 'specs',
+    enabled: activeTab === 'balances',
     queryKey: ['knitter-balances', debouncedBalanceSearch, balanceStatusFilter, balanceSortBy, balancePage, balanceLimit],
     queryFn: async () => {
       const res = await api.get('/knitting/balances', { params: { page: balancePage, limit: balanceLimit, search: debouncedBalanceSearch.trim(), status: balanceStatusFilter, sortBy: balanceSortBy } });
@@ -102,6 +106,7 @@ export function KnittingPage() {
     queryClient.invalidateQueries({ queryKey: ['knitter-balances'] });
     queryClient.invalidateQueries({ queryKey: ['yarn-transactions'] });
     queryClient.invalidateQueries({ queryKey: ['yarn-specs'] });
+    queryClient.invalidateQueries({ queryKey: ['knitting-receipts'] });
     queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
     queryClient.invalidateQueries({ queryKey: ['inventory-summary'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-inventory-summary'] });
@@ -141,6 +146,7 @@ export function KnittingPage() {
       <div className="flex flex-wrap gap-2 border-b border-line pb-3">
         <Button variant={activeTab === 'balances' ? 'primary' : 'ghost'} aria-pressed={activeTab === 'balances'} onClick={() => setActiveTab('balances')}>Yarn with knitters</Button>
         <Button variant={activeTab === 'transactions' ? 'primary' : 'ghost'} aria-pressed={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')}>Yarn delivery history</Button>
+        {businessId && <Button variant={activeTab === 'receipts' ? 'primary' : 'ghost'} onClick={() => setActiveTab('receipts')}>Fabric receipt history</Button>}
         {activeTab === 'specs' && <span className="self-center text-sm text-soft">Yarn count setup</span>}
       </div>
       {activeTab !== 'specs' && (
@@ -148,7 +154,7 @@ export function KnittingPage() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               { label: 'Yarn sent', value: kpis.totalGross },
-              { label: 'Expected fabric after wastage', value: kpis.totalExpected },
+              { label: 'Yarn available before actual wastage', value: kpis.totalExpected },
               { label: 'Fabric received', value: kpis.totalReceived },
               { label: 'Yarn still with knitters', value: kpis.totalRemaining }
             ].map((item) => <div key={item.label}><p className="text-xs text-soft">{item.label}</p><p className="mt-1 font-mono text-base font-semibold text-strong">{formatWeight(item.value)}</p></div>)}
@@ -180,10 +186,10 @@ export function KnittingPage() {
                     {isBalancesLoading ? <LoadingState isTableRow colSpan={6} message="Loading knitter balances..." /> : filteredBalances.length === 0 ? (
                       <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-soft">{isBalancesFiltered ? 'No balances match these filters.' : 'No yarn has been sent to a knitter yet. Start with Send yarn to a knitter above.'}</td></tr>
                     ) : filteredBalances.map((balance) => (
-                      <tr key={balance.partyId + '-' + balance.yarnSpec} className="hover:bg-subtle/30">
+                      <tr key={balance.partyId + '-' + balance.yarnSpec + '-' + (balance.ownerKey || 'OWN')} className="hover:bg-subtle/30">
                         <td className="px-4 py-3">
                           <button type="button" onClick={() => setBalanceSearchTerm(balance.partyName)} className="text-left font-medium text-strong hover:text-brand">{balance.partyName}</button>
-                          <p className="mt-1 text-xs text-soft">{balance.partyCode}{balance.lastDate ? ' · ' + formatDateTime(balance.lastDate, true) : ''}</p>
+                          <p className="mt-1 text-xs text-soft">{balance.partyCode}{balance.ownerKey && balance.ownerKey !== 'OWN' ? ' · Client-owned yarn' : ''}{balance.lastDate ? ' · ' + formatDateTime(balance.lastDate, true) : ''}</p>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-ink">{balance.yarnSpec}</td>
                         <td className="px-4 py-3 text-right font-mono text-xs text-ink whitespace-nowrap">{formatWeight(balance.totalGrossKg)}</td>
@@ -224,10 +230,10 @@ export function KnittingPage() {
                         <td className="px-4 py-3"><p className="font-mono text-xs font-semibold text-brand">{transaction.gatePassNo}</p><p className="mt-1 text-xs text-soft">{formatDateTime(transaction.date, true)}</p>{transaction.remarks && <details className="mt-2 text-xs text-soft"><summary className="cursor-pointer">Delivery note</summary><p className="mt-1 max-w-56 whitespace-normal">{transaction.remarks}</p></details>}</td>
                         <td className="px-4 py-3"><p className="text-strong">{transaction.partyId?.name || '—'}</p><Badge variant="outline" className="mt-1 text-xs">{transaction.transactionType === 'OUTWARD_TO_KNITTER' ? 'Sent to knitter' : 'Received from client'}</Badge></td>
                         <td className="px-4 py-3 font-mono text-xs text-ink">{transaction.yarnSpec}</td>
-                        <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-strong whitespace-nowrap">{formatWeight(transaction.grossWeightKg)}</p><p className="mt-1 text-soft">{transaction.boxCount} boxes</p><details className="mt-2 text-soft"><summary className="cursor-pointer">Wastage details</summary><p className="mt-1 whitespace-nowrap">Loss: {formatWeight(transaction.wastageWeightKg)} ({transaction.wastagePercent}%)</p><p className="mt-1 whitespace-nowrap">Expected: {formatWeight(transaction.netExpectedFabricKg)}</p></details></td>
+                        <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-strong whitespace-nowrap">{formatWeight(transaction.grossWeightKg)}</p><p className="mt-1 text-soft">{transaction.boxCount} {transaction.packageUnit || 'packages'}</p><details className="mt-2 text-soft"><summary className="cursor-pointer">Wastage details</summary><p className="mt-1 whitespace-nowrap">Actual wastage: {formatWeight(transaction.actualWastageKg ?? transaction.wastageWeightKg)}</p><p className="mt-1 whitespace-nowrap">Expected: {formatWeight(transaction.netExpectedFabricKg)}</p></details></td>
                         <td className="px-4 py-3 text-right font-mono text-xs text-brand whitespace-nowrap">{formatWeight(transaction.receivedFabricKg)}</td>
                         <td className="px-4 py-3 text-right font-mono text-xs text-warning whitespace-nowrap">{formatWeight(transaction.remainingYarnBalanceKg)}</td>
-                        <td className="px-4 py-3"><Button variant="outline" size="sm" onClick={() => { setEditingTransaction(transaction); setIsEditModalOpen(true); }}><Edit className="h-3.5 w-3.5" /> Edit</Button></td>
+                        <td className="px-4 py-3"><Button variant="outline" size="sm" disabled={transaction.status === 'REVERSED'} onClick={async () => { if (!businessId) { setEditingTransaction(transaction);setIsEditModalOpen(true);return; }const reason = await requestReason('Why is this yarn delivery being reversed? Reverse its fabric receipts and returns first.');if (!reason?.trim()) return;try { await api.post('/workspace/yarn-deliveries/' + transaction._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse this yarn delivery.'); } }}><Edit className="h-3.5 w-3.5" /> {businessId ? transaction.status === 'REVERSED' ? 'Reversed' : 'Reverse delivery' : 'Edit'}</Button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -239,6 +245,7 @@ export function KnittingPage() {
         </div>
       )}
       {activeTab === 'specs' && <YarnSpecificationsTab />}
+      {activeTab === 'receipts' && <ReceiptHistory />}
       {isIssueModalOpen && <IssueYarnModal isOpen initialType={issueType} onClose={() => setIsIssueModalOpen(false)} onSuccess={handleRefetchAll} />}
       {isReceiveModalOpen && <ReceiveKnittedModal isOpen preselectedBalance={selectedBalance} onClose={() => { setIsReceiveModalOpen(false); setSelectedBalance(null); }} onSuccess={handleRefetchAll} />}
       {isEditModalOpen && <EditYarnTransactionModal isOpen={isEditModalOpen} transaction={editingTransaction} onClose={() => { setIsEditModalOpen(false); setEditingTransaction(null); }} onSuccess={handleRefetchAll} />}

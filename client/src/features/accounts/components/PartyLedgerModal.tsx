@@ -1,3 +1,8 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
+import { BusinessItem } from '../../../business/BusinessPicker.js';
+import { useBusinessStore } from '../../../business/store.js';
+import { DocumentPreview } from '../../../business/DocumentPreview.js';
+import { OperationDocument } from '../../../business/types.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
@@ -24,6 +29,7 @@ export interface PartyLedgerModalProps {
 }
 
 export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyLedgerModalProps) {
+  const businessId = useBusinessStore(state => state.id);const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });const companyName = businesses.data?.find(item => item._id === businessId)?.name || 'Historical records';const [sourceDocument, setSourceDocument] = useState<OperationDocument | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 300);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
@@ -97,7 +103,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
     try {
       const completeEntries = await allEntries();
       exportToCsv<PartyLedgerEntryItem>(
-      `statement_${party.code}_${new Date().toISOString().split('T')[0]}`,
+      `statement_${party.code}_${getLocalDateInput()}`,
       [
         { header: 'Bill / Voucher #', accessor: (e) => e.referenceNo || '—' },
         { header: 'Date', accessor: (e) => formatDate(e.date) },
@@ -325,7 +331,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
         {isError && <QueryError onRetry={() => { refetch(); }} />}
         {exportError && <p role="alert" className="rounded-lg border border-line p-3 text-sm text-danger">{exportError}</p>}
         <div id="print-area" className="ledger-print space-y-4">
-<h2 className="hidden print:block text-lg font-semibold">Account statement</h2>
+<h2 className="hidden print:block text-lg font-semibold">{companyName} · Account statement</h2>
 {party && (
           <div className="p-3 rounded-lg bg-canvas border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div>
@@ -334,7 +340,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 {party.name}
               </div>
               <div className="text-soft mt-0.5 font-mono">
-                {party.code} • {party.phone || 'No phone'} • {party.address || 'Sialkot'}
+                {party.code} • {party.phone || 'No phone'} • {party.address || '—'}
               </div>
             </div>
 
@@ -432,7 +438,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                 (printEntries || entries).map((e) => (
                   <tr key={e._id} className="group hover:bg-surface/40 transition-colors">
                     <td className="py-2 px-3 font-mono font-semibold text-brand whitespace-nowrap">
-                      {e.referenceNo || '—'}
+                      {businessId && e.referenceId ? <button className="text-left text-brand hover:underline" onClick={async () => { try { setSourceDocument((await api.get<{ data: OperationDocument }>('/sources/bill/' + e.referenceId)).data.data); } catch { setExportError('This entry is a standalone voucher. Open Payments to review it.'); } }}>{e.referenceNo || '—'}</button> : e.referenceNo || '—'}{businessId && e.referenceId && <span className="hidden print:inline">{e.referenceNo || '—'}</span>}
                     </td>
 
                     <td className="py-2 px-3 font-mono text-ink whitespace-nowrap">
@@ -458,6 +464,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                     <td className="py-2 px-3 text-center whitespace-nowrap sticky right-0 bg-canvas group-hover:bg-surface z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1">
                         <button
+                          disabled={Boolean(businessId) && e.referenceType !== "ADJUSTMENT"}
                           type="button"
                           onClick={() => {
                             setEditingEntry(e);
@@ -515,6 +522,6 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
 
 
       </div>
-    </Dialog>
+    {sourceDocument && <DocumentPreview document={sourceDocument} onClose={() => setSourceDocument(null)} />}</Dialog>
   );
 }

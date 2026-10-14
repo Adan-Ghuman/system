@@ -1,10 +1,15 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
-export type DyeingMillType = 'GHUMMAN_DYEING' | 'RAJPUT_DYEING' | 'HAFIZ_SAAD_DYEING' | 'HB_DYEING' | 'OTHER';
-export type DyeingBatchStatus = 'ISSUED' | 'IN_PROCESS' | 'COMPLETED';
+export type DyeingMillType = string;
+export type DyeingBatchStatus = 'ISSUED' | 'IN_PROCESS' | 'COMPLETED' | 'REVERSED';
 
 export interface IDyeingBatch extends Document {
   batchNo: string;
+  ownerKey: string;
+  receivedRawKg: number;
+  receivedRawRolls: number;
   millName: DyeingMillType;
   millPartyId?: Types.ObjectId;
   fabricType: string;
@@ -36,6 +41,9 @@ export interface IDyeingBatch extends Document {
 
 const dyeingBatchSchema = new Schema<IDyeingBatch>(
   {
+    ownerKey: { type: String, default: 'OWN' },
+    receivedRawKg: { type: Number, default: 0 },
+    receivedRawRolls: { type: Number, default: 0 },
     batchNo: {
       type: String,
       required: true,
@@ -45,13 +53,12 @@ const dyeingBatchSchema = new Schema<IDyeingBatch>(
     },
     millName: {
       type: String,
-      enum: ['GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING', 'OTHER'],
       required: true,
       index: true
     },
     millPartyId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       index: true
     },
     fabricType: {
@@ -153,12 +160,12 @@ const dyeingBatchSchema = new Schema<IDyeingBatch>(
     },
     allocatedCustomerId: {
       type: Schema.Types.ObjectId,
-      ref: 'Party',
+      ref: partyModelName,
       index: true
     },
     status: {
       type: String,
-      enum: ['ISSUED', 'IN_PROCESS', 'COMPLETED'],
+      enum: ['ISSUED', 'IN_PROCESS', 'COMPLETED', 'REVERSED'],
       default: 'ISSUED',
       index: true
     },
@@ -176,4 +183,4 @@ const dyeingBatchSchema = new Schema<IDyeingBatch>(
 dyeingBatchSchema.index({ millName: 1, status: 1 });
 dyeingBatchSchema.index({ dateIssued: -1 });
 
-export const DyeingBatch = model<IDyeingBatch>('DyeingBatch', dyeingBatchSchema);
+export const DyeingBatch = businessModel<IDyeingBatch>('DyeingBatch', dyeingBatchSchema);

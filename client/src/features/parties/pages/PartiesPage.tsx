@@ -1,3 +1,4 @@
+import { PartyLink } from '../../../business/PartyLink.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
@@ -185,7 +186,7 @@ export function PartiesPage() {
                     </td>
 
                     <td className="py-3 px-4 font-semibold text-strong whitespace-nowrap">
-                      {party.name}
+                      <PartyLink party={party} />
                     </td>
 
                     <td className="py-3 px-4 text-ink whitespace-nowrap">

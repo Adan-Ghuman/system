@@ -1,3 +1,6 @@
+import { referenceFields } from '../../business/references.js';
+import { currentBusinessId } from '../../business/context.js';
+import { postStockTransfer, postStockAdjustment, correctStockItem } from '../../business/inventory.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose from 'mongoose';
 import { FabricInventory, IFabricInventory } from '../../models/FabricInventory.js';
@@ -29,6 +32,7 @@ export async function generateNextTransferNo(): Promise<string> {
 }
 
 export async function executeStockTransfer(input: CreateTransferInput): Promise<IStockTransfer> {
+  if (currentBusinessId()) return postStockTransfer(input);
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -90,6 +94,7 @@ export async function executeStockTransfer(input: CreateTransferInput): Promise<
           driverName: input.driverName || '',
           vehicleNo: input.vehicleNo || '',
           date: new Date(input.date),
+          ...referenceFields(input),
           remarks: input.remarks || ''
         }
       ],
@@ -107,6 +112,7 @@ export async function executeStockTransfer(input: CreateTransferInput): Promise<
 }
 
 export async function recordStockAdjustment(input: CreateAdjustmentInput): Promise<IStockAdjustment> {
+  if (currentBusinessId()) return postStockAdjustment(input);
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -160,6 +166,7 @@ export async function recordStockAdjustment(input: CreateAdjustmentInput): Promi
           adjustmentWeightKg: input.adjustmentWeightKg,
           reason: input.reason,
           date: new Date(input.date),
+          ...referenceFields(input),
           remarks: input.remarks || ''
         }
       ],
@@ -289,7 +296,7 @@ export async function listStockTransfers(query: Partial<QueryTransfersInput> = {
       { yarnSpec: searchRegex },
       { color: searchRegex },
       { driverName: searchRegex },
-      { vehicleNo: searchRegex },
+      { vehicleNo: searchRegex }, { poNo: searchRegex }, { externalReference: searchRegex },
       { gatePassNo: searchRegex }
     ];
   }
@@ -315,6 +322,7 @@ export async function listStockTransfers(query: Partial<QueryTransfersInput> = {
 }
 
 export async function updateInventoryItem(id: string, input: UpdateInventoryItemInput): Promise<IFabricInventory> {
+  if (currentBusinessId()) return correctStockItem(id, input);
   const item = await FabricInventory.findById(id);
   if (!item) {
     throw new NotFoundError('Fabric inventory record not found');

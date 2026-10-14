@@ -1,3 +1,12 @@
+import { intercompanyRoutes } from './business/intercompany.routes.js';
+import { sourceRoutes } from './business/source.routes.js';
+import { legacyReviewRoutes } from './business/legacy-review.js';
+import { productionRoutes } from './business/production.routes.js';
+import { workspaceRoutes } from './business/commerce.routes.js';
+import { catalogRoutes } from './business/catalog.routes.js';
+import { businessRoutes, businessScope } from './business/routes.js';
+import { currentBusinessId } from './business/context.js';
+import { authenticate } from './middleware/auth.middleware.js';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -52,13 +61,24 @@ export function createApp(): express.Application {
 
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
-  app.use('/api/parties', partyRoutes);
-  app.use('/api/knitting', knittingRoutes);
-  app.use('/api/dyeing', dyeingRoutes);
-  app.use('/api/inventory', inventoryRoutes);
-  app.use('/api/dispatch', dispatchRoutes);
-  app.use('/api/accounts', accountsRoutes);
-  app.use('/api/reports', reportsRoutes);
+  app.use('/api/legacy-review', legacyReviewRoutes);
+  app.use('/api/businesses', businessRoutes);
+  const operations = express.Router();
+  operations.use('/parties', partyRoutes);
+  operations.use('/knitting', knittingRoutes);
+  operations.use('/dyeing', dyeingRoutes);
+  operations.use('/inventory', inventoryRoutes);
+  operations.use('/dispatch', dispatchRoutes);
+  operations.use('/accounts', accountsRoutes);
+  operations.use('/reports', reportsRoutes);
+  businessScope.use('/catalog', catalogRoutes);
+  businessScope.use('/workspace', workspaceRoutes);
+  businessScope.use('/production', productionRoutes);
+  businessScope.use('/intercompany', intercompanyRoutes);
+  businessScope.use('/sources', sourceRoutes);
+  businessScope.use(operations);
+  app.use('/api/businesses/:businessId', businessScope);
+  app.use('/api', authenticate, (req, res, next) => { if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !currentBusinessId()) { res.status(409).json({ success: false, error: 'Choose Rozain Textile or ZR Trading before entering a transaction. Historical records are read-only until their ownership is reviewed.' }); return; }if (req.user?.role !== 'admin') { res.status(403).json({ success: false, error: 'Historical records require administrator access. Choose an authorized business.' });return; } next(); }, operations);
 
   app.use((_req, _res, next) => {
     next(new NotFoundError('Route not found'));

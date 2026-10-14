@@ -1,3 +1,7 @@
+import { Select } from '../../../components/ui/Select.js';
+import { BlendAllocation, BlendComponent } from '../../../business/BlendAllocation.js';
+import { CatalogField } from '../../../components/ui/CatalogField.js';
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useMemo, useRef, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -29,7 +33,9 @@ export interface KnittedSlipRow {
   yarnSpec: string;
   rollsCount: string;
   weightKg: string;
+  wastageKg: string;
   remarks: string;
+  components: BlendComponent[];
 }
 
 const COMMON_FABRICS = [
@@ -62,14 +68,15 @@ function generateRowId(): string {
   return 'knit_row_' + Math.random().toString(36).substring(2, 9);
 }
 
-function createDefaultRow(defaultSpec = '75/72 Sim'): KnittedSlipRow {
+function createDefaultRow(defaultSpec = ''): KnittedSlipRow {
   return {
     id: generateRowId(),
-    fabricType: 'Single Jersey',
+    fabricType: '',
     yarnSpec: defaultSpec,
     rollsCount: '',
     weightKg: '',
-    remarks: ''
+    wastageKg: '',
+    remarks: '', components: []
   };
 }
 
@@ -79,6 +86,9 @@ export function ReceiveKnittedModal({
   onSuccess,
   preselectedBalance
 }: ReceiveKnittedModalProps) {
+  const [references, setReferences] = useDocumentReferences();
+  const [ownerKey, setOwnerKey] = useState(preselectedBalance?.ownerKey || 'OWN');
+  const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties') });
   const [partyId, setPartyId] = useState(preselectedBalance?.partyId || '');
   const [partyName, setPartyName] = useState(preselectedBalance?.partyName || '');
   const [gatePassNo, setGatePassNo] = useState('');
@@ -123,16 +133,16 @@ export function ReceiveKnittedModal({
   }, [specsData]);
 
   function handleAddRow() {
-    const lastRow = rows[rows.length - 1];
     setRows((prev) => [
       ...prev,
       {
         id: generateRowId(),
-        fabricType: lastRow ? lastRow.fabricType : 'Single Jersey',
-        yarnSpec: lastRow ? lastRow.yarnSpec : availableSpecs[0] || '75/72',
+        fabricType: '',
+        yarnSpec: '',
         rollsCount: '',
         weightKg: '',
-        remarks: ''
+      wastageKg: '',
+        remarks: '', components: []
       }
     ]);
   }
@@ -144,7 +154,7 @@ export function ReceiveKnittedModal({
       ...source,
       id: generateRowId(),
       rollsCount: '',
-      weightKg: ''
+      weightKg: '', wastageKg: ''
     };
     setRows((prev) => {
       const copy = [...prev];
@@ -223,17 +233,19 @@ export function ReceiveKnittedModal({
     setIsLoading(true);
 
     try {
-      const payload: ReceiveFabricPayload = {
+      const payload: ReceiveFabricPayload = { ownerKey,
+        ...references,
         partyId: partyId || partyName,
         partyName: partyName || undefined,
         gatePassNo: gatePassNo.trim(),
         date: new Date(date).toISOString(),
         remarks: [driverName ? `Driver: ${driverName}` : '', remarks].filter(Boolean).join(' | '),
         items: rows.map((r) => ({
-          fabricType: r.fabricType.trim() || 'Single Jersey',
+          fabricType: r.fabricType.trim(),
           yarnSpec: r.yarnSpec.trim(),
           rollsCount: parseInt(r.rollsCount, 10),
           weightKg: parseFloat(r.weightKg),
+          wastageKg: Number(r.wastageKg), components: r.components.map(component => ({ yarnSpec: component.yarnSpec, weightKg: Number(component.weightKg) })),
           remarks: r.remarks.trim() || undefined
         }))
       };
@@ -276,24 +288,25 @@ export function ReceiveKnittedModal({
               <Input id="knitted-date" label="Received date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
+          <Select label="Fabric / yarn owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "This business" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
           <FormSection step={2} title="What fabric did you receive?" description="Add a separate item for each fabric type or yarn count.">
             {rows.map((row, index) => (
               <EntryCard key={row.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}
                 onRemove={() => handleRemoveRow(row.id)} canRemove={rows.length > 1}>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Input id={'knitted-fabric-' + row.id} label="Fabric type" list="knitted-fabric-types" value={row.fabricType} required
-                    onChange={(e) => handleRowChange(row.id, 'fabricType', e.target.value)} placeholder="e.g. Single Jersey" />
-                  <Input id={'knitted-yarn-' + row.id} label="Yarn count" list="knitted-yarn-counts" value={row.yarnSpec} required
-                    onChange={(e) => handleRowChange(row.id, 'yarnSpec', e.target.value)} placeholder="e.g. 75/72" />
+                  <CatalogField kind="FABRIC" id={'knitted-fabric-' + row.id} label="Fabric name" value={row.fabricType} required suggestions={COMMON_FABRICS} onChange={value => handleRowChange(row.id, 'fabricType', value)} />
+                  <CatalogField kind="YARN" id={'knitted-yarn-' + row.id} label="Yarn name / count" value={row.yarnSpec} required suggestions={availableSpecs} onChange={value => handleRowChange(row.id, 'yarnSpec', value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Input id={'knitted-rolls-' + row.id} label="Rolls received" type="number" min="1" step="1" value={row.rollsCount} required
                     onChange={(e) => handleRowChange(row.id, 'rollsCount', e.target.value)} placeholder="e.g. 10" />
-                  <Input id={'knitted-weight-' + row.id} label="Weight received (kg)" type="number" min="0.01" step="0.01" value={row.weightKg} required
+                  <Input id={'knitted-weight-' + row.id} label="Weight received (kg)" type="number" min="0.001" step="0.001" value={row.weightKg} required
                     onChange={(e) => handleRowChange(row.id, 'weightKg', e.target.value)} placeholder="e.g. 25.50" />
                 </div>
+                <BlendAllocation value={row.components} onChange={components => setRows(current => current.map(item => item.id === row.id ? { ...item, components } : item))} /><Input label="Actual wastage (kg)" type="number" min="0" step="0.001" value={row.wastageKg} required onChange={event => handleRowChange(row.id, 'wastageKg', event.target.value)} placeholder="Enter 0 if there was no wastage" />
                 <OptionalDetails title="Item note (optional)">
-                  <Input id={'knitted-note-' + row.id} label="Note for this fabric" value={row.remarks} onChange={(e) => handleRowChange(row.id, 'remarks', e.target.value)} />
+
+                <Input id={'knitted-note-' + row.id} label="Note for this fabric" value={row.remarks} onChange={(e) => handleRowChange(row.id, 'remarks', e.target.value)} />
                 </OptionalDetails>
               </EntryCard>
             ))}

@@ -1,14 +1,11 @@
+import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
-export const millNameEnum = z.enum([
-  'GHUMMAN_DYEING',
-  'RAJPUT_DYEING',
-  'HAFIZ_SAAD_DYEING',
-  'HB_DYEING',
-  'OTHER'
-]);
+export const millNameEnum = z.string().trim().min(1).max(80);
 
 export const createBatchSchema = z.object({
+  ownerKey: z.string().default('OWN'),
+  ...documentReferenceFields,
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum,
   millPartyId: z.string().optional(),
@@ -52,6 +49,8 @@ export const gatePassEntryItemSchema = z.object({
 );
 
 export const createGatePassSchema = z.object({
+  ownerKey: z.string().default('OWN'),
+  ...documentReferenceFields,
   ogpNo: z.string().min(1, 'OGP number is required').trim(),
   dateIssued: z.string().datetime().optional().default(() => new Date().toISOString()),
   millName: millNameEnum,
@@ -82,6 +81,7 @@ export const receiveGatePassItemSchema = z.object({
 );
 
 export const receiveGatePassSchema = z.object({
+  ...documentReferenceFields,
   igpNo: z.string().min(1, 'IGP number is required').trim(),
   dateReceived: z.string().datetime().optional().default(() => new Date().toISOString()),
   millName: millNameEnum.optional().default('HB_DYEING'),
@@ -102,6 +102,7 @@ export const settleBatchSchema = z.object({
 });
 
 export const updateBatchSchema = z.object({
+  ...documentReferenceFields,
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum.optional(),
   millPartyId: z.string().optional(),

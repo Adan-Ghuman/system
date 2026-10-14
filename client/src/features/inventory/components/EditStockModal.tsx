@@ -1,3 +1,4 @@
+import { useLocations } from '../../../business/useLocations.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
@@ -31,6 +32,7 @@ const LOCATIONS: { label: string; value: InventoryLocation }[] = [
 ];
 
 export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockModalProps) {
+  const locations = useLocations(LOCATIONS);
   const [location, setLocation] = useState<InventoryLocation>('ZR_GODOWN');
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
   const [fabricType, setFabricType] = useState('');
@@ -163,7 +165,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
             label="Storage Location"
             value={location}
             onChange={(e) => setLocation(e.target.value as InventoryLocation)}
-            options={LOCATIONS}
+            options={locations}
           />
 
           <Select

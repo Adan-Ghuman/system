@@ -58,7 +58,7 @@ export interface LedgerStatementResponse {
   closingBalance: number;
 }
 
-export interface CreateVoucherPayload {
+export interface CreateVoucherPayload { requestId?: string;
   voucherType: VoucherType;
   paymentMode: PaymentMode;
   partyId: string;
@@ -71,7 +71,7 @@ export interface CreateVoucherPayload {
   remarks?: string;
 }
 
-export interface UpdateVoucherPayload {
+export interface UpdateVoucherPayload { requestId?: string;
   voucherType?: VoucherType;
   paymentMode?: PaymentMode;
   partyId?: string;

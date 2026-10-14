@@ -1,3 +1,5 @@
+import { businessModel } from '../business/model.js';
+import { partyModelName } from '../business/context.js';
 import { Schema, model, Document } from 'mongoose';
 import { InventoryLocation, FabricState } from './FabricInventory.js';
 
@@ -9,6 +11,7 @@ export type StockAdjustmentReason =
   | 'MANUAL_CORRECTION';
 
 export interface IStockAdjustment extends Document {
+  ownerKey: string;
   fabricType: string;
   yarnSpec: string;
   state: FabricState;
@@ -25,6 +28,7 @@ export interface IStockAdjustment extends Document {
 
 const stockAdjustmentSchema = new Schema<IStockAdjustment>(
   {
+    ownerKey: { type: String, default: 'OWN' },
     fabricType: {
       type: String,
       required: true,
@@ -87,4 +91,4 @@ const stockAdjustmentSchema = new Schema<IStockAdjustment>(
 
 stockAdjustmentSchema.index({ date: -1 });
 
-export const StockAdjustment = model<IStockAdjustment>('StockAdjustment', stockAdjustmentSchema);
+export const StockAdjustment = businessModel<IStockAdjustment>('StockAdjustment', stockAdjustmentSchema);

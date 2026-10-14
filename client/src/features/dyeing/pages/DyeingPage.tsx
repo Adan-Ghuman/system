@@ -1,3 +1,6 @@
+import { requestReason } from '../../../components/ui/ReasonDialog.js';
+import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
+import { useBusinessStore } from '../../../business/store.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
 import { useState, useMemo } from 'react';
@@ -28,7 +31,7 @@ import { formatWeight, formatDateTime } from '../../../lib/formatters.js';
 import { RefreshCw, Plus, Edit, FileSpreadsheet, FileText, PackageCheck, Truck, Factory } from 'lucide-react';
 
 export function DyeingPage() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient();const businessId = useBusinessStore(state => state.id);
   const [mainTab, setMainTab] = useState<'batches' | 'received' | 'units'>('batches');
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
@@ -192,7 +195,7 @@ export function DyeingPage() {
         <Button variant={mainTab === 'received' ? 'primary' : 'ghost'} aria-pressed={mainTab === 'received'} onClick={() => setMainTab('received')}>Received fabric</Button>
         {mainTab === 'units' && <span className="self-center text-sm text-soft">Mill & location setup</span>}
       </div>
-      {mainTab === 'units' ? <DyeingUnitsTab /> : mainTab === 'received' ? <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} /> : (
+      {mainTab === 'units' ? <DyeingUnitsTab /> : mainTab === 'received' ? <>{businessId ? <ReceiptHistory mode="dyeing" /> : <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} />}</> : (
         <div className="space-y-3">
           <div className="grid gap-3 rounded-xl border border-line bg-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <Input id="dyeing-search" label="Find a batch" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Batch, fabric, color or challan" />
@@ -229,7 +232,7 @@ export function DyeingPage() {
                         <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-ink whitespace-nowrap">{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1 text-soft">{batch.ecruRollsCount} rolls</p></td>
                         <td className="px-4 py-3 text-right text-xs">{batch.status === 'COMPLETED' ? <><p className="font-mono text-brand whitespace-nowrap">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-soft">{batch.finishRollsCount} rolls</p></> : <span className="text-soft">Waiting</span>}</td>
                         <td className="px-4 py-3"><Badge variant={batch.status === 'COMPLETED' ? 'success' : batch.status === 'IN_PROCESS' ? 'default' : 'warning'} className="text-xs">{batch.status === 'COMPLETED' ? 'Received' : batch.status === 'IN_PROCESS' ? 'Being dyed' : 'At mill'}</Badge>{batch.status === 'COMPLETED' && <p className={'mt-2 text-xs ' + ((batch.shortagePercent || 0) > 5 ? 'text-warning' : 'text-soft')}>Loss: {(batch.shortageWeightKg || 0).toFixed(2)} kg · {(batch.shortagePercent || 0).toFixed(1)}%</p>}</td>
-                        <td className="px-4 py-3"><div className="flex flex-wrap gap-2">{batch.status !== 'COMPLETED' && <Button size="sm" onClick={() => setSettlingBatch(batch)}>Receive fabric</Button>}<Button variant="outline" size="sm" onClick={() => setEditingBatch(batch)}><Edit className="h-3.5 w-3.5" /> Edit</Button></div></td>
+                        <td className="px-4 py-3"><div className="flex flex-wrap gap-2">{batch.status !== 'COMPLETED' && <Button size="sm" onClick={() => setSettlingBatch(batch)}>Receive fabric</Button>}<Button variant="outline" size="sm" onClick={async () => { if (!businessId) { setEditingBatch(batch);return; }const reason = await requestReason('Why is this dyeing issue being reversed? Reverse its receipts first.');if (!reason?.trim()) return;try { await api.post('/workspace/dyeing-issues/' + batch._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse this issue.'); } }}><Edit className="h-3.5 w-3.5" /> {businessId ? 'Reverse issue' : 'Edit'}</Button></div></td>
                       </tr>
                     ))}
                   </tbody>

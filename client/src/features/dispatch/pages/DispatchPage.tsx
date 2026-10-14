@@ -1,8 +1,13 @@
+import { requestReason } from '../../../components/ui/ReasonDialog.js';
+import { DeliveryDrafts } from '../../../business/DeliveryDrafts.js';
+import { OperationDocument } from '../../../business/types.js';
+import { useBusinessStore } from '../../../business/store.js';
+import { PartyLink } from '../../../business/PartyLink.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
 import { PageHeader } from '../../../components/ui/PageHeader.js';
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { DispatchItem } from '../types/dispatch.types.js';
 import { Button } from '../../../components/ui/Button.js';
@@ -20,10 +25,13 @@ import { formatCurrency, formatWeight, formatDateTime } from '../../../lib/forma
 import { Truck, RefreshCw, Plus, Receipt, FileCheck, Search, Inbox, Printer, FileText, ArrowUpDown, Filter } from 'lucide-react';
 
 export function DispatchPage() {
+  const queryClient = useQueryClient();const [exportError, setExportError] = useState<string | null>(null);
+  const businessId = useBusinessStore(state => state.id);
   const [searchTerm, setSearchTerm] = useState('');
   const [fromLocation, setFromLocation] = useState<string>('ALL');
   const [invoiceType, setInvoiceType] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [editingDraft, setEditingDraft] = useState<OperationDocument | undefined>();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [printDoc, setPrintDoc] = useState<{ type: 'OGP' | 'INVOICE'; dispatch: DispatchItem } | null>(null);
@@ -85,7 +93,7 @@ export function DispatchPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Deliveries & invoices" description="Create a delivery, record its rolls, and print the gate pass or invoice."><div className="flex max-w-full flex-wrap items-center gap-2">
+      {exportError && <p role="alert" className="text-sm text-danger">{exportError}</p>}<PageHeader title="Deliveries & invoices" description="Create a delivery, record its rolls, and print the gate pass or invoice."><div className="flex max-w-full flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -255,7 +263,7 @@ export function DispatchPage() {
                 dispatches.map((d) => (
                   <tr key={d._id} className="group hover:bg-subtle/40 transition-colors">
                     <td className="py-3 px-4 font-mono font-bold text-brand whitespace-nowrap">
-                      {d.dispatchNo}
+                      {d.dispatchNo}{d.status === 'REVERSED' ? ' · Reversed' : ''}
                     </td>
 
                     <td className="py-3 px-4 text-ink font-mono whitespace-nowrap">
@@ -271,7 +279,7 @@ export function DispatchPage() {
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-semibold text-strong">{d.customerId?.name || '—'}</span>
+                      <PartyLink party={d.customerId} />
                       {d.customerId?.code && (
                         <span className="text-xs font-mono text-soft ml-1.5 bg-subtle/70 px-1.5 py-0.5 rounded border border-control/50">
                           {d.customerId.code}
@@ -335,7 +343,8 @@ export function DispatchPage() {
 
                     <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 transition-colors z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1.5">
-                        <Button
+                        {businessId && d.status !== 'REVERSED' && <Button size="sm" variant="ghost" onClick={async () => { const reason = await requestReason('Why is this delivery being reversed? Its stock and unpaid bills will be reversed together.');if (!reason?.trim()) return;try { await api.post('/dispatch/' + d._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse the delivery.'); } }}>Reverse delivery</Button>}
+<Button
                           variant="outline"
                           size="sm"
                           onClick={() => setPrintDoc({ type: 'OGP', dispatch: d })}
@@ -348,7 +357,7 @@ export function DispatchPage() {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => setPrintDoc({ type: 'INVOICE', dispatch: d })}
+                          disabled={!d.invoice} onClick={() => setPrintDoc({ type: 'INVOICE', dispatch: d })}
                           className="text-xs py-1 px-2 h-6 gap-1"
                         >
                           <Receipt className="w-2.5 h-2.5" />
@@ -372,13 +381,13 @@ export function DispatchPage() {
         />
       </Card>
 
-      {isCreateOpen && <CreateDispatchModal
+      {isCreateOpen && <CreateDispatchModal draft={editingDraft}
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => refetch()}
+        onClose={() => { setIsCreateOpen(false);setEditingDraft(undefined); }}
+        onSuccess={() => { void queryClient.invalidateQueries();void refetch(); }}
       />}
 
-      <PrintDocumentModal
+      <DeliveryDrafts onContinue={document => { setEditingDraft(document);setIsCreateOpen(true); }} /><PrintDocumentModal
         isOpen={Boolean(printDoc)}
         onClose={() => setPrintDoc(null)}
         type={printDoc?.type || 'OGP'}

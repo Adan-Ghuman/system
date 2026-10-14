@@ -1,3 +1,4 @@
+import { getLocalDateInput } from '../../../lib/formatters.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
@@ -39,7 +40,7 @@ export function CreateVoucherModal({
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [partyId, setPartyId] = useState('');
   const [amount, setAmount] = useState('50000');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateInput());
   const [bankName, setBankName] = useState('');
   const [chequeNo, setChequeNo] = useState('');
   const [chequeDate, setChequeDate] = useState('');
@@ -47,6 +48,7 @@ export function CreateVoucherModal({
   const [remarks, setRemarks] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [requestId] = useState(() => crypto.randomUUID());
   const isSubmittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function CreateVoucherModal({
     setIsLoading(true);
 
     try {
-      const payload: CreateVoucherPayload = {
+      const payload: CreateVoucherPayload = { requestId,
         voucherType,
         paymentMode,
         partyId,

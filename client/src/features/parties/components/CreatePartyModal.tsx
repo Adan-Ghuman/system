@@ -12,9 +12,10 @@ export interface CreatePartyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onCreated?: (party: { _id: string; name: string }) => void;
 }
 
-export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModalProps) {
+export function CreatePartyModal({ isOpen, onClose, onSuccess, onCreated }: CreatePartyModalProps) {
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -67,7 +68,8 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess }: CreatePartyModa
         openingBalance: finalBalance
       };
 
-      await api.post('/parties', payload);
+      const response = await api.post<{ data: { _id: string; name: string } }>('/parties', payload);
+      if (onCreated) { onCreated(response.data.data);onSuccess();return; }
 
       setSuccess(`Party ${name} created successfully`);
       setName('');

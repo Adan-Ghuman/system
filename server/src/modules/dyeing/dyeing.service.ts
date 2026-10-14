@@ -1,3 +1,6 @@
+import { currentBusinessId } from '../../business/context.js';
+import { postDyeingIssue, postSingleDyeingIssue, postDyeingReceipt, completeDyeingBatch } from '../../business/dyeing.js';
+import { referenceFields } from '../../business/references.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { DyeingBatch, IDyeingBatch } from '../../models/DyeingBatch.js';
@@ -67,6 +70,7 @@ export async function generateNextBatchNumbers(count: number, session?: mongoose
 }
 
 export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyeingBatch> {
+  if (currentBusinessId()) return await postSingleDyeingIssue(input) as unknown as IDyeingBatch;
   let batchNo = input.batchNo;
   if (!batchNo) {
     batchNo = await generateNextBatchNo();
@@ -108,13 +112,15 @@ export async function createDyeingBatch(input: CreateBatchInput): Promise<IDyein
     ecruWeightKg: input.ecruWeightKg,
     allocatedCustomerId: input.allocatedCustomerId ? new Types.ObjectId(input.allocatedCustomerId) : undefined,
     status: 'ISSUED',
-    remarks: input.remarks || ''
+    ...referenceFields(input),
+          remarks: input.remarks || ''
   });
 
   return batch;
 }
 
 export async function createGatePassBatches(input: CreateGatePassInput): Promise<IDyeingBatch[]> {
+  if (currentBusinessId()) return await postDyeingIssue(input) as unknown as IDyeingBatch[];
   let millPartyId = input.millPartyId ? new Types.ObjectId(input.millPartyId) : undefined;
   if (!millPartyId) {
     const defaultParty = await Party.findOne({
@@ -174,6 +180,7 @@ export async function createGatePassBatches(input: CreateGatePassInput): Promise
 }
 
 export async function settleGatePassBatches(input: ReceiveGatePassInput): Promise<IDyeingBatch[]> {
+  if (currentBusinessId()) return await postDyeingReceipt(input) as unknown as IDyeingBatch[];
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -283,6 +290,7 @@ export async function settleGatePassBatches(input: ReceiveGatePassInput): Promis
 }
 
 export async function settleDyeingBatch(id: string, input: SettleBatchInput): Promise<IDyeingBatch> {
+  if (currentBusinessId()) return await completeDyeingBatch(id, input) as unknown as IDyeingBatch;
   const batch = await DyeingBatch.findById(id);
   if (!batch) {
     throw new NotFoundError('Dyeing batch not found');
@@ -385,7 +393,7 @@ export async function listDyeingBatches(query: QueryBatchesInput) {
       { igpNo: searchRegex },
       { machineNo: searchRegex },
       { driverName: searchRegex },
-      { vehicleNo: searchRegex }
+      { vehicleNo: searchRegex }, { poNo: searchRegex }, { externalReference: searchRegex }
     ];
   }
 
@@ -444,6 +452,7 @@ export function getBatchLocation(millName: string): string {
 }
 
 export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Promise<IDyeingBatch> {
+  if (currentBusinessId()) throw new BadRequestError('Posted dyeing movements cannot be overwritten. Record a correction or return against the original document.');
   const batch = await DyeingBatch.findById(id);
   if (!batch) {
     throw new NotFoundError('Dyeing batch not found');
@@ -599,6 +608,7 @@ export async function updateDyeingBatch(id: string, input: UpdateBatchInput): Pr
 }
 
 export async function deleteDyeingBatch(id: string): Promise<void> {
+  if (currentBusinessId()) throw new BadRequestError('Posted dyeing movements cannot be overwritten. Record a correction or return against the original document.');
   const batch = await DyeingBatch.findById(id);
   if (!batch) {
     throw new NotFoundError('Dyeing batch not found');

@@ -1,3 +1,6 @@
+import { currentBusinessId } from '../../business/context.js';
+import { KnittingReceipt } from '../../business/records.js';
+import { registerPipeline, RegisterRow } from '../../business/register.js';
 import ExcelJS from 'exceljs';
 import { Party } from '../../models/Party.js';
 import { PartyLedgerEntry } from '../../models/PartyLedgerEntry.js';
@@ -119,7 +122,7 @@ export class ReportsService {
       shortagePercent: b.shortagePercent,
       customerName: b.allocatedCustomerId?.name || (b.remarks?.includes('Customer:') ? b.remarks.replace('Customer:', '').trim() : undefined),
       status: b.status,
-      remarks: b.remarks
+      remarks: [b.remarks, b.poNo ? 'PO ' + b.poNo : '', b.externalReference ? 'Reference ' + b.externalReference : ''].filter(Boolean).join(' · ')
     }));
 
     const targetMill = millName && millName !== 'ALL' ? millName : 'All Dyeing Mills';
@@ -146,6 +149,11 @@ export class ReportsService {
     dateFrom?: string,
     dateTo?: string
   ): Promise<{ workbook: ExcelJS.Workbook; filename: string }> {
+    if (currentBusinessId()) {
+      const rows = await KnittingReceipt.aggregate<RegisterRow>(registerPipeline(type, { from: dateFrom, to: dateTo, partyId: partyId === 'ALL' ? undefined : partyId, millName }));
+      const workbook = buildGatePassRegisterWorkbook({ type, partyName: 'Business movements', millName: millName || 'All locations', dateFrom, dateTo, rows: rows.map(row => ({ date: row.date, passNo: row.number, itemCode: '', itemDescription: row.source + ': ' + row.fabricType + ' / ' + row.yarnSpec, color: row.color, rolls: row.rolls, finishWeightKg: row.weightKg, remarks: ['PO ' + (row.poNo || '—'), 'Reference ' + (row.externalReference || '—')].join(' · ') })) });
+      return { workbook, filename: type + '_Register.xlsx' };
+    }
     let partyName = 'All Parties';
     if (partyId && partyId !== 'ALL') {
       const p = await Party.findById(partyId);
@@ -255,11 +263,11 @@ export class ReportsService {
       netWeightPerBox: t.netWeightPerBox,
       grossWeightKg: t.grossWeightKg,
       wastagePercent: t.wastagePercent,
-      wastageWeightKg: t.wastageWeightKg,
+      wastageWeightKg: currentBusinessId() ? t.actualWastageKg || 0 : t.wastageWeightKg,
       netExpectedFabricKg: t.netExpectedFabricKg,
       receivedFabricKg: t.receivedFabricKg,
       remainingYarnBalanceKg: t.remainingYarnBalanceKg,
-      remarks: t.remarks
+      remarks: [t.remarks, t.poNo ? 'PO ' + t.poNo : '', t.externalReference ? 'Reference ' + t.externalReference : ''].filter(Boolean).join(' · ')
     }));
 
     const workbook = buildKnittingYarnWorkbook({

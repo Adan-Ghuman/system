@@ -1,3 +1,8 @@
+import { currentBusinessId } from '../../business/context.js';
+import { BillPayment } from '../../business/commerce.models.js';
+import { nextDocumentNo } from '../../business/posting.js';
+import { postStandaloneVoucher, correctStandaloneVoucher, reverseStandaloneVoucher } from '../../business/vouchers.js';
+import { BadRequestError } from '../../utils/errors.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { PaymentVoucher, IPaymentVoucher, VoucherType, PaymentMode } from '../../models/PaymentVoucher.js';
@@ -14,6 +19,7 @@ import {
 } from './accounts.schema.js';
 
 export async function generateNextVoucherNo(type: VoucherType, mode: PaymentMode): Promise<string> {
+  if (currentBusinessId()) return nextDocumentNo(type === 'PAYMENT' ? 'PAY' : 'RCPT');
   let prefix = 'JV';
 
   if (type === 'RECEIPT') {
@@ -33,6 +39,7 @@ export async function generateNextVoucherNo(type: VoucherType, mode: PaymentMode
 }
 
 export async function createPaymentVoucher(input: CreateVoucherInput): Promise<IPaymentVoucher> {
+  if (currentBusinessId()) return postStandaloneVoucher(input);
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -134,11 +141,17 @@ export async function getPartyLedgerStatement(partyId: string, query: QueryLedge
     ])
   ]);
   const total = totals[0]?.total || 0;
+  const balanceAt = async (bound?: Date, before = false) => {
+    const [sum] = await PartyLedgerEntry.aggregate([{ $match: { partyId: new Types.ObjectId(partyId), ...(bound ? { date: { [before ? '$lt' : '$lte']: bound } } : {}) } }, { $group: { _id: null, delta: { $sum: { $cond: [{ $eq: ['$entryType', 'DEBIT'] }, '$amount', { $multiply: ['$amount', -1] }] } } } }]);
+    return Math.round(((party.openingBalance || 0) + (sum?.delta || 0)) * 100) / 100;
+  };
+  const openingBalance = query.startDate ? await balanceAt(new Date(query.startDate), true) : party.openingBalance;
+  const closingBalance = await balanceAt(query.endDate ? new Date(query.endDate) : undefined);
   return {
     party, entries,
     totalDebits: Math.round((totals[0]?.totalDebits || 0) * 100) / 100,
     totalCredits: Math.round((totals[0]?.totalCredits || 0) * 100) / 100,
-    closingBalance: party.currentBalance,
+    openingBalance, closingBalance,
     total, page: pagination.page, limit: pagination.limit,
     totalPages: Math.max(1, Math.ceil(total / pagination.limit))
   };
@@ -196,7 +209,7 @@ export async function getAccountingMetrics() {
       totalReceivables: { $sum: { $cond: [{ $gt: ['$currentBalance', 0] }, '$currentBalance', 0] } },
       totalPayables: { $sum: { $cond: [{ $lt: ['$currentBalance', 0] }, { $multiply: ['$currentBalance', -1] }, 0] } }
     } }]),
-    PaymentVoucher.aggregate([{ $match: { date: { $gte: thirtyDaysAgo } } }, { $group: {
+    PaymentVoucher.aggregate([{ $match: { date: { $gte: thirtyDaysAgo }, status: { $ne: 'REVERSED' } } }, { $group: {
       _id: null,
       monthlyReceipts: { $sum: { $cond: [{ $eq: ['$voucherType', 'RECEIPT'] }, '$amount', 0] } },
       monthlyPayments: { $sum: { $cond: [{ $eq: ['$voucherType', 'PAYMENT'] }, '$amount', 0] } }
@@ -239,6 +252,8 @@ export async function recomputePartyLedger(partyId: string | Types.ObjectId, ses
 }
 
 export async function updatePaymentVoucher(voucherId: string, input: UpdateVoucherInput): Promise<IPaymentVoucher> {
+  if (currentBusinessId()) return correctStandaloneVoucher(voucherId, input);
+  if (currentBusinessId() && await BillPayment.exists({ voucherId })) throw new BadRequestError('This payment belongs to a bill. Open Bills & charges to reverse it with its allocation.');
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -321,6 +336,8 @@ export async function updatePaymentVoucher(voucherId: string, input: UpdateVouch
 }
 
 export async function deletePaymentVoucher(voucherId: string): Promise<void> {
+  if (currentBusinessId()) { await reverseStandaloneVoucher(voucherId);return; }
+  if (currentBusinessId() && await BillPayment.exists({ voucherId })) throw new BadRequestError('This payment belongs to a bill. Open Bills & charges to reverse it with its allocation.');
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -364,6 +381,8 @@ export async function updateLedgerEntry(entryId: string, input: UpdateLedgerEntr
     if (!entry) {
       throw new NotFoundError('Ledger entry not found');
     }
+    if (currentBusinessId() && entry.referenceType !== 'ADJUSTMENT') throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
+
 
     if (input.amount !== undefined) entry.amount = input.amount;
     if (input.date) entry.date = new Date(input.date);
@@ -401,6 +420,8 @@ export async function deleteLedgerEntry(entryId: string): Promise<void> {
     if (!entry) {
       throw new NotFoundError('Ledger entry not found');
     }
+    if (currentBusinessId() && entry.referenceType !== 'ADJUSTMENT') throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
+
 
     const partyId = entry.partyId;
 

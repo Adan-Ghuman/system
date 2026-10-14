@@ -1,3 +1,6 @@
+import { referenceFields } from '../../business/references.js';
+import { currentBusinessId } from '../../business/context.js';
+import { postDelivery } from '../../business/delivery.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { Dispatch, IDispatch } from '../../models/Dispatch.js';
@@ -55,8 +58,9 @@ export async function generateNextInvoiceNo(type: InvoiceType): Promise<string> 
 
 export async function executeDispatch(input: CreateDispatchInput): Promise<{
   dispatch: IDispatch;
-  invoice: IInvoice;
+  invoice: IInvoice | null;
 }> {
+  if (currentBusinessId()) return postDelivery(input);
   const party = await Party.findById(input.customerId);
   if (!party) {
     throw new NotFoundError('Customer party not found');
@@ -64,7 +68,7 @@ export async function executeDispatch(input: CreateDispatchInput): Promise<{
 
   const totalRolls = input.rolls.length;
   const totalNetWeightKg = Math.round(
-    input.rolls.reduce((sum, r) => sum + r.netWeightKg, 0) * 100
+    input.rolls.reduce((sum, r) => sum + (r.netWeightKg || 0), 0) * 100
   ) / 100;
 
   const session = await mongoose.startSession();
@@ -118,6 +122,7 @@ export async function executeDispatch(input: CreateDispatchInput): Promise<{
           driverName: input.driverName || '',
           vehicleNo: input.vehicleNo || '',
           date: new Date(input.date),
+          ...referenceFields(input),
           remarks: input.remarks || ''
         }
       ],
@@ -146,6 +151,7 @@ export async function executeDispatch(input: CreateDispatchInput): Promise<{
           taxAmount,
           grandTotal,
           date: new Date(input.date),
+          ...referenceFields(input),
           remarks: input.remarks || ''
         }
       ],
@@ -201,7 +207,7 @@ export async function listDispatches(query: QueryDispatchesInput) {
       { color: searchRegex },
       { fabricType: searchRegex },
       { driverName: searchRegex },
-      { vehicleNo: searchRegex }
+      { vehicleNo: searchRegex }, { poNo: searchRegex }, { externalReference: searchRegex }
     ];
   }
 
