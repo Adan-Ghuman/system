@@ -284,7 +284,7 @@ export function ReceiveKnittedModal({
               Yarn at this knitter: <strong className="text-brand">{preselectedBalance.remainingYarnKg.toFixed(2)} kg</strong> of {preselectedBalance.yarnSpec}.
             </p>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="knitted-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
+              <Input id="knitted-challan" label="Gate pass / challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
               <Input id="knitted-date" label="Received date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>

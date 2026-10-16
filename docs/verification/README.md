@@ -9,6 +9,8 @@ The application uses one workspace. Rozain Textile and ZR Trading are distinct s
 3. Under **Yarn stock**, receive yarn or record a counted opening/adjustment with a reason. Choose business or client ownership and the actual package unit. Enter the measured total kg directly, including cone deliveries.
 4. Under **Knitting**, send yarn to a knitter, then receive its fabric. Enter actual wastage, including zero. For a blend, enter the actual kg used from each component. The receipt, fabric stock and remaining yarn are posted together. Receipt history supports printing and controlled reversal.
 5. Under **Dyeing**, send available raw stock to a mill and choose the target shade. On a partial return, enter both the raw quantity covered and the actual finished quantity. The rest remains in process. The source receipt records actual loss and is available for processing bills.
+
+   For an outgoing gate pass sent **by a mill**, open **Dyeing → Receive dyed fabric**. Use **From sent batches** if the original send-out is recorded. Otherwise use **Mill gate pass · no prior issue**, choose the sending mill or Another mill, enter its outgoing gate-pass number, receiving location, fabric/shade, actual rolls and kg. This creates only an inward finished-stock receipt. Find it under **Received fabric → Mill gate passes received without a prior issue**, with print preview; its ordinary receipt source is also available under Buy fabric for controlled corrections. Do not enter that paper as a new outgoing dispatch from Rozain.
 6. Under **Buy fabric**, use **Receive fabric** if the bill will come later, or **Buy fabric & record bill** if goods and bill arrive together. A later supplier bill links the receipt and does not receive the same stock again.
 7. Under **Bills & charges**, bill deliveries or completed knitting/dyeing receipts. Source quantities prevent duplicate billing. Record partial payments, returns/credits and refunds from the source bill.
 8. Under **Deliveries & invoices**, enter gross/tare weights for each roll. Net weights and prices are computed by the server. Use **Deliver only** to bill later, or **Deliver & bill together**. Save an unfinished delivery as a draft and resume it without changing stock or balances.
@@ -17,6 +19,8 @@ The application uses one workspace. Rozain Textile and ZR Trading are distinct s
 11. Use **Production report** for actual output, actual wastage, dyeing stages, source documents and balances as of a date. Purchases are excluded from production. Knitting output and dyeing throughput are not added into one inflated total.
 
 **Add another** starts a blank line. **Copy details** is a separate action. PO and external references are optional strings, preserving leading zeroes and slashes. Entry dates default to the local date. Printed pages use white paper in either screen theme.
+
+Fabric fields offer **Other / add fabric** and save new reusable names. Stock selectors offer **Other — add missing stock**, requiring measured physical stock and an audit reason. Existing matching stock is selected without increasing its quantity again. New choices never bypass stock or ownership validation. Location labels, filters and printed gate passes identify **Rozain Textile Godown** and **ZR Trading Godown** separately.
 
 ## Verification command
 
@@ -50,7 +54,7 @@ The browser test uses installed Microsoft Edge on Windows and Playwright. It can
 | Reports/files | More than one list page of source receipts and ledger entries, full filtered CSV/XLSX, multi-page PDF, final-record presence, company names, quantity/amount assertions, text bounds and cached workbook formulas |
 | Browser UX | Core entry chains, party ledger refresh/back, themed reversal dialog, all-page smoke, system dark mode, mobile widths and modal sizing |
 
-Generated evidence is under `scratch/qa-completion/`: screenshots, actual downloads, extracted PDF text and inspection JSON. The current suite inspects 11 PDF document samples and 13 CSV/XLSX samples. Production and ledger samples include records beyond one list page. These are repeatable scenario checks, not a guarantee against every possible data combination or printer configuration.
+Generated evidence is under `scratch/qa-completion/`: screenshots, actual downloads, extracted PDF text and inspection JSON. The current suite inspects 12 PDF document samples, including the external mill paper receipt, and 13 CSV/XLSX samples. Production and ledger samples include records beyond one list page. These are repeatable scenario checks, not a guarantee against every possible data combination or printer configuration.
 
 ## Existing records and sibling company setup
 

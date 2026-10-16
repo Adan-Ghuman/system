@@ -1,3 +1,4 @@
+import { StockChoice } from '../../../components/ui/StockChoice.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
 import { useLocations } from '../../../business/useLocations.js';
@@ -25,13 +26,7 @@ export interface TransferStockModalProps {
   preselectedItem?: FabricInventoryItem | null;
 }
 
-const LOCATIONS: { label: string; value: InventoryLocation }[] = [
-  { label: 'ZR Godown (Main Depot)', value: 'ZR_GODOWN' },
-  { label: 'Ghumman Dyeing Unit', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Unit', value: 'RAJPUT_DYEING' },
-  { label: 'Hafiz Saad Dyeing Unit', value: 'HAFIZ_SAAD_DYEING' },
-  { label: 'HB Dyeing Unit', value: 'HB_DYEING' }
-];
+
 
 export function TransferStockModal({
   isOpen,
@@ -40,7 +35,7 @@ export function TransferStockModal({
   preselectedItem
 }: TransferStockModalProps) {
   const [references, setReferences] = useDocumentReferences();
-  const locations = useLocations(LOCATIONS);
+  const locations = useLocations();
   const [fromLocation, setFromLocation] = useState<InventoryLocation>(preselectedItem?.location || 'GHUMMAN_DYEING');
   const [toLocation, setToLocation] = useState<InventoryLocation>(preselectedItem?.location === 'ZR_GODOWN' ? 'GHUMMAN_DYEING' : 'ZR_GODOWN');
   const [selectedItemId, setSelectedItemId] = useState<string>(preselectedItem?._id || '');
@@ -134,7 +129,7 @@ export function TransferStockModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Move Fabric Between Locations"
-      description="Transfer fabric rolls between ZR Godown and Ghumman or Rajput Unit."
+      description="Transfer physically available fabric between the selected godown or mill locations."
       className="max-w-xl"
     >
       <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><DocumentReferences value={references} onChange={setReferences} />
@@ -178,13 +173,13 @@ export function TransferStockModal({
           />
         </div>
 
-        <Select
+        <StockChoice location={fromLocation}
           id="stockItemSelect"
           label="Select Fabric Lot at Origin"
           value={selectedItemId}
-          onChange={(e) => {
-            setSelectedItemId(e.target.value);
-            const found = availableItems.find((i) => i._id === e.target.value);
+          onChange={(selectedId) => {
+            setError(null);setSelectedItemId(selectedId);
+            const found = availableItems.find((i) => i._id === selectedId);
             if (found) {
               setRollsCount(String(found.totalRolls));
               setWeightKg(String(found.totalWeightKg));

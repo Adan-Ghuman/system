@@ -1,3 +1,4 @@
+import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
@@ -38,8 +39,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
   const [millName, setMillName] = useState<DyeingMillType>(initialMill);
   const [customMillName, setCustomMillName] = useState('');
   const [batchNo, setBatchNo] = useState('');
-  const [fabricType, setFabricType] = useState(COMMON_FABRIC_TYPES[0]);
-  const [customFabricType, setCustomFabricType] = useState('');
+  const [fabricType, setFabricType] = useState('');
   const [selectedYarnSpecs, setSelectedYarnSpecs] = useState<string[]>([STANDARD_YARN_SPECS[0]]);
   const [customYarnSpec, setCustomYarnSpec] = useState('');
   const [isOtherYarnActive, setIsOtherYarnActive] = useState(false);
@@ -125,7 +125,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
         throw new Error('Please specify the custom dyeing unit name');
       }
 
-      const activeFabric = fabricType === 'OTHER' ? customFabricType.trim() : fabricType;
+      const activeFabric = fabricType.trim();
       if (!activeFabric) {
         throw new Error('Please specify a fabric variety');
       }
@@ -295,29 +295,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
         <FormSection step={2} title="Fabric and quantities">
 <div className="space-y-3">
           <div>
-            <Select
-              id="fabricTypeSelect"
-              label="Fabric Variety"
-              value={fabricType}
-              onChange={(e) => setFabricType(e.target.value)}
-              options={[
-                ...COMMON_FABRIC_TYPES.map((f) => ({ label: f, value: f })),
-                { label: 'Other Fabric Variety...', value: 'OTHER' }
-              ]}
-            />
-
-            {fabricType === 'OTHER' && (
-              <div className="pt-2">
-                <Input
-                  id="customFabric"
-                  label="Custom Fabric Variety"
-                  value={customFabricType}
-                  onChange={(e) => setCustomFabricType(e.target.value)}
-                  required
-                  placeholder="e.g. Spandex Parda"
-                />
-              </div>
-            )}
+            <CatalogField kind="FABRIC" id="fabricTypeSelect" label="Fabric Variety" value={fabricType} onChange={setFabricType} suggestions={COMMON_FABRIC_TYPES} required />
           </div>
 
           <YarnSpecMultiSelect

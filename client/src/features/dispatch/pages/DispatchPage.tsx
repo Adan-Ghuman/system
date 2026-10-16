@@ -1,3 +1,5 @@
+import { useLocations } from '../../../business/useLocations.js';
+import { locationLabel } from '../../../business/locations.js';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
 import { DeliveryDrafts } from '../../../business/DeliveryDrafts.js';
 import { OperationDocument } from '../../../business/types.js';
@@ -25,6 +27,7 @@ import { formatCurrency, formatWeight, formatDateTime } from '../../../lib/forma
 import { Truck, RefreshCw, Plus, Receipt, FileCheck, Search, Inbox, Printer, FileText, ArrowUpDown, Filter } from 'lucide-react';
 
 export function DispatchPage() {
+  const locations = useLocations();
   const queryClient = useQueryClient();const [exportError, setExportError] = useState<string | null>(null);
   const businessId = useBusinessStore(state => state.id);
   const [searchTerm, setSearchTerm] = useState('');
@@ -182,11 +185,7 @@ export function DispatchPage() {
               title="Origin warehouse / unit"
             >
               <option value="ALL" className="bg-surface text-strong">All Locations</option>
-              <option value="ZR_GODOWN" className="bg-surface text-strong">ZR Godown (Main)</option>
-              <option value="GHUMMAN_DYEING" className="bg-surface text-strong">Ghumman Dyeing</option>
-              <option value="RAJPUT_DYEING" className="bg-surface text-strong">Rajput Dyeing</option>
-              <option value="HAFIZ_SAAD_DYEING" className="bg-surface text-strong">Hafiz Saad Dyeing</option>
-              <option value="HB_DYEING" className="bg-surface text-strong">HB Dyeing</option>
+              {locations.map(location => <option key={location.value} value={location.value} className="bg-surface text-strong">{location.label}</option>)}
             </select>
           </div>
 
@@ -298,17 +297,7 @@ export function DispatchPage() {
                         }
                         className="text-xs"
                       >
-                        {d.fromLocation === 'ZR_GODOWN'
-                          ? 'ZR Godown'
-                          : d.fromLocation === 'GHUMMAN_DYEING'
-                          ? 'Ghuman Unit'
-                          : d.fromLocation === 'RAJPUT_DYEING'
-                          ? 'Rajput Unit'
-                          : d.fromLocation === 'HAFIZ_SAAD_DYEING'
-                          ? 'Hafiz Saad Unit'
-                          : d.fromLocation === 'HB_DYEING'
-                          ? 'HB Unit'
-                          : 'Unit'}
+                        {locationLabel(d.fromLocation, locations)}
                       </Badge>
                     </td>
 

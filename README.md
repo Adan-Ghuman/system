@@ -1,5 +1,7 @@
 # Rozain Textile ERP
 
+Before making changes, read [Project decisions and regression safeguards](docs/project-context/README.md).
+
 A comprehensive, modern Enterprise Resource Planning (ERP) system purpose-built for textile manufacturing, knitting, dyeing operations, fabric inventory management, and multi-party ledger accounting.
 
 ---

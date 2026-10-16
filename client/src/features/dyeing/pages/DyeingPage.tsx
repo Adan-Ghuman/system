@@ -1,3 +1,4 @@
+import { ExternalMillReceipts } from '../../../business/ExternalMillReceipts.js';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
 import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
 import { useBusinessStore } from '../../../business/store.js';
@@ -165,6 +166,9 @@ export function DyeingPage() {
 
   function refreshDyeing() {
     refetch();
+    queryClient.invalidateQueries({ queryKey: ['external-mill-receipts'] });
+    queryClient.invalidateQueries({ queryKey: ['business-locations'] });
+    queryClient.invalidateQueries({ queryKey: ['catalog-options'] });
     queryClient.invalidateQueries({ queryKey: ['received-dyeing-batches'] });
     queryClient.invalidateQueries({ queryKey: ['active-dyeing-batches-for-receive'] });
     queryClient.invalidateQueries({ queryKey: ['dyeing-units'] });
@@ -195,7 +199,7 @@ export function DyeingPage() {
         <Button variant={mainTab === 'received' ? 'primary' : 'ghost'} aria-pressed={mainTab === 'received'} onClick={() => setMainTab('received')}>Received fabric</Button>
         {mainTab === 'units' && <span className="self-center text-sm text-soft">Mill & location setup</span>}
       </div>
-      {mainTab === 'units' ? <DyeingUnitsTab /> : mainTab === 'received' ? <>{businessId ? <ReceiptHistory mode="dyeing" /> : <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} />}</> : (
+      {mainTab === 'units' ? <DyeingUnitsTab /> : mainTab === 'received' ? <>{businessId ? <div className="space-y-6"><ReceiptHistory mode="dyeing" /><ExternalMillReceipts /></div> : <ReceivedDyeingTab onOpenReceiveModal={() => setIsReceiveGatePassOpen(true)} />}</> : (
         <div className="space-y-3">
           <div className="grid gap-3 rounded-xl border border-line bg-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <Input id="dyeing-search" label="Find a batch" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Batch, fabric, color or challan" />

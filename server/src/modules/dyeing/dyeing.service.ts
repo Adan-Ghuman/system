@@ -1,4 +1,5 @@
 import { currentBusinessId, businessContext } from '../../business/context.js';
+import { locationName } from '../../business/location-label.js';
 import { postDyeingIssue, postSingleDyeingIssue, postDyeingReceipt, completeDyeingBatch } from '../../business/dyeing.js';
 import { referenceFields } from '../../business/references.js';
 import { escapeRegex } from '../../utils/search.js';
@@ -722,8 +723,8 @@ export async function getDyeingUnitsWithMetrics(): Promise<DyeingUnitWithMetrics
     return {
       _id: u._id.toString(),
       code: u.code,
-      name: u.name,
-      shortName: u.shortName,
+      name: locationName(u),
+      shortName: u.code === 'ZR_GODOWN' ? locationName(u) : u.shortName,
       type: u.type,
       partyId: u.partyId?.toString(),
       address: u.address || '',

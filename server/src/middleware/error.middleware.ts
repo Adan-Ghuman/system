@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors.js';
 import { env } from '../config/env.js';
+import { ZodError } from 'zod';
 
 export function errorHandler(
   err: unknown,
@@ -8,6 +9,7 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): Response {
+  if (err instanceof ZodError) return res.status(400).json({ success: false, error: err.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') });
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,

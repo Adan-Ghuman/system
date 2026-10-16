@@ -1,3 +1,5 @@
+import { useLocations } from '../../../business/useLocations.js';
+import { locationLabel } from '../../../business/locations.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
@@ -29,6 +31,7 @@ import { exportToCsv } from '../../../lib/csvExport.js';
 import { Warehouse, Factory, RefreshCw, ArrowRightLeft, Wrench, Search, ArrowRight, Download, ArrowUpDown, Filter, Edit } from 'lucide-react';
 
 export function InventoryPage() {
+  const locations = useLocations();
   const queryClient = useQueryClient();
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -329,14 +332,7 @@ export function InventoryPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-surface/50 p-2.5 rounded-lg border border-line">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs font-semibold text-soft mr-1">Location:</span>
-              {[
-                { id: 'ALL', label: 'All' },
-                { id: 'ZR_GODOWN', label: 'ZR Godown' },
-                { id: 'GHUMMAN_DYEING', label: 'Ghuman Unit' },
-                { id: 'RAJPUT_DYEING', label: 'Rajput Unit' },
-                { id: 'HAFIZ_SAAD_DYEING', label: 'Hafiz Saad Unit' },
-                { id: 'HB_DYEING', label: 'HB Dyeing Unit' }
-              ].map((loc) => (
+              {[{ id: 'ALL', label: 'All' }, ...locations.map(location => ({ id: location.value, label: location.label }))].map((loc) => (
                 <button
                   key={loc.id}
                   onClick={() => setSelectedLocation(loc.id as typeof selectedLocation)}
@@ -470,17 +466,7 @@ export function InventoryPage() {
                               }
                               className="text-xs"
                             >
-                              {item.location === 'ZR_GODOWN'
-                                ? 'ZR Godown'
-                                : item.location === 'GHUMMAN_DYEING'
-                                ? 'Ghuman Unit'
-                                : item.location === 'RAJPUT_DYEING'
-                                ? 'Rajput Unit'
-                                : item.location === 'HAFIZ_SAAD_DYEING'
-                                ? 'Hafiz Saad Unit'
-                                : item.location === 'HB_DYEING'
-                                ? 'HB Unit'
-                                : 'Unit'}
+                              {locationLabel(item.location, locations)}
                             </Badge>
                           </td>
 
@@ -560,11 +546,7 @@ export function InventoryPage() {
                   title="Origin location"
                 >
                   <option value="ALL" className="bg-surface text-strong">All Locations</option>
-                  <option value="ZR_GODOWN" className="bg-surface text-strong">ZR Godown</option>
-                  <option value="GHUMMAN_DYEING" className="bg-surface text-strong">Ghuman Unit</option>
-                  <option value="RAJPUT_DYEING" className="bg-surface text-strong">Rajput Unit</option>
-                  <option value="HAFIZ_SAAD_DYEING" className="bg-surface text-strong">Hafiz Saad Unit</option>
-                  <option value="HB_DYEING" className="bg-surface text-strong">HB Dyeing Unit</option>
+                  {locations.map(location => <option key={location.value} value={location.value} className="bg-surface text-strong">{location.label}</option>)}
                 </select>
               </div>
 

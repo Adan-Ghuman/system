@@ -294,7 +294,7 @@ export function IssueYarnModal({
               placeholder={isReceive ? 'Choose or type the supplier name' : 'Choose or type the knitter name'}
               onChange={setPartyId} required />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="yarn-challan" label="Challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
+              <Input id="yarn-challan" label="Gate pass / challan number" value={gatePassNo} onChange={(e) => setGatePassNo(e.target.value)} placeholder="e.g. 1234" required />
               <Input id="yarn-date" type="date" label="Delivery date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>

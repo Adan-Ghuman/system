@@ -1,3 +1,4 @@
+import { rememberFabricNames } from './catalog-names.js';
 import { Types } from 'mongoose';
 import { FabricInventory } from '../models/FabricInventory.js';
 import { StockTransfer } from '../models/StockTransfer.js';
@@ -9,7 +10,7 @@ import { moveFabric, validateLocation } from './stock.js';
 import { businessContext } from './context.js';
 import { referenceFields } from './references.js';
 import { CreateTransferInput, CreateAdjustmentInput, UpdateInventoryItemInput } from '../modules/inventory/inventory.schema.js';
-import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError, ConflictError } from '../utils/errors.js';
 
 export async function postStockTransfer(input: CreateTransferInput) {
   return postCommand('FABRIC_TRANSFER', input, async session => {
@@ -29,8 +30,10 @@ export async function postStockAdjustment(input: CreateAdjustmentInput) {
     await validateLocation(input.location, session);
     if (input.location === 'IN_TRANSIT') throw new BadRequestError('Correct stock in transit from its linked trade.');
     if (!input.adjustmentRolls && !input.adjustmentWeightKg) throw new BadRequestError('Enter a roll or kg change.');
+    await rememberFabricNames([input], session);
     const match = { fabricType: input.fabricType, yarnSpec: input.yarnSpec, state: input.state, color: input.color.toUpperCase(), location: input.location, ownerKey: input.ownerKey };
     const stock = await FabricInventory.findOne(match).session(session);
+    if (input.onlyIfMissing && stock && (stock.totalRolls > 0 || stock.totalWeightKg > 0)) throw new ConflictError('This stock already exists. Select it from the list instead of adding its quantity again.');
     const totalRolls = (stock?.totalRolls || 0) + input.adjustmentRolls;
     const totalWeightKg = weight((stock?.totalWeightKg || 0) + input.adjustmentWeightKg);
     if (totalRolls < 0 || totalWeightKg < 0) throw new BadRequestError('This correction would make stock negative.');

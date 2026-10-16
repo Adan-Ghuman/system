@@ -163,6 +163,7 @@ try{
  console.log('PASS paired transit shortage, paid-trade refund, physical return, paired credit reversal and stock/ledger reconciliation.');
  const {verifyExistingCompany}=await import('./existing-company.e2e.mjs');await verifyExistingCompany({mongoose,request,businesses,signAccessToken});
  const {verifySiblingUnit}=await import('./sibling-unit.e2e.mjs');await verifySiblingUnit({request});
+ const {verifyGatePassRegressions}=await import('./gate-pass-regressions.e2e.mjs');await verifyGatePassRegressions({request});
  if(process.env.QA_BROWSER==='1'){const bcrypt=require('../server/node_modules/bcrypt');await User.updateOne({_id:user._id},{$set:{passwordHash:await bcrypt.hash('Isolated-QA-only-2026',4)}});const {runBrowserQA}=await import('./browser-flows.e2e.mjs');await runBrowserQA({businesses,supplier,buyer});}
 
 

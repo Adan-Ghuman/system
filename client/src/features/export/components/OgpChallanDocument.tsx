@@ -1,3 +1,5 @@
+import { useLocations } from '../../../business/useLocations.js';
+import { locationLabel } from '../../../business/locations.js';
 import { DispatchItem } from '../../dispatch/types/dispatch.types.js';
 import { formatWeight, formatDate } from '../../../lib/formatters.js';
 
@@ -6,6 +8,7 @@ export interface OgpChallanDocumentProps {
 }
 
 export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
+  const locations = useLocations();
   const rolls = dispatch.rolls || [];
   const chunkSize = Math.ceil(rolls.length / 3) || 1;
   const col1 = rolls.slice(0, chunkSize);
@@ -16,7 +19,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
     <div className="bg-white text-slate-900 p-8 max-w-4xl mx-auto font-sans leading-relaxed border border-zinc-200 shadow-xs print:border-none print:shadow-none print:p-0">
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 text-center">
         <h1 className="text-2xl font-semibold tracking-normal uppercase text-slate-900">
-          {dispatch.businessName || 'Historical records'}
+          {dispatch.businessName || 'Rozain Textile'}
         </h1>
         <p className="text-xs font-semibold text-slate-700 mt-0.5 tracking-wide">
           Fabric operations
@@ -51,7 +54,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
           </div>
           <div>
             <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Loaded From (Godown):</span>
-            <span className="font-semibold text-slate-900">{dispatch.fromLocation}</span>
+            <span className="font-semibold text-slate-900">{locationLabel(dispatch.fromLocation, locations)}</span>
           </div>
         </div>
       </div>

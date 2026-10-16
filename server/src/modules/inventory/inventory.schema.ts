@@ -35,6 +35,7 @@ export const createTransferSchema = z
   });
 
 export const createAdjustmentSchema = z.object({
+  onlyIfMissing: z.boolean().optional(),
   ...documentReferenceFields,
   ownerKey: z.string().default('OWN'),
   fabricType: z.string().min(1, 'Fabric type is required').trim(),

@@ -1,7 +1,7 @@
+import { useLocations } from '../../../business/useLocations.js';
+import { StockChoice } from '../../../components/ui/StockChoice.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
 import { OperationDocument } from '../../../business/types.js';
-import { useBusinessStore } from '../../../business/store.js';
-import { DyeingUnitItem } from '../../dyeing/types/dyeing.types.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
@@ -32,19 +32,10 @@ export interface CreateDispatchModalProps {
   onSuccess: () => void;
 }
 
-const LOCATIONS: { label: string; value: InventoryLocation }[] = [
-  { label: 'ZR Godown (Main Dispatch Depot)', value: 'ZR_GODOWN' },
-  { label: 'Ghumman Dyeing Unit (Direct Unit Dispatch)', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Unit (Direct Unit Dispatch)', value: 'RAJPUT_DYEING' },
-  { label: 'Hafiz Saad Dyeing Unit (Direct Unit Dispatch)', value: 'HAFIZ_SAAD_DYEING' },
-  { label: 'HB Dyeing Unit (Direct Unit Dispatch)', value: 'HB_DYEING' }
-];
-
 export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: CreateDispatchModalProps) {
   const saved = draft?.draft as Partial<CreateDispatchPayload & { inventoryId: string; poNo: string; externalReference: string; requestId: string }> | undefined;
-  const businessId = useBusinessStore(state => state.id);
   const [billNow, setBillNow] = useState(saved?.billNow ?? true);const [condition, setCondition] = useState<'RAW_ECRU' | 'FINISHED_DYED'>(saved?.state || 'FINISHED_DYED');
-  const units = useQuery({ queryKey: ['dyeing-units'], queryFn: async () => (await api.get<{ data: DyeingUnitItem[] }>('/dyeing/units')).data.data });
+  const locations = useLocations();
   const [freshReferences] = useDocumentReferences();const [references, setReferences] = useState({ ...freshReferences, poNo: saved?.poNo || '', externalReference: saved?.externalReference || '', requestId: saved?.requestId || freshReferences.requestId });
   const [customerId, setCustomerId] = useState(saved?.customerId || '');
   const [fromLocation, setFromLocation] = useState<InventoryLocation>(saved?.fromLocation || 'ZR_GODOWN');
@@ -204,15 +195,16 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
               setFromLocation(e.target.value as InventoryLocation);
               setSelectedStockId('');
             }}
-            options={businessId ? [{ value: 'ZR_GODOWN', label: 'Main store' }, ...(units.data || []).filter(unit => unit.isActive).map(unit => ({ value: unit.code as InventoryLocation, label: unit.name }))] : LOCATIONS}
+            options={locations}
           />
         </div>
 
-        <Select
+        <StockChoice
+          location={fromLocation} state={condition}
           id="stockSelect"
           label="Select Fabric from Stock"
           value={selectedStockId}
-          onChange={(e) => setSelectedStockId(e.target.value)}
+          onChange={value => { setSelectedStockId(value);setError(null); }}
           options={
             availableStock.length === 0
               ? [{ label: '— No finished dyed stock available at this location —', value: '' }]

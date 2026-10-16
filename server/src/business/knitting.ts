@@ -1,3 +1,4 @@
+import { rememberFabricNames } from './catalog-names.js';
 import { Types, ClientSession } from 'mongoose';
 import { Party } from '../models/Party.js';
 import { YarnTransaction } from '../models/YarnTransaction.js';
@@ -98,6 +99,7 @@ export async function postKnittingReceipt(input: ReceiveFabricInput) {
       if (remaining > 0) throw new BadRequestError(`${item.yarnSpec}: fabric plus wastage exceeds eligible yarn by ${remaining} kg. Check the knitter, yarn count and date; future issues cannot be used.`);
       const owners = [...ownerKeys];
       if (owners.length !== 1) throw new BadRequestError('This receipt mixes yarn owners. Record a separate receipt for each owner.');
+      await rememberFabricNames([item], session);
       const stockMatch = { fabricType: item.fabricType, yarnSpec: item.yarnSpec, state: 'RAW_ECRU', color: 'ECRU', location: 'ZR_GODOWN', ownerKey: owners[0] };
       await FabricInventory.findOneAndUpdate(stockMatch, { $setOnInsert: stockMatch, $inc: { totalRolls: item.rollsCount, totalWeightKg: received } }, { upsert: true, session });
       stored.push({ ...item, weightKg: received, wastageKg: waste, allocations });

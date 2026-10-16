@@ -1,3 +1,4 @@
+import { rememberFabricNames } from './catalog-names.js';
 import { ClientSession } from 'mongoose';
 import { FabricInventory } from '../models/FabricInventory.js';
 import { DyeingUnit } from '../models/DyeingUnit.js';
@@ -12,6 +13,7 @@ export async function validateLocation(location: string, session?: ClientSession
   if (!await DyeingUnit.findOne({ code: location, isActive: true }).session(session || null)) throw new BadRequestError('Choose an active location in this business.');
 }
 export async function moveFabric(item: Pick<OperationItem, 'fabricType' | 'yarnSpec' | 'state' | 'color' | 'rolls' | 'weightKg' | 'ownerKey'>, location: string, sign: 1 | -1, sourceId: unknown, date: Date, reason: string, session: ClientSession) {
+  await rememberFabricNames([item], session);
   const match = { fabricType: item.fabricType, yarnSpec: item.yarnSpec, state: item.state, color: item.color.toUpperCase(), location, ownerKey: item.ownerKey || 'OWN' };
   if (!item.fabricType || !item.yarnSpec || !item.color || item.rolls < 1 || item.weightKg <= 0) throw new BadRequestError('Each fabric needs its name, yarn count, shade, positive roll count and measured kg.');
   if (sign === -1) {

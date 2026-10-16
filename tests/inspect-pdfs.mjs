@@ -23,6 +23,7 @@ for (const file of (await fs.readdir(folder)).filter(file => file.endsWith('.pdf
   if (file === 'browser-knitting-receipt.pdf') { assert(content.includes('76.000'));assert(content.includes('2.000')); }
   if (file === 'browser-dyeing-receipt.pdf') { assert(content.includes('18.000'));assert(content.includes('1.000')); }
   if (file === 'browser-delivery-invoice.pdf') assert(content.includes('1,800.00'));
+  if (file === 'browser-external-mill-receipt.pdf') { assert(content.includes('EXT-BROWSER-0008/26'));assert(content.includes('44.125'));assert(content.includes('Browser External Mill')); }
   await fs.writeFile(path.resolve('scratch/qa-completion/rendered', file + '.txt'), content);
   results.push({ file, pages });await document.destroy();
 }

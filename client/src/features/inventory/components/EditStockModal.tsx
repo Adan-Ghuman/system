@@ -23,16 +23,10 @@ export interface EditStockModalProps {
   item: FabricInventoryItem | null;
 }
 
-const LOCATIONS: { label: string; value: InventoryLocation }[] = [
-  { label: 'ZR Godown (Central Warehouse)', value: 'ZR_GODOWN' },
-  { label: 'Ghuman Dyeing Unit', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Unit', value: 'RAJPUT_DYEING' },
-  { label: 'Hafiz Saad Dyeing Unit', value: 'HAFIZ_SAAD_DYEING' },
-  { label: 'HB Dyeing Unit', value: 'HB_DYEING' }
-];
+
 
 export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockModalProps) {
-  const locations = useLocations(LOCATIONS);
+  const locations = useLocations();
   const [location, setLocation] = useState<InventoryLocation>('ZR_GODOWN');
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
   const [fabricType, setFabricType] = useState('');
@@ -140,7 +134,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Fabric Stock Details"
-      description={`Update fabric variety, yarn spec, color, rolls, or weight for ${item.fabricType}.`}
+      description={`Correct the counted rolls or weight for ${item.fabricType}.`}
       className="max-w-xl"
     >
       <form id="edit-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
@@ -182,7 +176,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            id="editFabricType"
+            id="editFabricType" readOnly
             label="Fabric Variety / Construction"
             value={fabricType}
             onChange={(e) => setFabricType(e.target.value)}
@@ -191,7 +185,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
           />
 
           <Input
-            id="editYarnSpec"
+            id="editYarnSpec" readOnly
             label="Yarn Specification"
             value={yarnSpec}
             onChange={(e) => setYarnSpec(e.target.value)}

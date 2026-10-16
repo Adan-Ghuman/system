@@ -123,7 +123,7 @@ export function DashboardPage() {
     },
     {
       title: 'Fabric Stock',
-      description: 'Live stock of ready dyed fabric and raw grey rolls across ZR Godown and partner units.',
+      description: 'Live stock of ready dyed fabric and raw grey rolls across Rozain Textile, ZR Trading and partner locations.',
       to: '/inventory',
       icon: Boxes,
       badge: `${totalRolls} Rolls (${Math.round(totalWeightKg).toLocaleString()} Kg)`

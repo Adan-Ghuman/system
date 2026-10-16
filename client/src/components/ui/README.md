@@ -56,6 +56,10 @@ Use isolated fixture data for destructive or transactional browser checks. Verif
 
 The application has one workspace with ordinary routes and party ledger links. Sibling companies follow the existing unit/godown and linked-party pattern; there is no company selector. `CatalogField` supports a reusable fabric/yarn/shade name without leaving the form; `PartySelector` provides explicit inline party creation. Dynamic location choices use `useLocations` and include ZR Trading Godown.
 
+`ZR_GODOWN` displays as Rozain Textile Godown; ZR Trading uses `ZR_TRADING_GODOWN`. All location selectors, filters and paper renderers use registered location labels. `CatalogField` exposes Other/add-name entry and saves new names on blur; stock-posting transactions also remember fabric names. `StockChoice` is the shared stock picker with an audited Other/add-missing-stock path. It selects existing matching stock without adding quantity again and stops nested form submission from reaching the parent form.
+
+Gate-pass fields use “Gate pass / challan number”. Receiving a mill's outgoing paper is an inward receipt. `ReceiveGatePassModal` distinguishes a recorded dyeing return from an external mill receipt with no earlier issue. External receipts record actual finished stock, retain the mill's paper reference/transport notes, and appear in their own paginated history under Received fabric.
+
 `DocumentReferences` retains plain PO/external reference strings. `EntryCard` keeps Add another blank and Copy details explicit. `OperationForm` separates goods receipt from bill posting and supports editable drafts. `DocumentPreview` is the common paper renderer; `ReasonDialog` collects a reversal reason using the same accessible themed dialog instead of a native prompt.
 
 Actual measured kg use up to three decimals. New knitting receipts require manually entered wastage, including zero. Source-linked billing exposes only unbilled quantities and identifies fully billed sources. Posted records are corrected from their sources; independent stock, bill and ledger edits must not diverge.

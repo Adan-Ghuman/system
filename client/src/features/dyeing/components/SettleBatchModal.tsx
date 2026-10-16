@@ -111,7 +111,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
               {batch.ogpNo && <p className="text-xs text-soft">Sending challan: {batch.ogpNo}</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input id="settle-challan" label="Receiving challan number (optional)" value={igpNo} onChange={(e) => setIgpNo(e.target.value)} />
+              <Input id="settle-challan" label="Mill gate pass / challan number (optional)" value={igpNo} onChange={(e) => setIgpNo(e.target.value)} />
               <Input id="settle-date" type="date" label="Received on" value={dateReceived} onChange={(e) => setDateReceived(e.target.value)} required />
             </div>
           </FormSection>

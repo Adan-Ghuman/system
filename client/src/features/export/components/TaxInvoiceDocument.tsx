@@ -1,3 +1,5 @@
+import { useLocations } from '../../../business/useLocations.js';
+import { locationLabel } from '../../../business/locations.js';
 import { DispatchItem } from '../../dispatch/types/dispatch.types.js';
 import { formatCurrency, formatWeight, formatDate } from '../../../lib/formatters.js';
 import { numberToWords } from '../../../lib/numberToWords.js';
@@ -7,6 +9,7 @@ export interface TaxInvoiceDocumentProps {
 }
 
 export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
+  const locations = useLocations();
   const invoice = dispatch.invoice;
   const isGst = invoice?.invoiceType === 'TAX_18_PERCENT';
   const grandTotal = invoice?.grandTotal || 0;
@@ -16,7 +19,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
       <div className="border-b-2 border-zinc-950 pb-4 mb-4 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-normal uppercase text-slate-900">
-            {dispatch.businessName || 'Historical records'}
+            {dispatch.businessName || 'Rozain Textile'}
           </h1>
           <p className="text-xs font-semibold text-slate-700 mt-0.5 tracking-wide">
             Fabric operations
@@ -59,7 +62,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
           </div>
           <div>
             <span className="font-bold text-zinc-500 mr-2 uppercase text-[10px]">Loaded From (Godown):</span>
-            <span className="font-semibold text-slate-900">{dispatch.fromLocation}</span>
+            <span className="font-semibold text-slate-900">{locationLabel(dispatch.fromLocation, locations)}</span>
           </div>
         </div>
       </div>
@@ -159,7 +162,7 @@ export function TaxInvoiceDocument({ dispatch }: TaxInvoiceDocumentProps) {
 
         <div>
           <div className="border-t border-slate-300 pt-1.5 font-bold text-slate-800 uppercase">
-            For {dispatch.businessName || 'Historical records'}
+            For {dispatch.businessName || 'Rozain Textile'}
           </div>
           <div className="text-zinc-500 text-[10px] mt-0.5">Authorized Signatory & Stamp</div>
         </div>

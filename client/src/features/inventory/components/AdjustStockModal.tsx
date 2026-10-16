@@ -1,3 +1,4 @@
+import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { useQuery } from '@tanstack/react-query';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
@@ -25,13 +26,7 @@ export interface AdjustStockModalProps {
   onSuccess: () => void;
 }
 
-const LOCATIONS: { label: string; value: InventoryLocation }[] = [
-  { label: 'ZR Godown (Main Depot)', value: 'ZR_GODOWN' },
-  { label: 'Ghumman Dyeing Unit', value: 'GHUMMAN_DYEING' },
-  { label: 'Rajput Dyeing Unit', value: 'RAJPUT_DYEING' },
-  { label: 'Hafiz Saad Dyeing Unit', value: 'HAFIZ_SAAD_DYEING' },
-  { label: 'HB Dyeing Unit', value: 'HB_DYEING' }
-];
+
 
 const REASONS: { label: string; value: StockAdjustmentReason }[] = [
   { label: 'Physical Stocktake / Warehouse Count', value: 'AUDIT_DISCREPANCY' },
@@ -45,15 +40,15 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
   const [ownerKey, setOwnerKey] = useState('OWN');
   const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<{ _id: string; name: string }>('/parties') });
   const [references, setReferences] = useDocumentReferences();
-  const locations = useLocations(LOCATIONS);
+  const locations = useLocations();
   const [location, setLocation] = useState<InventoryLocation>('ZR_GODOWN');
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
-  const [fabricType, setFabricType] = useState('Fleece 3-Thread');
-  const [yarnSpec, setYarnSpec] = useState('75/72 Sim');
+  const [fabricType, setFabricType] = useState('');
+  const [yarnSpec, setYarnSpec] = useState('');
   const [color, setColor] = useState(COMMON_COLORS[0]);
   const [customColor, setCustomColor] = useState('');
-  const [adjustmentRolls, setAdjustmentRolls] = useState('1');
-  const [adjustmentWeightKg, setAdjustmentWeightKg] = useState('22.50');
+  const [adjustmentRolls, setAdjustmentRolls] = useState('');
+  const [adjustmentWeightKg, setAdjustmentWeightKg] = useState('');
   const [reason, setReason] = useState<StockAdjustmentReason>('AUDIT_DISCREPANCY');
   const [date, setDate] = useState(getLocalDateInput());
   const [remarks, setRemarks] = useState('');
@@ -163,19 +158,19 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <Input
+          <CatalogField kind="FABRIC"
             id="adjustFabricType"
             label="Fabric Variety"
             value={fabricType}
-            onChange={(e) => setFabricType(e.target.value)}
+            onChange={setFabricType}
             required
           />
 
-          <Input
+          <CatalogField kind="YARN"
             id="adjustYarnSpec"
             label="Yarn Specification"
             value={yarnSpec}
-            onChange={(e) => setYarnSpec(e.target.value)}
+            onChange={setYarnSpec}
             required
           />
 
