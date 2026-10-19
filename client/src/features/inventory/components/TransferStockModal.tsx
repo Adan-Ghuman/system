@@ -189,7 +189,7 @@ export function TransferStockModal({
             availableItems.length === 0
               ? [{ label: 'No stock available at source location', value: '' }]
               : [{ value: '', label: 'Choose fabric from stock' }, ...availableItems.map((i) => ({
-                  label: `${i.fabricType} [${i.color}] (${i.state === 'FINISHED_DYED' ? 'Dyed' : 'Ecru'}) - ${i.totalRolls} rolls (${formatWeight(i.totalWeightKg)}) · ${i.ownerKey && i.ownerKey !== 'OWN' ? owners.data?.items.find(party => party._id === i.ownerKey)?.name || 'Client-owned' : 'Business-owned'}`,
+                  label: `${i.fabricType} [${i.color}] (${i.state === 'FINISHED_DYED' ? 'Dyed' : 'Ecru'}) - ${i.totalRolls} rolls (${formatWeight(i.totalWeightKg)}) · ${i.ownerKey && i.ownerKey !== 'OWN' ? owners.data?.items.find(party => party._id === i.ownerKey)?.name || 'Client-owned' : 'Rozain Textile'}`,
                   value: i._id
                 }))]
           }

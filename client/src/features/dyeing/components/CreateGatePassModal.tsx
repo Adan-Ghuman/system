@@ -306,7 +306,7 @@ export function CreateGatePassModal({
               <Input id="send-dyeing-date" label="Sent date" type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
             </div>
           </FormSection>
-          <Select label="Fabric owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "This business" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
+          <Select label="Fabric owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "Rozain Textile" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
           <FormSection step={2} title="What fabric are you sending?" description="One item per fabric and color. You can add several items to the same gate pass.">
             {entries.map((entry, index) => (
               <EntryCard key={entry.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}
