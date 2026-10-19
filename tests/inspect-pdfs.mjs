@@ -17,13 +17,14 @@ for (const file of (await fs.readdir(folder)).filter(file => file.endsWith('.pdf
     const words = strings.map(item => item.str).join(' ');content += words;pages.push({ page: number, characters: words.length });
   }
   assert(/rozain textile|zr trading/i.test(content), 'Missing business identity: ' + file);
-  if (file === 'browser-production.pdf') { assert(content.includes('LONG-IN-23'));assert(document.numPages > 1); }
-  if (file === 'browser-party-ledger.pdf') assert(content.includes('LONG-LEDGER-24'));
+  if (file === 'browser-production.pdf') { assert(/LONG-IN-\s*23/.test(content));assert(document.numPages > 1); }
+  if (file === 'browser-party-ledger.pdf') assert(/LONG-LEDGER-\s*24/.test(content));
   if (file === 'browser-purchase.pdf') { assert(content.includes('0007/26'));assert(content.includes('80.250'));assert(content.includes('802.50')); }
   if (file === 'browser-knitting-receipt.pdf') { assert(content.includes('76.000'));assert(content.includes('2.000')); }
   if (file === 'browser-dyeing-receipt.pdf') { assert(content.includes('18.000'));assert(content.includes('1.000')); }
   if (file === 'browser-delivery-invoice.pdf') assert(content.includes('1,800.00'));
-  if (file === 'browser-external-mill-receipt.pdf') { assert(content.includes('EXT-BROWSER-0008/26'));assert(content.includes('44.125'));assert(content.includes('Browser External Mill')); }
+  assert.equal(content, content.toUpperCase(), 'PDF presentation must be uppercase: ' + file);
+  if (file === 'browser-external-mill-receipt.pdf') { assert(content.includes('EXT-BROWSER-0008/26'));assert(content.includes('44.125'));assert(content.includes('BROWSER EXTERNAL MILL')); }
   await fs.writeFile(path.resolve('scratch/qa-completion/rendered', file + '.txt'), content);
   results.push({ file, pages });await document.destroy();
 }

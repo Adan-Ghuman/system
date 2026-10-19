@@ -1,4 +1,5 @@
 import { useListPagination } from '../../../hooks/useListPagination.js';
+import { uppercaseDisplay } from '../../../lib/displayText.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
@@ -65,7 +66,7 @@ export function YarnSpecificationsTab() {
       ? `Specification '${spec.name}' is used in ${spec.transactionCount} transaction(s). It cannot be permanently deleted, but will be archived / deactivated from future dropdowns. Proceed?`
       : `Are you sure you want to delete yarn specification '${spec.name}' from the catalog?`;
 
-    if (!window.confirm(confirmMessage)) return;
+    if (!window.confirm(uppercaseDisplay(confirmMessage))) return;
 
     setDeletingId(spec._id);
     try {
@@ -73,7 +74,7 @@ export function YarnSpecificationsTab() {
       handleDataChanged();
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { error?: string } }; message?: string };
-      alert(anyErr.response?.data?.error || anyErr.message || 'Failed to delete specification');
+      alert(uppercaseDisplay(anyErr.response?.data?.error || anyErr.message || 'Failed to delete specification'));
     } finally {
       setDeletingId(null);
     }

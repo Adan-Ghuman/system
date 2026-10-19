@@ -12,6 +12,7 @@ import { weight } from './posting.js';
 import { BadRequestError } from '../utils/errors.js';
 import { YarnTransaction } from '../models/YarnTransaction.js';
 import { BusinessDocument } from './commerce.models.js';
+import { uppercaseDisplay, uppercaseWorkbook } from '../utils/uppercaseDisplay.js';
 
 export interface ProductionRow { _id: string; date: Date; number: string; reference: string; kind: string; fabricType: string; yarnSpec: string; rolls: number; weightKg: number; wastageKg: number; color?: string; poNo?: string; externalReference?: string; }
 export const productionRoutes = Router();
@@ -34,10 +35,11 @@ productionRoutes.get('/', requirePermission('knitting:read', 'dyeing:read'), asy
     const headers = ['Date', 'Document', 'Paper reference', 'Stage', 'Fabric', 'Yarn', 'Rolls', 'Actual kg', 'Actual loss kg', 'Color / shade', 'PO', 'External reference'];
     const values = rows.map(row => [row.date.toISOString().slice(0, 10), row.number, row.reference, row.kind, row.fabricType, row.yarnSpec, row.rolls, row.weightKg, row.wastageKg, row.color, row.poNo, row.externalReference]);
     if (req.query.format === 'csv') {
-      const quote = (value: unknown) => '"' + String(typeof value === 'string' && /^[=+@-]/.test(value) ? "'" + value : value ?? '').replace(/"/g, '""') + '"';
+      const quote = (value: unknown) => '"' + uppercaseDisplay(String(typeof value === 'string' && /^[=+@-]/.test(value) ? "'" + value : value ?? '')).replace(/"/g, '""') + '"';
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');res.setHeader('Content-Disposition', 'attachment; filename="Production.csv"');res.send('\uFEFF' + [headers, ...values].map(row => row.map(quote).join(',')).join('\r\n'));return;
     }
     const workbook = new ExcelJS.Workbook();const sheet = workbook.addWorksheet('Production');sheet.addRow([businessContext.getStore()!.name + ' · Production']);sheet.addRow(headers);values.forEach(row => sheet.addRow(row));sheet.views = [{ state: 'frozen', ySplit: 2 }];sheet.columns.forEach(column => { column.width = 22; });sheet.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '2:2' };
+    uppercaseWorkbook(workbook);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');res.setHeader('Content-Disposition', 'attachment; filename="Production.xlsx"');await workbook.xlsx.write(res);res.end();return;
   }
   const [result] = await KnittingReceipt.aggregate([...pipeline, { $facet: { items: [{ $skip: skip }, { $limit: limit }], count: [{ $count: 'total' }], totals: [{ $group: { _id: '$kind', kg: { $sum: '$weightKg' }, rolls: { $sum: '$rolls' }, loss: { $sum: '$wastageKg' } } }] } }]);

@@ -40,5 +40,5 @@ exportToCsv('example',[{header:'Note',accessor:i=>i.note},{header:'Amount',acces
 globalThis.setTimeout=nativeTimeout;
 assert.equal(filename,'example.csv');assert.equal(revoked,false);assert.equal(revokeDelay,30000);
 const bytes=new Uint8Array(await captured.arrayBuffer());assert.deepEqual([...bytes.slice(0,3)],[239,187,191]);
-const text=await captured.text();assert(text.includes('"\'=1+1","-20"'));assert(text.includes('"Quoted ""note"", ü","0"'));
+const text=await captured.text();assert(text.includes('"NOTE","AMOUNT"'));assert(text.includes('"\'=1+1","-20"'));assert(text.includes('"QUOTED ""NOTE"", Ü","0"'));
 console.log('PASS: CSV encoding, escaping, formula-safe text, signed numbers, delayed URL cleanup and server filenames.');

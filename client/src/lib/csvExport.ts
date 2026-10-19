@@ -1,4 +1,5 @@
 import { saveBlob } from './fileDownload.js';
+import { uppercaseDisplay } from './displayText.js';
 
 export interface CsvColumn<T> {
   header: string;
@@ -6,7 +7,7 @@ export interface CsvColumn<T> {
 }
 
 export function exportToCsv<T>(filename: string, columns: CsvColumn<T>[], data: T[]): void {
-  const headers = columns.map((col) => `"${col.header.replace(/"/g, '""')}"`).join(',');
+  const headers = columns.map((col) => `"${uppercaseDisplay(col.header).replace(/"/g, '""')}"`).join(',');
 
   const rows = data.map((item) =>
     columns
@@ -14,7 +15,7 @@ export function exportToCsv<T>(filename: string, columns: CsvColumn<T>[], data: 
         const val = col.accessor(item);
         if (val === null || val === undefined) return '""';
         const safeValue = typeof val === 'string' && /^[\s]*[=+@-]/.test(val) ? "'" + val : String(val);
-        const str = safeValue.replace(/"/g, '""');
+        const str = uppercaseDisplay(safeValue).replace(/"/g, '""');
         return `"${str}"`;
       })
       .join(',')

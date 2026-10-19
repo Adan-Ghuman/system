@@ -4,6 +4,8 @@ The interface defaults to the operating system appearance. `ThemeProvider` watch
 
 ## Foundations
 
+All interface text uses the global uppercase presentation rule, including portals, placeholders, dropdowns and printed pages. Keep underlying record/request values intact. Passwords, email/URL inputs and `data-preserve-case` content preserve exact case; password visibility toggles retain this exception. CSV exports use `uppercaseDisplay`; server Excel/report exports use `uppercaseWorkbook`. Never uppercase passwords, link targets, formula source or stored identifiers to achieve visual formatting.
+
 Use the semantic colors in `src/index.css`: `canvas`, `surface`, `subtle`, `muted`, `line`, `control`, `strong`, `ink`, `soft`, `brand`, `brand-soft`, `primary`, `danger`, `danger-soft`, `warning`, `warning-soft`, `info`, and `info-soft`. Choose colors by meaning so each component works in both themes. Primary actions use white text on `primary` in either theme.
 
 Use restrained borders, rounded corners, Lucide icons, and a clear hierarchy. Page titles use 24–28 px, content and controls 14 px, and dense labels/table content 12–13 px. Numeric values use tabular figures. Keep every business field and action available when changing density or layout.

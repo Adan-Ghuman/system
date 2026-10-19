@@ -1,4 +1,5 @@
 import { useListPagination } from '../../../hooks/useListPagination.js';
+import { uppercaseDisplay } from '../../../lib/displayText.js';
 import { useDebounce } from '../../../hooks/useDebounce.js';
 import { PaginationControls } from '../../../components/ui/Pagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
@@ -56,7 +57,7 @@ export function DyeingUnitsTab() {
       ? `Unit '${unit.name}' has recorded history. It will be archived / deactivated from future selectors. Proceed?`
       : `Are you sure you want to delete '${unit.name}'?`;
 
-    if (!window.confirm(confirmMsg)) return;
+    if (!window.confirm(uppercaseDisplay(confirmMsg))) return;
 
     setDeletingId(unit._id);
     try {
@@ -64,7 +65,7 @@ export function DyeingUnitsTab() {
       handleDataChanged();
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { error?: string } }; message?: string };
-      alert(anyErr.response?.data?.error || anyErr.message || 'Failed to archive unit');
+      alert(uppercaseDisplay(anyErr.response?.data?.error || anyErr.message || 'Failed to archive unit'));
     } finally {
       setDeletingId(null);
     }

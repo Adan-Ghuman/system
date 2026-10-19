@@ -86,6 +86,15 @@
     color-scheme: dark;
   }
 }
+body, body *, body *::before, body *::after {
+  text-transform: uppercase !important;
+}
+
+input[type="password"], input[type="email"], input[type="url"],
+[data-preserve-case], [data-preserve-case] * {
+  text-transform: none !important;
+}
+
 body {
   @apply min-h-screen bg-canvas font-sans text-ink antialiased selection:bg-primary selection:text-white;
   margin: 0;

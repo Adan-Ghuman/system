@@ -4,6 +4,7 @@ This is the durable project context for future changes. The application uses one
 
 # Decisions Made
 
+- All human-facing text displays in uppercase across screens, portals, entry controls, print/PDF, CSV and Excel exports. This is presentation only: retain stored names, references, location codes and request values. Passwords (including revealed passwords), email/URL inputs and explicit `data-preserve-case` values retain exact case. Export helpers preserve URLs, emails, technical IDs, numeric/date types and formulas. Do not migrate existing records to uppercase or uppercase authentication payloads.
 - Rozain Textile and ZR Trading are distinct sibling companies, represented as units/godowns and linked parties in the same application. Do not restore a company dropdown, separate workspaces or automatic paired-company posting in normal user flows.
 - Existing records belong to Rozain Textile. Keep their IDs, stock, balances and location codes. Do not introduce historical/read-only modes or ownership-review migration requirements.
 - `ZR_GODOWN` is the retained technical code for **Rozain Textile Godown**. `ZR_TRADING_GODOWN` means **ZR Trading Godown**. Never label both as ZR, and never duplicate a location code in a dropdown.
@@ -18,6 +19,7 @@ This is the durable project context for future changes. The application uses one
 
 # Completed Work
 
+- Uppercase presentation now covers all pages, shared controls, native confirmation/error messages, printed PDFs and CSV/Excel content. Verified server/client builds, case-sensitive login (including revealed password), every-page browser checks, mobile/dark layouts, export type/formula/link preservation, 12 uppercase PDFs and 13 reopened CSV/XLSX downloads. Wrapped paper references are validated across line breaks.
 - Previous baseline: single workspace, sibling godown and linked party, original-data compatibility, source-based stock/billing corrections and saved verification suite.
 - Current work: central location labeling in selectors, filters and printed documents; Other fabric names and audited missing-stock entry; gate-pass terminology; external mill receipt/history, printing and controlled correction through the existing receipt source.
 - The saved suite now covers external-mill receipt retries, no fabricated production/issue/wastage, invalid quantities returning 400, missing-stock duplicate protection, reusable names, unique location options, actual PDF contents and nested stock-dialog submission.

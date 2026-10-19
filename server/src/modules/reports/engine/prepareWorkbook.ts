@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { businessContext } from '../../../business/context.js';
 import { BORDERS, COLORS } from './excelStyles.js';
+import { uppercaseWorkbook } from '../../../utils/uppercaseDisplay.js';
 
 export function prepareWorkbook(workbook: ExcelJS.Workbook): void {
   workbook.calcProperties.fullCalcOnLoad = true;
@@ -55,4 +56,5 @@ export function prepareWorkbook(workbook: ExcelJS.Workbook): void {
       }
     }
   });
+  uppercaseWorkbook(workbook);
 }

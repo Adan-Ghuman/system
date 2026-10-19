@@ -74,8 +74,8 @@ export function LoginPage() {
             <div className="mt-6 space-y-3 rounded-lg border border-line bg-subtle p-4">
               <p className="text-xs font-semibold text-strong">Testing admin account</p>
               <dl className="space-y-2 text-xs">
-                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Email</dt><dd className="select-all break-all font-mono text-ink">{testingAdmin.email}</dd></div>
-                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Password</dt><dd className="select-all font-mono text-ink">{testingAdmin.password}</dd></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Email</dt><dd data-preserve-case className="select-all break-all font-mono text-ink">{testingAdmin.email}</dd></div>
+                <div className="flex flex-wrap items-center justify-between gap-2"><dt className="text-soft">Password</dt><dd data-preserve-case className="select-all font-mono text-ink">{testingAdmin.password}</dd></div>
               </dl>
               <Button type="button" variant="outline" size="sm" className="w-full" disabled={isLoading} onClick={() => { setEmail(testingAdmin.email); setPassword(testingAdmin.password); setError(null); }}>Use testing admin</Button>
             </div>
