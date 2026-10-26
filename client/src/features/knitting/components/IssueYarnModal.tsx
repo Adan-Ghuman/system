@@ -1,3 +1,4 @@
+import { ownerOptions } from '../../../business/ownership.js';
 import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { yarnLineWeight } from '../../../lib/yarnWeight.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
@@ -298,7 +299,7 @@ export function IssueYarnModal({
               <Input id="yarn-date" type="date" label="Delivery date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
-          <div className="space-y-3"><Select label="Who owns this yarn?" value={ownership} onChange={event => setOwnership(event.target.value as 'OWN' | 'CLIENT')} options={[{value:'OWN',label:'Rozain Textile owns the yarn'},{value:'CLIENT',label:'A client owns the yarn'}]} />{ownership === 'CLIENT' && !isReceive && <Select label="Yarn owner" value={ownerPartyId} onChange={event => setOwnerPartyId(event.target.value)} required options={[{value:'',label:'Choose the client'},...(owners?.items || []).map(party => ({value:party._id,label:party.name}))]} />}</div><DocumentReferences value={references} onChange={setReferences} />
+          <div className="space-y-3"><Select label="Who owns this yarn?" value={ownership} onChange={event => setOwnership(event.target.value as 'OWN' | 'CLIENT')} options={[{value:'OWN',label:'Rozain Textile owns the yarn'},{value:'CLIENT',label:'A client owns the yarn'}]} />{ownership === 'CLIENT' && !isReceive && <Select label="Yarn owner" value={ownerPartyId} onChange={event => setOwnerPartyId(event.target.value)} required options={[{value:'',label:'Choose the client'},...ownerOptions(owners?.items || [], false)]} />}</div><DocumentReferences value={references} onChange={setReferences} />
           <FormSection step={2} title="What yarn is on this delivery?" description="Record the package count and actual total weight from the challan. Use the calculator only when the paper gives weight per package.">
             {items.map((item, index) => (
               <EntryCard key={item.id} title={'Yarn item ' + (index + 1)} onCopy={() => handleDuplicateItem(index)}

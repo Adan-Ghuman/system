@@ -1,3 +1,4 @@
+import { ownerOptions, canonicalOwnerKey } from '../../../business/ownership.js';
 import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { useQuery } from '@tanstack/react-query';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
@@ -120,7 +121,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
       description="Enter brand new fabric received into warehouse, or adjust roll and weight counts."
       className="max-w-xl"
     >
-      <form id="adjust-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><Select label="Fabric owner" value={ownerKey} onChange={event => setOwnerKey(event.target.value)} options={[{ value: "OWN", label: "Rozain Textile" }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} /><DocumentReferences value={references} onChange={setReferences} />
+      <form id="adjust-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><Select label="Fabric owner" value={canonicalOwnerKey(ownerKey, owners.data?.items || [])} onChange={event => setOwnerKey(event.target.value)} options={ownerOptions(owners.data?.items || [])} /><DocumentReferences value={references} onChange={setReferences} />
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />

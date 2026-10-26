@@ -1,10 +1,12 @@
 import mongoose, { Model, Schema, Query, Types, PipelineStage } from 'mongoose';
 import { currentBusinessId, businessObjectId, businessContext, businessRecordFilter, usesExistingRecords } from './context.js';
 import { ForbiddenError } from '../utils/errors.js';
+import { canonicalOwnerKey, ownOwnerKeys } from './ownership.js';
 
 function existingDefaults(filter: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(filter).map(([key, value]) => {
-    if ((key === 'ownerKey' && value === 'OWN') || (key === 'status' && value === 'POSTED')) return [key, { $in: [value, null] }];
+    if (key === 'ownerKey' && typeof value === 'string' && canonicalOwnerKey(value) === 'OWN') return [key, { $in: ownOwnerKeys() }];
+    if (key === 'status' && value === 'POSTED') return [key, { $in: [value, null] }];
     if (Array.isArray(value)) return [key, value.map(item => item && Object.getPrototypeOf(item) === Object.prototype ? existingDefaults(item) : item)];
     if (value && Object.getPrototypeOf(value) === Object.prototype) return [key, existingDefaults(value as Record<string, unknown>)];
     return [key, value];
@@ -19,6 +21,13 @@ export function businessModel<T>(name: string, schema: Schema<T>): Model<T> {
   scopedSchema.eachPath((_path, type) => { type.options.unique = false; type.options.index = false; type.index(false); });
   scopedSchema.add({ businessId: { type: Schema.Types.ObjectId, required: true, index: true }, businessName: { type: String, default: () => businessContext.getStore()?.name || '' }, postingVersion: { type: Number, default: 0 }, poNo: { type: String, default: '' }, externalReference: { type: String, default: '' } } as never);
   if (name === 'FabricInventory') scopedSchema.add({ ownerKey: { type: String, default: 'OWN' } } as never);
+  const addOwnerGetters = (value: Schema) => {
+    value.path('ownerKey')?.get(canonicalOwnerKey);
+    value.childSchemas.forEach(child => addOwnerGetters(child.schema));
+    value.set('toJSON', { getters: true, virtuals: false });
+    value.set('toObject', { getters: true, virtuals: false });
+  };
+  addOwnerGetters(scopedSchema);
   scopedSchema.add({ reversedAt: Date } as never);
   scopedSchema.pre('save', function() { if (this.isModified('status') && this.get('status') === 'REVERSED' && !this.get('reversedAt')) this.set('reversedAt', new Date()); });
   for (const [fields, options] of indexes) scopedSchema.index({ businessId: 1, ...fields, ...(name === 'FabricInventory' && options.unique ? { ownerKey: 1 } : {}) }, options);
@@ -40,6 +49,7 @@ export function businessModel<T>(name: string, schema: Schema<T>): Model<T> {
     const businessId = businessObjectId();
     if (!businessId) throw new ForbiddenError('Choose a business first.');
     this.pipeline().unshift({ $match: businessRecordFilter() });
+    if (usesExistingRecords() && scopedSchema.path('ownerKey')) this.pipeline().splice(1, 0, { $set: { ownerKey: { $cond: [{ $in: ['$ownerKey', ownOwnerKeys()] }, 'OWN', '$ownerKey'] } } });
     if (usesExistingRecords()) {
       const normalize = (pipeline: PipelineStage[]) => { for (const stage of pipeline) { if ('$match' in stage) stage.$match = existingDefaults(stage.$match);if ('$unionWith' in stage && typeof stage.$unionWith !== 'string' && stage.$unionWith.pipeline) normalize(stage.$unionWith.pipeline); } };
       normalize(this.pipeline());

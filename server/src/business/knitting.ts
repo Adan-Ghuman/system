@@ -1,3 +1,4 @@
+import { canonicalOwnerKey } from './ownership.js';
 import { rememberFabricNames } from './catalog-names.js';
 import { Types, ClientSession } from 'mongoose';
 import { Party } from '../models/Party.js';
@@ -30,8 +31,9 @@ export async function postYarnDelivery(input: CreateBulkYarnTransactionInput) {
     const date = new Date(input.date);
     const transactions = [];
     let totalBoxes = 0, totalGrossKg = 0;
-    const ownerKey = input.ownership === 'CLIENT' ? (outward ? input.ownerPartyId : String(party._id)) : 'OWN';
-    if (!ownerKey) throw new BadRequestError('Choose the client who owns this yarn.');
+    const requestedOwner = input.ownership === 'CLIENT' ? (outward ? input.ownerPartyId : String(party._id)) : 'OWN';
+    if (!requestedOwner) throw new BadRequestError('Choose the client who owns this yarn.');
+    const ownerKey = canonicalOwnerKey(requestedOwner);
     if (ownerKey !== 'OWN' && !await Party.findById(ownerKey).session(session)) throw new BadRequestError('Yarn owner not found in this business.');
     for (const item of input.items) {
       const actual = weight(item.totalWeightKg ?? item.boxCount * item.netWeightPerBox);

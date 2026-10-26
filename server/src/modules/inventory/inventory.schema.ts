@@ -1,3 +1,4 @@
+import { canonicalOwnerKey } from '../../business/ownership.js';
 import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
@@ -14,7 +15,7 @@ export const reasonEnum = z.enum([
 export const createTransferSchema = z
   .object({
   ...documentReferenceFields,
-    ownerKey: z.string().default('OWN'),
+    ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
     fromLocation: locationEnum,
     toLocation: locationEnum,
     fabricType: z.string().min(1, 'Fabric type is required').trim(),
@@ -37,7 +38,7 @@ export const createTransferSchema = z
 export const createAdjustmentSchema = z.object({
   onlyIfMissing: z.boolean().optional(),
   ...documentReferenceFields,
-  ownerKey: z.string().default('OWN'),
+  ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
   fabricType: z.string().min(1, 'Fabric type is required').trim(),
   yarnSpec: z.string().min(1, 'Yarn spec is required').trim(),
   state: stateEnum,

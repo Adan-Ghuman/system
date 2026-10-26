@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalOwnerKey } from './ownership.js';
 import { documentReferenceFields } from './references.js';
 
 export const operationKinds = ['FABRIC_RECEIPT', 'FABRIC_PURCHASE', 'SUPPLIER_BILL', 'CUSTOMER_BILL', 'KNITTING_CHARGE', 'DYEING_CHARGE', 'YARN_ADJUSTMENT', 'YARN_RETURN'] as const;
@@ -7,7 +8,7 @@ export const itemInput = z.object({
   color: z.string().trim().max(120).default('ECRU'), state: z.enum(['RAW_ECRU', 'FINISHED_DYED']).default('RAW_ECRU'),
   rolls: z.number().int().default(0), weightKg: z.number().finite().default(0), rate: z.number().nonnegative().default(0),
   basis: z.enum(['KG', 'ROLL', 'JOB']).default('KG'), description: z.string().trim().max(500).default(''), sourceLineId: z.string().default(''),
-  packageUnit: z.enum(['cartons', 'bags', 'cones', 'packages']).default('cartons'), ownerKey: z.string().default('OWN')
+  packageUnit: z.enum(['cartons', 'bags', 'cones', 'packages']).default('cartons'), ownerKey: z.string().default('OWN').transform(canonicalOwnerKey)
 });
 export const operationInput = z.object({
   ...documentReferenceFields, receiptOrigin: z.enum(['EXTERNAL_MILL']).optional(), kind: z.enum(operationKinds), direction: z.enum(['PAYABLE', 'RECEIVABLE']).default('PAYABLE'),

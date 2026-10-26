@@ -1,10 +1,11 @@
+import { canonicalOwnerKey } from '../../business/ownership.js';
 import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
 export const millNameEnum = z.string().trim().min(1).max(80);
 
 export const createBatchSchema = z.object({
-  ownerKey: z.string().default('OWN'),
+  ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
   ...documentReferenceFields,
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum,
@@ -49,7 +50,7 @@ export const gatePassEntryItemSchema = z.object({
 );
 
 export const createGatePassSchema = z.object({
-  ownerKey: z.string().default('OWN'),
+  ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
   ...documentReferenceFields,
   ogpNo: z.string().min(1, 'OGP number is required').trim(),
   dateIssued: z.string().datetime().optional().default(() => new Date().toISOString()),

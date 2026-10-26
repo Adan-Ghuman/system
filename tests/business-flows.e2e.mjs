@@ -164,6 +164,7 @@ try{
  const {verifyExistingCompany}=await import('./existing-company.e2e.mjs');await verifyExistingCompany({mongoose,request,businesses,signAccessToken});
  const {verifySiblingUnit}=await import('./sibling-unit.e2e.mjs');await verifySiblingUnit({request});
  const {verifyGatePassRegressions}=await import('./gate-pass-regressions.e2e.mjs');await verifyGatePassRegressions({request});
+ const {verifyOwnerAliases}=await import('./owner-aliases.e2e.mjs');await verifyOwnerAliases({mongoose,request,businesses});
  if(process.env.QA_BROWSER==='1'){const bcrypt=require('../server/node_modules/bcrypt');await User.updateOne({_id:user._id},{$set:{passwordHash:await bcrypt.hash('Isolated-QA-only-2026',4)}});const {runBrowserQA}=await import('./browser-flows.e2e.mjs');await runBrowserQA({businesses,supplier,buyer});}
 
 

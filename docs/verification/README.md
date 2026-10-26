@@ -44,7 +44,7 @@ The browser test uses installed Microsoft Edge on Windows and Playwright. It can
 | Catalogs/forms | Reusable shade creation, blank Add another, explicit source selection, initially closed dropdown, generic references and retained failed entries |
 | Yarn/knitting | Actual measured kg, units, opening/correction, issue, manual loss, durable retry, explicit blend allocation, receipt history and reversal |
 | Exact balance | 200 kg issued, 196 kg fabric plus 2.4 kg actual wastage, 1.6 kg remaining |
-| Ownership | Client-owned yarn/fabric remain separate; client goods cannot be sold as business-owned stock; fabric transfer preserves ownership |
+| Ownership | One Rozain Textile option across owner dropdowns; legacy Rozain party aliases work for dyeing, yarn and knitting without changing stock IDs or ledgers; client-owned yarn/fabric remain separate; client goods cannot be sold as business-owned stock; fabric transfer preserves ownership |
 | Dyeing | Raw stock consumed at issue, partial allocation, actual finished output/loss, matched processing bill, dependent reversal protection, ordered receipt/issue reversal |
 | Buying/accounts | Receive then bill, combined purchase, partial payment, supplier return/credit, refund, duplicate bill rejection, standalone voucher correction and reversal |
 | Deliveries | Forged submitted net weight ignored, invalid tare and duplicate rolls rejected, draft/resume/post, delivery-only, later invoice, coordinated reversal, OGP/invoice PDF |

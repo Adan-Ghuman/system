@@ -1,3 +1,4 @@
+import { canonicalOwnerKey } from '../../business/ownership.js';
 import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
@@ -29,7 +30,7 @@ export const receiveFabricItemSchema = z.object({
 });
 
 export const receiveFabricSchema = z.object({
-  ownerKey: z.string().default("OWN"),
+  ownerKey: z.string().default("OWN").transform(canonicalOwnerKey),
   ...documentReferenceFields,
   partyId: z.string().min(1, 'Party is required'),
   partyName: z.string().optional(),
