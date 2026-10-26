@@ -1,4 +1,4 @@
-import { currentBusinessId, businessContext } from '../../business/context.js';
+import { currentBusinessId } from '../../business/context.js';
 import { locationName } from '../../business/location-label.js';
 import { postDyeingIssue, postSingleDyeingIssue, postDyeingReceipt, completeDyeingBatch } from '../../business/dyeing.js';
 import { referenceFields } from '../../business/references.js';
@@ -680,9 +680,9 @@ export interface DyeingUnitWithMetrics {
 export async function ensureDefaultDyeingUnits(): Promise<void> {
   const count = await DyeingUnit.countDocuments();
   if (count === 0) {
-    await DyeingUnit.insertMany(DEFAULT_DYEING_UNITS.map(unit => ({ ...unit, ...(unit.code === 'ZR_GODOWN' && currentBusinessId() ? { name: `${businessContext.getStore()!.name} Godown`, shortName: `${businessContext.getStore()!.name} Godown`, address: '' } : {}) })));
+    await DyeingUnit.insertMany(DEFAULT_DYEING_UNITS.map(unit => ({ ...unit, ...(unit.code === 'ZR_GODOWN' && currentBusinessId() ? { name: locationName(unit), shortName: locationName(unit), address: '' } : {}) })));
   }
-  if (currentBusinessId()) await DyeingUnit.updateOne({ code: 'ZR_GODOWN' }, { $setOnInsert: { code: 'ZR_GODOWN', name: `${businessContext.getStore()!.name} Godown`, shortName: `${businessContext.getStore()!.name} Godown`, type: 'GODOWN', isActive: true, isSystemDefault: true, sortOrder: 5 } }, { upsert: true });
+  if (currentBusinessId()) await DyeingUnit.updateOne({ code: 'ZR_GODOWN' }, { $setOnInsert: { code: 'ZR_GODOWN', name: locationName({ code: 'ZR_GODOWN', name: '' }), shortName: locationName({ code: 'ZR_GODOWN', name: '' }), type: 'GODOWN', isActive: true, isSystemDefault: true, sortOrder: 5 } }, { upsert: true });
 }
 
 export async function getDyeingUnitsWithMetrics(): Promise<DyeingUnitWithMetrics[]> {

@@ -145,7 +145,7 @@ export function DashboardPage() {
   ];
 
   const stockLocations = [
-    { label: 'ZR godown', rolls: zrGodownRolls, weight: zrGodownKg },
+    { label: 'Rozain Textile', rolls: zrGodownRolls, weight: zrGodownKg },
     { label: 'Ghumman Dyeing', rolls: ghummanRolls, weight: ghummanKg },
     { label: 'Rajput Dyeing', rolls: rajputRolls, weight: rajputKg }
   ];

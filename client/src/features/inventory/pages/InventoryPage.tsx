@@ -256,7 +256,7 @@ export function InventoryPage() {
           <CardContent className="p-0">
             <div className="text-xs font-medium text-brand normal-case tracking-normal flex items-center gap-1">
               <Warehouse className="w-3 h-3" />
-              Main Godown Stock (ZR)
+              Rozain Textile Stock
             </div>
             <div className="text-lg font-bold font-mono text-brand mt-1">
               {formatWeight(kpis.godownKg)}

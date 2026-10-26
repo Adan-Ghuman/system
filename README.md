@@ -69,7 +69,7 @@ Create a `.env` file in the `server/` directory (refer to `server/.env.example`)
 
 ```env
 NODE_ENV=development
-PORT=5000
+PORT=8080
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.xxx.mongodb.net/ghuman_textile_erp?retryWrites=true&w=majority
 JWT_ACCESS_SECRET=your_jwt_access_secret_key_here
 JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_here

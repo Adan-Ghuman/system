@@ -311,7 +311,7 @@ export function ReceiveKnittedModal({
               </EntryCard>
             ))}
             <Button type="button" variant="outline" onClick={handleAddRow}><Plus className="h-4 w-4" /> Add another fabric</Button>
-            <p className="text-xs text-soft">Received fabric is recorded as raw fabric in ZR godown.</p>
+            <p className="text-xs text-soft">Received fabric is recorded as raw stock at Rozain Textile.</p>
           </FormSection>
           <OptionalDetails title="Driver and delivery note (optional)">
             <Input id="knitted-driver" label="Driver / vehicle" value={driverName} onChange={(e) => setDriverName(e.target.value)} />

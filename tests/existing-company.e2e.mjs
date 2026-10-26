@@ -25,7 +25,7 @@ export async function verifyExistingCompany({ mongoose, request, businesses, sig
   assert.equal(await mongoose.connection.collection('fabricinventories').countDocuments({ fabricType: stock.fabricType }), 1);
   assert.equal((await request('GET', base(rozain) + '/parties/next-code')).nextCode, 'PRT-100000');
   for (const company of [rozain, trading]) {
-    const locations = await request('GET', base(company) + '/workspace/locations');assert(locations.some(location => location.value === 'ZR_GODOWN' && location.label === company.name + ' Godown'));
+    const locations = await request('GET', base(company) + '/workspace/locations');assert(locations.some(location => location.value === 'ZR_GODOWN' && location.label === (company.code === 'ROZAIN' ? 'Rozain Textile' : company.name + ' Godown')));
   }
   const store = await mongoose.connection.collection('dyeingunits').findOne({ code: 'ZR_GODOWN' });
   const siblingStore = await mongoose.connection.collection('business_dyeingunits').findOne({ businessId: new mongoose.Types.ObjectId(trading._id), code: 'ZR_GODOWN' });

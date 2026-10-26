@@ -119,8 +119,8 @@ export const DEFAULT_DYEING_UNITS = [
   },
   {
     code: 'ZR_GODOWN',
-    name: 'Rozain Textile Godown',
-    shortName: 'Rozain Textile Godown',
+    name: 'Rozain Textile',
+    shortName: 'Rozain Textile',
     type: 'GODOWN' as DyeingUnitLocationType,
     address: 'Central Storage Warehouse',
     isSystemDefault: true,

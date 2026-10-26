@@ -21,6 +21,7 @@ for (const file of (await fs.readdir(folder)).filter(file => /\.(xlsx|csv)$/.tes
   const bytes = await fs.readFile(path.join(folder, file));assert(bytes.length > 20);
   if (file.endsWith('.xlsx')) {
     const workbook = new ExcelJS.Workbook();await workbook.xlsx.load(bytes);assert(workbook.worksheets.length);
+    if (String(workbook.worksheets[0].getCell('A1').value).includes('YARN IN STOCK REPORT')) for (const sheet of workbook.worksheets) assert(String(sheet.getCell('A1').value).startsWith('ROZAIN TEXTILE — '), 'Consistent business name in knitting report: ' + file);
     for (const sheet of workbook.worksheets) sheet.eachRow(row => row.eachCell(cell => { if (cell.formula) assert.notEqual(cell.result, undefined, `Missing cached formula: ${file}!${cell.address}`);if (typeof cell.value === 'string') assert.equal(cell.value, uppercaseDisplay(cell.value), 'Uppercase workbook text: ' + file + '!' + cell.address); }));
     results.push({ file, sheets: workbook.worksheets.map(sheet => ({ name: sheet.name, rows: sheet.rowCount })) });
   } else {

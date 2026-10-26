@@ -20,7 +20,7 @@ The application uses one workspace. Rozain Textile and ZR Trading are distinct s
 
 **Add another** starts a blank line. **Copy details** is a separate action. PO and external references are optional strings, preserving leading zeroes and slashes. Entry dates default to the local date. Printed pages use white paper in either screen theme.
 
-Fabric fields offer **Other / add fabric** and save new reusable names. Stock selectors offer **Other — add missing stock**, requiring measured physical stock and an audit reason. Existing matching stock is selected without increasing its quantity again. New choices never bypass stock or ownership validation. Location labels, filters and printed gate passes identify **Rozain Textile Godown** and **ZR Trading Godown** separately.
+Fabric fields offer **Other / add fabric** and save new reusable names. Stock selectors offer **Other — add missing stock**, requiring measured physical stock and an audit reason. Existing matching stock is selected without increasing its quantity again. New choices never bypass stock or ownership validation. Location labels, filters and printed gate passes identify **Rozain Textile** and **ZR Trading Godown** separately.
 
 ## Verification command
 

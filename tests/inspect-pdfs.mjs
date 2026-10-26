@@ -17,7 +17,7 @@ for (const file of (await fs.readdir(folder)).filter(file => file.endsWith('.pdf
     const words = strings.map(item => item.str).join(' ');content += words;pages.push({ page: number, characters: words.length });
   }
   assert(/rozain textile|zr trading/i.test(content), 'Missing business identity: ' + file);
-  if (file === 'browser-production.pdf') { assert(/LONG-IN-\s*23/.test(content));assert(document.numPages > 1); }
+  if (file === 'browser-production.pdf') { assert(/LONG-\s*IN-\s*23/.test(content));assert(document.numPages > 1); }
   if (file === 'browser-party-ledger.pdf') assert(/LONG-LEDGER-\s*24/.test(content));
   if (file === 'browser-purchase.pdf') { assert(content.includes('0007/26'));assert(content.includes('80.250'));assert(content.includes('802.50')); }
   if (file === 'browser-knitting-receipt.pdf') { assert(content.includes('76.000'));assert(content.includes('2.000')); }

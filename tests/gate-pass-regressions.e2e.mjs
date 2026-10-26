@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
 export async function verifyGatePassRegressions({ request }) {
-  const locations = await request('GET', '/workspace/locations');assert.equal(new Set(locations.map(item => item.value)).size, locations.length);assert.equal(locations.find(item => item.value === 'ZR_GODOWN').label, 'Rozain Textile Godown');assert.equal(locations.find(item => item.value === 'ZR_TRADING_GODOWN').label, 'ZR Trading Godown');
+  const locations = await request('GET', '/workspace/locations');assert.equal(new Set(locations.map(item => item.value)).size, locations.length);assert.equal(locations.find(item => item.value === 'ZR_GODOWN').label, 'Rozain Textile');assert.equal(locations.find(item => item.value === 'ZR_TRADING_GODOWN').label, 'ZR Trading Godown');
   const batches = await request('GET', '/dyeing/batches');
   const body = { millName: 'OTHER', customMillName: 'QA External Receipt Mill', reference: '0007/26', date: '2026-10-15T08:00:00.000Z', location: 'ZR_GODOWN', requestId: randomUUID(), items: [{ fabricType: 'External reusable fabric', yarnSpec: 'External yarn', color: 'NAVY', rolls: 4, weightKg: 100.25 }] };
   const receipt = await request('POST', '/workspace/external-mill-receipts', body, 201);assert.equal(receipt.receiptOrigin, 'EXTERNAL_MILL');assert.equal(receipt.reference, '0007/26');assert.equal(receipt.total, 0);

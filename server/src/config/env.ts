@@ -13,7 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../server/.env') });
 const envSchema = z.object({
   ENABLE_DEMO_SEED: z.enum(['true', 'false']).default('false'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().default(5000),
+  PORT: z.coerce.number().default(8080),
   MONGODB_URI: z.string().default('mongodb://127.0.0.1:27017/ghuman_textile_erp'),
   JWT_ACCESS_SECRET: z.string().default('ghuman_erp_access_secret_key_2026_super_secure'),
   JWT_REFRESH_SECRET: z.string().default('ghuman_erp_refresh_secret_key_2026_super_secure'),

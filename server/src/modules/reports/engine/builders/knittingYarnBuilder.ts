@@ -45,7 +45,7 @@ export function buildKnittingYarnWorkbook(data: KnittingReportData): ExcelJS.Wor
 
   mainWs.mergeCells('A1:D1');
   const tCell = mainWs.getCell('A1');
-  tCell.value = 'ROZAIN KNITTING — YARN IN STOCK REPORT';
+  tCell.value = 'ROZAIN TEXTILE — YARN IN STOCK REPORT';
   tCell.font = FONTS.brandTitle;
 
   mainWs.mergeCells('A2:D2');
@@ -96,7 +96,7 @@ export function buildKnittingYarnWorkbook(data: KnittingReportData): ExcelJS.Wor
     });
 
     ws.mergeCells('A1:E1');
-    ws.getCell('A1').value = `ROZAIN KNITTING — ${knitterName}`;
+    ws.getCell('A1').value = `ROZAIN TEXTILE — ${knitterName}`;
     ws.getCell('A1').font = FONTS.reportTitle;
 
     const headers = [
