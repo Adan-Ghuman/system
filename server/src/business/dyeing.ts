@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { DyeingBatch } from '../models/DyeingBatch.js';
 import { DyeingUnit } from '../models/DyeingUnit.js';
 import { Party } from '../models/Party.js';
+import { FabricInventory } from '../models/FabricInventory.js';
 import { businessContext } from './context.js';
 import { postCommand, nextDocumentNo, weight } from './posting.js';
 import { moveFabric } from './stock.js';
@@ -24,13 +25,25 @@ export async function postDyeingIssue(input: CreateGatePassInput) {
     mill.partyId = party._id as Types.ObjectId;await mill.save({ session });
     const batches = [];
     for (const item of input.entries) {
+      const source = item.inventoryId ? await FabricInventory.findOne({ _id: item.inventoryId, state: 'RAW_ECRU', location: 'ZR_GODOWN', ownerKey: input.ownerKey }).session(session) : null;
+      if (item.inventoryId && !source) throw new BadRequestError('Choose raw stock at Rozain Textile belonging to the selected fabric owner. Refresh stock and select it again.');
+      if (source && source.color !== 'ECRU') throw new BadRequestError(`This raw stock has current shade ${source.color}. Confirm it is undyed grey and use Correct raw shade to ECRU before sending. Enter the desired shade in Color / shade to dye.`);
       if (item.allocatedCustomerId && !await Party.findById(item.allocatedCustomerId).session(session)) throw new BadRequestError('The reserved buyer must belong to this business.');
       const [batch] = await DyeingBatch.create([{ batchNo: await nextDocumentNo('LOT', session), millName: mill.code, millPartyId: party._id, customMillName: mill.name, ...referenceFields(input),
-        ogpNo: input.ogpNo, dateIssued: new Date(input.dateIssued), driverName: input.driverName, vehicleNo: input.vehicleNo, fabricType: item.fabricType, yarnSpec: item.yarnSpec || item.yarnSpecs?.join(' + '), targetColor: item.targetColor,
+        sourceInventoryId: source?._id, ogpNo: input.ogpNo, dateIssued: new Date(input.dateIssued), driverName: input.driverName, vehicleNo: input.vehicleNo, fabricType: source?.fabricType || item.fabricType, yarnSpec: source?.yarnSpec || item.yarnSpec || item.yarnSpecs?.join(' + '), targetColor: item.targetColor,
         ownerKey: input.ownerKey, ecruRollsCount: item.ecruRollsCount, ecruWeightKg: item.ecruWeightKg, machineNo: item.machineNo, width: item.width, gsm: item.gsm, allocatedCustomerId: item.allocatedCustomerId || undefined, remarks: item.remarks || input.remarks, status: 'ISSUED', receivedRawKg: 0, receivedRawRolls: 0
       }], { session });
       const stockItem = { fabricType: batch.fabricType, yarnSpec: batch.yarnSpec, state: 'RAW_ECRU' as const, color: 'ECRU', ownerKey: input.ownerKey, rolls: item.ecruRollsCount, weightKg: item.ecruWeightKg };
-      await moveFabric(stockItem, 'ZR_GODOWN', -1, batch._id, batch.dateIssued, `Sent for dyeing: ${mill.name}`, session);
+      try {
+        await moveFabric({ ...stockItem, inventoryId: item.inventoryId }, 'ZR_GODOWN', -1, batch._id, batch.dateIssued, `Sent for dyeing: ${mill.name}`, session);
+      } catch (error) {
+        if (error instanceof BadRequestError && error.message.startsWith('Not enough')) {
+          if (source) throw new BadRequestError(`Available stock for ${source.fabricType} / ${source.yarnSpec} is ${source.totalRolls} rolls / ${weight(source.totalWeightKg).toFixed(3)} kg. This line requests ${item.ecruRollsCount} rolls / ${weight(item.ecruWeightKg).toFixed(3)} kg. Check other lines using the same stock or refresh its balance.`);
+          const coloredRaw = await FabricInventory.findOne({ fabricType: stockItem.fabricType, yarnSpec: stockItem.yarnSpec, state: 'RAW_ECRU', location: 'ZR_GODOWN', ownerKey: stockItem.ownerKey, color: { $ne: 'ECRU' }, totalRolls: { $gt: 0 }, totalWeightKg: { $gt: 0 } }).session(session);
+          if (coloredRaw) throw new BadRequestError(`This raw stock is recorded with current shade ${coloredRaw.color}. If it is undyed grey, open Fabric stock → Edit → Correct raw shade to ECRU, then retry. Enter the target shade only in Color / shade to dye.`);
+        }
+        throw error;
+      }
       await moveFabric(stockItem, mill.code, 1, batch._id, batch.dateIssued, `In process: ${mill.name}`, session);
       batches.push(batch.toObject());
     }
@@ -106,7 +119,7 @@ export async function reverseDyeingIssue(id: string, input: { reason: string; re
     if (batch.receivedRawKg || await DyeingReceipt.exists({ status: 'POSTED', 'items.batchId': batch._id }).session(session)) throw new BadRequestError('Reverse its received fabric first.');
     const item = { fabricType: batch.fabricType, yarnSpec: batch.yarnSpec, state: 'RAW_ECRU' as const, color: 'ECRU', rolls: batch.ecruRollsCount, weightKg: batch.ecruWeightKg, ownerKey: batch.ownerKey || 'OWN' };
     await moveFabric(item, batch.millName, -1, batch._id, new Date(), input.reason, session);
-    await moveFabric(item, 'ZR_GODOWN', 1, batch._id, new Date(), input.reason, session);
+    await moveFabric({ ...item, inventoryId: batch.sourceInventoryId?.toString() }, 'ZR_GODOWN', 1, batch._id, new Date(), input.reason, session);
     batch.status = 'REVERSED';batch.remarks = `${batch.remarks || ''} | ${input.reason}`;await batch.save({ session });return batch.toObject();
   });
 }

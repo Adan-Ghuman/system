@@ -69,7 +69,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
     setIsLoading(true);
 
     try {
-      const activeColor = color === 'OTHER' ? customColor.trim().toUpperCase() : color;
+      const activeColor = state === 'RAW_ECRU' ? 'ECRU' : color === 'OTHER' ? customColor.trim().toUpperCase() : color;
       if (!activeColor) {
         throw new Error('Please specify a color');
       }
@@ -150,7 +150,7 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
             id="adjustState"
             label="Fabric Processing State"
             value={state}
-            onChange={(e) => setState(e.target.value as FabricState)}
+            onChange={(e) => { setState(e.target.value as FabricState);setColor(e.target.value === 'RAW_ECRU' ? 'ECRU' : COMMON_COLORS[0]);setCustomColor(''); }}
             options={[
               { label: 'Finished Dyed Fabric', value: 'FINISHED_DYED' },
               { label: 'Raw Ecru Fabric (Grey)', value: 'RAW_ECRU' }
@@ -175,16 +175,17 @@ export function AdjustStockModal({ isOpen, onClose, onSuccess }: AdjustStockModa
             required
           />
 
-          <Select
+          {state === 'RAW_ECRU' ? <Input label="Color / Shade" value="ECRU" readOnly /> : <Select
             id="adjustColor"
             label="Color / Shade"
             value={color}
             onChange={(e) => setColor(e.target.value)}
             options={COMMON_COLORS.map((c) => ({ label: c, value: c }))}
-          />
+          />}
         </div>
 
-        {color === 'OTHER' && (
+        {state === 'RAW_ECRU' && <p className="text-xs text-soft">Undyed grey stock uses ECRU. Choose its target shade when sending it for dyeing.</p>}
+        {state !== 'RAW_ECRU' && color === 'OTHER' && (
           <Input
             id="adjustCustomColor"
             label="Custom Color / Shade"

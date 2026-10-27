@@ -74,6 +74,8 @@ export const queryTransfersSchema = z.object({
 });
 
 export const updateInventoryItemSchema = z.object({
+  ...documentReferenceFields,
+  correctionReason: z.string().trim().min(3).max(1000).optional(),
   fabricType: z.string().min(1, 'Fabric type is required').trim().optional(),
   yarnSpec: z.string().min(1, 'Yarn spec is required').trim().optional(),
   state: stateEnum.optional(),
@@ -81,7 +83,7 @@ export const updateInventoryItemSchema = z.object({
   location: locationEnum.optional(),
   totalRolls: z.number().int().min(0, 'Rolls count cannot be negative').optional(),
   totalWeightKg: z.number().min(0, 'Total weight cannot be negative').optional()
-});
+}).refine(input => !input.correctionReason || Boolean(input.requestId), { message: 'A shade correction needs a submission key.', path: ['requestId'] });
 
 export type CreateTransferInput = z.infer<typeof createTransferSchema>;
 export type CreateAdjustmentInput = z.infer<typeof createAdjustmentSchema>;

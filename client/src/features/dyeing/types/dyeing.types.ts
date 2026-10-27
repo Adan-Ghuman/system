@@ -66,6 +66,7 @@ export interface CreateBatchPayload {
 }
 
 export interface GatePassEntryItem {
+  inventoryId?: string;
   id: string;
   machineNo: string;
   fabricType: string;
@@ -89,6 +90,7 @@ export interface CreateGatePassPayload { ownerKey?: string;
   vehicleNo?: string;
   remarks?: string;
   entries: {
+    inventoryId?: string;
     machineNo?: string;
     fabricType: string;
     yarnSpec: string;

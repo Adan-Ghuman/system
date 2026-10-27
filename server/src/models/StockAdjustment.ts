@@ -1,6 +1,6 @@
 import { businessModel } from '../business/model.js';
 import { partyModelName } from '../business/context.js';
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 import { InventoryLocation, FabricState } from './FabricInventory.js';
 
 export type StockAdjustmentReason =
@@ -11,6 +11,9 @@ export type StockAdjustmentReason =
   | 'MANUAL_CORRECTION';
 
 export interface IStockAdjustment extends Document {
+  correctionId?: Types.ObjectId;
+  sourceInventoryId?: Types.ObjectId;
+  targetInventoryId?: Types.ObjectId;
   ownerKey: string;
   fabricType: string;
   yarnSpec: string;
@@ -28,6 +31,9 @@ export interface IStockAdjustment extends Document {
 
 const stockAdjustmentSchema = new Schema<IStockAdjustment>(
   {
+    correctionId: Schema.Types.ObjectId,
+    sourceInventoryId: Schema.Types.ObjectId,
+    targetInventoryId: Schema.Types.ObjectId,
     ownerKey: { type: String, default: 'OWN' },
     fabricType: {
       type: String,
@@ -54,7 +60,6 @@ const stockAdjustmentSchema = new Schema<IStockAdjustment>(
     },
     location: {
       type: String,
-      enum: ['ZR_GODOWN', 'GHUMMAN_DYEING', 'RAJPUT_DYEING', 'HAFIZ_SAAD_DYEING', 'HB_DYEING'],
       required: true,
       index: true
     },

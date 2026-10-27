@@ -3,12 +3,16 @@ import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
 import { useState, useEffect, useMemo, useRef, FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
 import { Input } from '../../../components/ui/Input.js';
 import { Select } from '../../../components/ui/Select.js';
 import { Button } from '../../../components/ui/Button.js';
+import { StockChoice } from '../../../components/ui/StockChoice.js';
+import { QueryError } from '../../../components/ui/QueryError.js';
+import { EditStockModal } from '../../inventory/components/EditStockModal.js';
+import { FabricInventoryItem } from '../../inventory/types/inventory.types.js';
 import { FormSection, OptionalDetails, EntryCard, FormFeedback, FormFooter } from '../../../components/ui/WorkflowForm.js';
 import { getLocalDateInput, formatWeight } from '../../../lib/formatters.js';
 import { Plus } from 'lucide-react';
@@ -62,6 +66,9 @@ export function CreateGatePassModal({
 }: CreateGatePassModalProps) {
   // Gate Pass Header Fields
   const [ownerKey, setOwnerKey] = useState('OWN');
+  const client = useQueryClient();
+  const rawStock = useQuery({ queryKey: ['dyeing-raw-stock'], queryFn: () => loadAllRecords<FabricInventoryItem>('/inventory/items', { location: 'ZR_GODOWN', state: 'RAW_ECRU' }), enabled: isOpen });
+  const [correcting, setCorrecting] = useState<FabricInventoryItem | null>(null);
   const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties') });
   const [references, setReferences] = useDocumentReferences();
   const [ogpNo, setOgpNo] = useState('');
@@ -194,6 +201,43 @@ export function CreateGatePassModal({
     );
   }
 
+  const selectedOwner = canonicalOwnerKey(ownerKey, owners.data?.items || []);
+  const available = (rawStock.data?.items || []).filter(item => canonicalOwnerKey(item.ownerKey, owners.data?.items || []) === selectedOwner && item.totalRolls > 0 && item.totalWeightKg > 0);
+
+  async function chooseStock(rowId: string, inventoryId: string) {
+    try {
+      const stock = rawStock.data?.items.find(item => item._id === inventoryId) || (await rawStock.refetch()).data?.items.find(item => item._id === inventoryId);
+      setEntries(current => current.map(entry => entry.id === rowId ? { ...entry, inventoryId, fabricType: stock?.fabricType || '', yarnSpec: stock?.yarnSpec || '', ecruRollsCount: '', ecruWeightKg: '' } : entry));
+      setError(null);
+    } catch { setError('Could not load this stock. Refresh stock and select it again.'); }
+  }
+
+  async function shadeCorrected() {
+    if (!correcting) return;
+    const original = correcting;
+    const result = await rawStock.refetch();
+    const target = result.data?.items.find(item => item.color === 'ECRU' && item.fabricType === original.fabricType && item.yarnSpec === original.yarnSpec && canonicalOwnerKey(item.ownerKey, owners.data?.items || []) === selectedOwner && item.totalRolls > 0 && item.totalWeightKg > 0);
+    if (target) setEntries(current => current.map(entry => entry.inventoryId === original._id ? { ...entry, inventoryId: target._id, fabricType: target.fabricType, yarnSpec: target.yarnSpec } : entry));
+    else setError('Shade was corrected. Refresh stock and select the corrected row before sending.');
+    await client.invalidateQueries();
+  }
+
+  function checkAvailability(stock: FabricInventoryItem[]) {
+    const requested = new Map<string, { rolls: number; kg: number }>();
+    for (const [index, row] of entries.entries()) {
+      const source = stock.find(item => item._id === row.inventoryId && canonicalOwnerKey(item.ownerKey, owners.data?.items || []) === selectedOwner);
+      if (!source) throw new Error(`Entry #${index + 1}: Choose raw stock belonging to the selected fabric owner.`);
+      if (source.color !== 'ECRU') throw new Error(`Entry #${index + 1}: Confirm this stock is undyed grey and correct its current shade to ECRU first.`);
+      const used = requested.get(source._id) || { rolls: 0, kg: 0 };
+      used.rolls += Number(row.ecruRollsCount);used.kg = Math.round((used.kg + Number(row.ecruWeightKg)) * 1000) / 1000;requested.set(source._id, used);
+      if (used.rolls > source.totalRolls || used.kg > source.totalWeightKg + 0.000001) throw new Error(`${source.fabricType} / ${source.yarnSpec}: Available ${source.totalRolls} rolls / ${formatWeight(source.totalWeightKg)}. All lines together request ${used.rolls} rolls / ${formatWeight(used.kg)}.`);
+    }
+    for (const [id, used] of requested) {
+      const source = stock.find(item => item._id === id)!;
+      if ((used.rolls === source.totalRolls) !== (Math.abs(used.kg - source.totalWeightKg) < 0.000001)) throw new Error(`${source.fabricType}: Sending the final rolls must use the full remaining measured kg. For a partial send, leave both rolls and kg in stock.`);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (isSubmittingRef.current || isLoading) return;
@@ -216,7 +260,7 @@ export function CreateGatePassModal({
     // Validate entries
     for (let i = 0; i < entries.length; i++) {
       const row = entries[i];
-      const rolls = parseInt(String(row.ecruRollsCount), 10);
+      const rolls = Number(row.ecruRollsCount);
       const weight = parseFloat(String(row.ecruWeightKg));
 
       if (!row.fabricType.trim()) {
@@ -231,11 +275,11 @@ export function CreateGatePassModal({
         setError(`Entry #${i + 1}: Please specify target color`);
         return;
       }
-      if (isNaN(rolls) || rolls < 1) {
+      if (!Number.isInteger(rolls) || rolls < 1) {
         setError(`Entry #${i + 1}: Roll count must be at least 1`);
         return;
       }
-      if (isNaN(weight) || weight <= 0) {
+      if (!Number.isFinite(weight) || weight <= 0) {
         setError(`Entry #${i + 1}: Weight (kg) must be a positive number`);
         return;
       }
@@ -247,7 +291,10 @@ export function CreateGatePassModal({
     setIsLoading(true);
 
     try {
-      const payload: CreateGatePassPayload = { ownerKey,
+      const latest = await rawStock.refetch();
+      if (latest.isError || !latest.data) throw new Error('Could not verify available stock. Try loading stock again.');
+      checkAvailability(latest.data.items);
+      const payload: CreateGatePassPayload = { ownerKey: selectedOwner,
         ...references,
         ogpNo: ogpNo.trim(),
         dateIssued: new Date(dateIssued).toISOString(),
@@ -257,6 +304,7 @@ export function CreateGatePassModal({
         vehicleNo: vehicleNo.trim(),
         remarks: remarks.trim(),
         entries: entries.map((e) => ({
+          inventoryId: e.inventoryId,
           machineNo: e.machineNo.trim(),
           fabricType: e.fabricType.trim(),
           yarnSpec: e.yarnSpec.trim(),
@@ -289,8 +337,8 @@ export function CreateGatePassModal({
   }
 
   return (
-    <Dialog isOpen={isOpen} onClose={() => { if (!isLoading) onClose(); }} title="Send fabric for dyeing"
-      description="Choose the mill, then enter the fabric and colors on this outgoing gate pass." className="max-w-2xl"
+    <><Dialog isOpen={isOpen} onClose={() => { if (!isLoading) onClose(); }} title="Send fabric for dyeing"
+      description="Choose available undyed stock, the mill and the target shade for this outgoing gate pass." className="max-w-2xl"
       footer={<FormFooter formId="send-dyeing-form" onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)}
         submitLabel="Save fabric delivery" summary={<><strong className="text-strong">{totals.totalRolls} rolls</strong> · {formatWeight(totals.totalWeightKg)}</>} />}>
       <form id="send-dyeing-form" onSubmit={handleSubmit}>
@@ -307,16 +355,18 @@ export function CreateGatePassModal({
               <Input id="send-dyeing-date" label="Sent date" type="date" value={dateIssued} onChange={(e) => setDateIssued(e.target.value)} required />
             </div>
           </FormSection>
-          <Select label="Fabric owner" value={canonicalOwnerKey(ownerKey, owners.data?.items || [])} onChange={event => setOwnerKey(event.target.value)} options={ownerOptions(owners.data?.items || [])} /><DocumentReferences value={references} onChange={setReferences} />
-          <FormSection step={2} title="What fabric are you sending?" description="One item per fabric and color. You can add several items to the same gate pass.">
+          <Select label="Fabric owner" value={canonicalOwnerKey(ownerKey, owners.data?.items || [])} onChange={event => { setOwnerKey(event.target.value);setEntries(current => current.map(entry => ({ ...entry, inventoryId: '', fabricType: '', yarnSpec: '', ecruRollsCount: '', ecruWeightKg: '' }))); }} options={ownerOptions(owners.data?.items || [])} /><DocumentReferences value={references} onChange={setReferences} />
+          <FormSection step={2} title="What fabric are you sending?" description="Choose stock at Rozain Textile for this owner. Current shade is ECRU; choose the target shade separately.">
+            {rawStock.isError && <QueryError onRetry={() => { void rawStock.refetch(); }} />}
+            <Button type="button" variant="ghost" size="sm" disabled={rawStock.isFetching} onClick={() => { void rawStock.refetch(); }}>Refresh stock</Button>
             {entries.map((entry, index) => (
               <EntryCard key={entry.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}
                 onRemove={() => handleRemoveRow(entry.id)} canRemove={entries.length > 1}>
+                <StockChoice id={'send-stock-' + entry.id} label="Raw fabric from stock" required location="ZR_GODOWN" state="RAW_ECRU" ownerKey={selectedOwner} value={entry.inventoryId || ''} onChange={id => { void chooseStock(entry.id, id); }} options={[{ value: '', label: rawStock.isLoading ? 'Loading stock…' : 'Choose available raw fabric' }, ...available.map(item => ({ value: item._id, label: `${item.fabricType} · ${item.yarnSpec} · ${item.totalRolls} rolls / ${formatWeight(item.totalWeightKg)}${item.color !== 'ECRU' ? ' · Correct current shade: ' + item.color : ' · ECRU'}` }))]} />
+                {available.find(item => item._id === entry.inventoryId)?.color !== 'ECRU' && entry.inventoryId && <Button type="button" variant="outline" onClick={() => setCorrecting(available.find(item => item._id === entry.inventoryId) || null)}>Correct raw shade to ECRU</Button>}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <CatalogField kind="FABRIC" id={'send-fabric-' + entry.id} label="Fabric name" value={entry.fabricType}
-                    onChange={value => handleRowChange(entry.id, 'fabricType', value)} placeholder="e.g. Interlock" required />
-                  <CatalogField kind="YARN" id={'send-yarn-' + entry.id} label="Yarn name / count" value={entry.yarnSpec}
-                    onChange={value => handleRowChange(entry.id, 'yarnSpec', value)} placeholder="e.g. 75/72 or 75/72 + 150/48" required />
+                  <Input label="Fabric name" value={entry.fabricType} readOnly required />
+                  <Input label="Yarn name / count" value={entry.yarnSpec} readOnly required />
                 </div>
                 <CatalogField kind="COLOR" id={'send-color-' + entry.id} label="Color / shade to dye" value={entry.targetColor}
                   onChange={value => handleRowChange(entry.id, 'targetColor', value)} placeholder="e.g. Navy blue" required />
@@ -353,6 +403,6 @@ export function CreateGatePassModal({
           <datalist id="send-dyeing-colors">{COMMON_COLORS.map((name) => <option key={name} value={name} />)}</datalist>
         </fieldset>
       </form>
-    </Dialog>
+    </Dialog><EditStockModal isOpen={Boolean(correcting)} item={correcting} initialCorrection onClose={() => setCorrecting(null)} onSuccess={() => { void shadeCorrected(); }} /></>
   );
 }

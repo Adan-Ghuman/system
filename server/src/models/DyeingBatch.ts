@@ -6,6 +6,7 @@ export type DyeingMillType = string;
 export type DyeingBatchStatus = 'ISSUED' | 'IN_PROCESS' | 'COMPLETED' | 'REVERSED';
 
 export interface IDyeingBatch extends Document {
+  sourceInventoryId?: Types.ObjectId;
   batchNo: string;
   ownerKey: string;
   receivedRawKg: number;
@@ -41,6 +42,7 @@ export interface IDyeingBatch extends Document {
 
 const dyeingBatchSchema = new Schema<IDyeingBatch>(
   {
+    sourceInventoryId: Schema.Types.ObjectId,
     ownerKey: { type: String, default: 'OWN' },
     receivedRawKg: { type: Number, default: 0 },
     receivedRawRolls: { type: Number, default: 0 },

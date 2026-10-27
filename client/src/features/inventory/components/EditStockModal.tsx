@@ -21,11 +21,12 @@ export interface EditStockModalProps {
   onClose: () => void;
   onSuccess: () => void;
   item: FabricInventoryItem | null;
+  initialCorrection?: boolean;
 }
 
 
 
-export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockModalProps) {
+export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrection = false }: EditStockModalProps) {
   const locations = useLocations();
   const [location, setLocation] = useState<InventoryLocation>('ZR_GODOWN');
   const [state, setState] = useState<FabricState>('FINISHED_DYED');
@@ -35,6 +36,9 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
   const [customColor, setCustomColor] = useState('');
   const [totalRolls, setTotalRolls] = useState('0');
   const [totalWeightKg, setTotalWeightKg] = useState('0');
+  const [correctionMode, setCorrectionMode] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   const [isLoading, setIsLoading] = useState(false);
   const isSubmittingRef = useRef(false);
@@ -61,8 +65,10 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
       setTotalWeightKg(String(item.totalWeightKg || 0));
       setError(null);
       setSuccess(null);
+      const correctShade = initialCorrection && item.state === 'RAW_ECRU' && item.color !== 'ECRU';
+      setCorrectionMode(correctShade);if (correctShade) { setColor('ECRU');setCustomColor(''); }setCorrectionReason('');setRequestId(crypto.randomUUID());
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, initialCorrection]);
 
   const rollsNum = parseInt(totalRolls, 10) || 0;
   const weightNum = parseFloat(totalWeightKg) || 0;
@@ -92,6 +98,8 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
       }
 
       const payload: UpdateFabricInventoryPayload = {
+        requestId,
+        correctionReason: correctionMode ? correctionReason.trim() : undefined,
         location,
         state,
         fabricType: fabricType.trim(),
@@ -103,7 +111,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
 
       await api.put(`/inventory/items/${item._id}`, payload);
 
-      setSuccess('Fabric stock updated successfully');
+      setSuccess(correctionMode ? 'Raw shade corrected to ECRU. Stock quantities are unchanged.' : 'Fabric stock updated successfully');
       onSuccess();
 
       setTimeout(() => {
@@ -120,6 +128,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
   }
 
   if (!item) return null;
+  const needsRawShadeCorrection = item.state === 'RAW_ECRU' && item.color !== 'ECRU';
 
   return (
     <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
@@ -128,7 +137,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
           </Button>
           <Button type="submit" form="edit-stock-modal-form" isLoading={isLoading} className="gap-1.5">
             <Save className="w-4 h-4" />
-            <span>Save Stock Changes</span>
+            <span>{correctionMode ? 'Save shade correction' : 'Save Stock Changes'}</span>
           </Button>
         </div>}
       isOpen={isOpen}
@@ -138,6 +147,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
       className="max-w-xl"
     >
       <form id="edit-stock-modal-form" onSubmit={handleSubmit} className="space-y-4">
+        {needsRawShadeCorrection && <div className="space-y-3 rounded-lg border border-line bg-warning-soft p-3 text-xs text-ink"><p>This raw stock has current shade {item.color}. If it is physically undyed grey, correct it to ECRU. Enter {item.color} as the target shade when sending it for dyeing.</p>{!correctionMode && <Button variant="outline" size="sm" type="button" onClick={() => { setCorrectionMode(true);setColor('ECRU');setCustomColor('');setState(item.state);setLocation(item.location);setTotalRolls(String(item.totalRolls));setTotalWeightKg(String(item.totalWeightKg)); }}>Correct raw shade to ECRU</Button>}{correctionMode && <Input label="Reason for shade correction" value={correctionReason} onChange={event => setCorrectionReason(event.target.value)} required minLength={3} placeholder="e.g. Navy blue is the target shade; the fabric is undyed grey" />}</div>}
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -157,6 +167,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
           <Select
             id="editLocation"
             label="Storage Location"
+            disabled={correctionMode}
             value={location}
             onChange={(e) => setLocation(e.target.value as InventoryLocation)}
             options={locations}
@@ -165,6 +176,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
           <Select
             id="editState"
             label="Fabric Processing State"
+            disabled={correctionMode}
             value={state}
             onChange={(e) => setState(e.target.value as FabricState)}
             options={[
@@ -195,18 +207,18 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Select
+          {state === 'RAW_ECRU' ? <Input label="Color / Shade" value={correctionMode ? 'ECRU' : item.color} readOnly /> : <Select
             id="editColor"
             label="Color / Shade"
             value={color}
             onChange={(e) => setColor(e.target.value)}
             options={[
-              ...COMMON_COLORS.map((c) => ({ label: c, value: c })),
+              ...COMMON_COLORS.filter(c => c !== 'OTHER').map((c) => ({ label: c, value: c })),
               { label: 'Other Custom Shade...', value: 'OTHER' }
             ]}
-          />
+          />}
 
-          {color === 'OTHER' ? (
+          {state !== 'RAW_ECRU' && (color === 'OTHER' ? (
             <Input
               id="editCustomColor"
               label="Custom Shade Name"
@@ -220,7 +232,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
               <span className="text-xs text-soft">Selected Shade</span>
               <span className="text-xs font-semibold text-ink font-mono mt-1">{color}</span>
             </div>
-          )}
+          ))}
         </div>
 </FormSection>
 
@@ -231,6 +243,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
             type="number"
             min="0"
             label="Total Rolls In Stock"
+            readOnly={correctionMode}
             value={totalRolls}
             onChange={(e) => setTotalRolls(e.target.value)}
             required
@@ -242,6 +255,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item }: EditStockMo
             step="0.01"
             min="0"
             label="Total Weight (Kg)"
+            readOnly={correctionMode}
             value={totalWeightKg}
             onChange={(e) => setTotalWeightKg(e.target.value)}
             required

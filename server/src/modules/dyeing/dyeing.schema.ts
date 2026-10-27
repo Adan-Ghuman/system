@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const millNameEnum = z.string().trim().min(1).max(80);
 
 export const createBatchSchema = z.object({
+  inventoryId: z.string().regex(/^[a-f\d]{24}$/i, 'Choose a valid stock item.').optional(),
   ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
   ...documentReferenceFields,
   batchNo: z.string().trim().toUpperCase().optional(),
@@ -33,6 +34,7 @@ export const createBatchSchema = z.object({
 );
 
 export const gatePassEntryItemSchema = z.object({
+  inventoryId: z.string().regex(/^[a-f\d]{24}$/i, 'Choose a valid stock item.').optional(),
   machineNo: z.string().trim().optional().default(''),
   fabricType: z.string().min(1, 'Fabric variety is required').trim(),
   yarnSpec: z.string().trim().optional(),

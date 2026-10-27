@@ -9,7 +9,7 @@ import { PaymentVoucher } from '../models/PaymentVoucher.js';
 import { businessContext } from './context.js';
 import { postCommand, nextDocumentNo, money, weight } from './posting.js';
 import { postPartyAmount } from './finance.js';
-import { moveFabric, validateLocation } from './stock.js';
+import { moveFabric, validateLocation, validateRawShade } from './stock.js';
 import { referenceFields } from './references.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 
@@ -86,6 +86,7 @@ export async function submitOperation(input: OperationInput, draftId?: string) {
     else { [document] = await BusinessDocument.create([{ _id: id, ...values }], { session }); }
     if (!document) throw new BadRequestError('The document could not be posted.');
     if (isStock) for (const item of input.items) {
+      validateRawShade(item);
       if (item.ownerKey !== 'OWN') throw new BadRequestError('Purchased fabric belongs to this business.');
       await moveFabric(item, input.location, 1, id, values.date, 'Fabric purchase received', session);
     }

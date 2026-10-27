@@ -1,0 +1,39 @@
+import assert from 'node:assert/strict';
+
+export async function verifyBrowserRawShade({ page, go, dialog, close, screenshot }) {
+  await go('inventory');await page.getByRole('button', { name: 'Add / Adjust Stock', exact: true }).click();
+  await dialog().getByLabel('Fabric Processing State', { exact: true }).selectOption('RAW_ECRU');
+  const rawShade = dialog().getByLabel('Color / Shade', { exact: true });assert.equal(await rawShade.inputValue(), 'ECRU');assert(await rawShade.evaluate(element => element.readOnly));await close();
+  await page.getByPlaceholder('Search fabric, spec, color...').fill('Browser raw shade fleece');
+  const row = page.getByRole('row').filter({ hasText: 'Browser raw shade fleece' });await row.waitFor();await row.getByRole('button', { name: 'Edit', exact: true }).click();
+  await dialog().getByRole('button', { name: 'Correct raw shade to ECRU', exact: true }).click();
+  assert.equal(await dialog().getByLabel('Color / Shade', { exact: true }).inputValue(), 'ECRU');
+  assert.equal(await dialog().getByLabel('Total Rolls In Stock', { exact: true }).inputValue(), '13');assert.equal(await dialog().getByLabel('Total Weight (Kg)', { exact: true }).inputValue(), '277.6');
+  assert(await dialog().getByLabel('Total Rolls In Stock', { exact: true }).evaluate(element => element.readOnly));
+  await dialog().getByLabel('Reason for shade correction', { exact: true }).fill('Fabric is undyed grey; navy blue is the target shade');await screenshot('raw-shade-correction');
+  await dialog().getByRole('button', { name: 'Save shade correction', exact: true }).click();await page.getByRole('dialog').waitFor({ state: 'hidden' });await row.getByText('ECRU', { exact: true }).waitFor();assert((await row.innerText()).includes('277.60'));
+  console.log('PASS browser raw stock locks current shade to ECRU and corrects the existing 13-roll/277.60-kg row with an audit reason.');
+
+  await go('buying');await page.getByLabel('Find a document').fill('BROWSER-OLD-RAW-DRAFT');await page.getByRole('button', { name: 'Continue draft', exact: true }).click();
+  assert.equal(await dialog().getByLabel('Current shade', { exact: true }).inputValue(), 'ECRU');await dialog().getByRole('button', { name: 'Save receipt', exact: true }).click();await page.locator('#print-area').waitFor();await close();
+  await go('inventory');await page.getByPlaceholder('Search fabric, spec, color...').fill('Browser old raw draft');const draftRow = page.getByRole('row').filter({ hasText: 'Browser old raw draft' });await draftRow.getByText('ECRU', { exact: true }).waitFor();
+
+  await go('dyeing');await page.getByRole('button', { name: /^Send fabric for dyeing/ }).click();
+  await dialog().getByLabel('Fabric owner', { exact: true }).selectOption({ label: 'Independent owner' });await dialog().getByLabel('Raw fabric from stock', { exact: true }).selectOption('__OTHER_STOCK__');
+  await dialog().getByLabel('Fabric name', { exact: true }).fill('Browser client raw stock');await dialog().getByLabel('Yarn name / count', { exact: true }).fill('150/48');assert.equal(await dialog().getByLabel('Color / shade', { exact: true }).inputValue(), 'ECRU');await dialog().getByLabel('Rolls available').fill('2');await dialog().getByLabel('Actual stock weight (kg)').fill('40');await dialog().getByLabel('Reason for adding stock').fill('Client grey stock physically counted');await dialog().getByRole('button', { name: 'Save stock & select', exact: true }).click();await page.getByRole('dialog', { name: 'Add missing fabric stock' }).waitFor({ state: 'hidden' });
+  assert.equal(await dialog().getByLabel('Fabric name', { exact: true }).inputValue(), 'Browser client raw stock');assert.equal(await dialog().getByRole('alert').count(), 0);await dialog().getByLabel('Fabric owner', { exact: true }).selectOption('OWN');assert.equal(await dialog().getByLabel('Raw fabric from stock').locator('option').filter({ hasText: 'Browser client raw stock' }).count(), 0);
+  await dialog().getByLabel(/gate pass.*challan number/i).fill('BROWSER-RAW-SOURCE');
+  const choice = dialog().getByLabel('Raw fabric from stock', { exact: true });await choice.locator('option').filter({ hasText: 'Browser dyeing raw shade' }).waitFor({ state: 'attached' });await choice.selectOption({ label: await choice.locator('option').filter({ hasText: 'Browser dyeing raw shade' }).textContent() });
+  assert(await dialog().getByLabel('Fabric name', { exact: true }).evaluate(element => element.readOnly));
+  await dialog().getByLabel('Color / shade to dye').fill('NAVY BLUE');await dialog().getByLabel('Rolls sent', { exact: true }).fill('6');await dialog().getByLabel('Raw weight sent (kg)').fill('120');
+  await dialog().getByRole('button', { name: 'Correct raw shade to ECRU', exact: true }).click();await dialog().getByLabel('Reason for shade correction', { exact: true }).fill('Confirmed undyed grey; navy blue is the target shade');await dialog().getByRole('button', { name: 'Save shade correction', exact: true }).click();await page.getByRole('dialog', { name: 'Edit Fabric Stock Details' }).waitFor({ state: 'hidden' });
+  assert.equal(await dialog().getByLabel('Rolls sent').inputValue(), '6');assert.equal(await dialog().getByLabel('Color / shade to dye').inputValue(), 'NAVY BLUE');
+  let outgoingPosts = 0;const track = request => { if (request.method() === 'POST' && request.url().endsWith('/dyeing/gate-passes')) outgoingPosts++; };page.on('request', track);
+  await dialog().getByRole('button', { name: 'Copy details of Fabric item 1', exact: true }).click();await dialog().getByLabel('Rolls sent').nth(1).fill('8');await dialog().getByLabel('Raw weight sent (kg)').nth(1).fill('160');await dialog().getByRole('button', { name: 'Save fabric delivery', exact: true }).click();await dialog().getByRole('alert').filter({ hasText: 'All lines together request 14 rolls' }).waitFor();assert.equal(outgoingPosts, 0);
+  await dialog().getByRole('button', { name: 'Remove Fabric item 2', exact: true }).click();await dialog().getByLabel('Rolls sent').fill('13');await dialog().getByLabel('Raw weight sent (kg)').fill('270');await dialog().getByRole('button', { name: 'Save fabric delivery', exact: true }).click();await dialog().getByRole('alert').filter({ hasText: 'final rolls' }).waitFor();assert.equal(outgoingPosts, 0);
+  await dialog().getByLabel('Fabric owner', { exact: true }).selectOption({ label: 'Independent owner' });assert.equal(await dialog().getByLabel('Raw fabric from stock').inputValue(), '');assert.equal(await dialog().getByLabel('Rolls sent').inputValue(), '');assert.equal(await dialog().getByLabel('Raw fabric from stock').locator('option').filter({ hasText: 'Browser dyeing raw shade' }).count(), 0);
+  await dialog().getByLabel('Fabric owner', { exact: true }).selectOption('OWN');await choice.selectOption({ label: await choice.locator('option').filter({ hasText: 'Browser dyeing raw shade' }).textContent() });
+  await dialog().getByLabel('Rolls sent').fill('12');await dialog().getByLabel('Raw weight sent (kg)').fill('257.65');await screenshot('dyeing-stock-source');await dialog().getByRole('button', { name: 'Save fabric delivery', exact: true }).click();await page.getByRole('dialog').waitFor({ state: 'hidden' });assert.equal(outgoingPosts, 1);page.off('request', track);
+  await go('inventory');await page.getByPlaceholder('Search fabric, spec, color...').fill('Browser dyeing raw shade');const remaining = page.getByRole('row').filter({ hasText: 'Browser dyeing raw shade' }).filter({ hasText: 'Rozain Textile' });await remaining.getByText('19.95 Kg', { exact: true }).waitFor();
+  console.log('PASS browser legacy receipt draft becomes ECRU, source stock selection, inline audited shade correction, retained target/quantities, combined-line overdraw and final-roll checks, owner filtering and exact dyeing remainder.');
+}
