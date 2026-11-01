@@ -116,6 +116,7 @@ export class ReportsService {
       dateReceived: b.dateReceived,
       ecruRollsCount: b.ecruRollsCount,
       ecruWeightKg: b.ecruWeightKg,
+      receivedRawKg: b.receivedRawKg, receivedRawRolls: b.receivedRawRolls, gsm: b.gsm, width: b.width,
       finishRollsCount: b.finishRollsCount,
       finishWeightKg: b.finishWeightKg,
       shortageWeightKg: b.shortageWeightKg,

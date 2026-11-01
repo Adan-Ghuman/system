@@ -3,10 +3,14 @@ import mongoose, { ClientSession } from 'mongoose';
 import { PostingRequest, DocumentCounter } from './records.js';
 import { currentBusinessId, businessContext, usesExistingRecords } from './context.js';
 import { existingNumberFloor } from './existing-records.js';
-import { ConflictError, ForbiddenError } from '../utils/errors.js';
+import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 
 export const weight = (value: number) => Math.round(value * 1000) / 1000;
-export const money = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+export const money = (value: number) => {
+  if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER / 100) throw new BadRequestError('The amount exceeds the supported currency range.');
+  const magnitude = Math.abs(value);
+  return Math.sign(value) * Math.round((magnitude + Number.EPSILON * Math.max(1, magnitude)) * 100) / 100;
+};
 export async function nextDocumentNo(kind: string, session?: ClientSession) {
   if (usesExistingRecords()) await DocumentCounter.updateOne({ kind }, { $max: { value: await existingNumberFloor(kind, session) }, $setOnInsert: { kind } }, { upsert: true, session });
   const counter = await DocumentCounter.findOneAndUpdate({ kind }, { $inc: { value: 1 } }, { upsert: true, new: true, session });

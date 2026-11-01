@@ -5,6 +5,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 export type YarnTransactionType = 'OUTWARD_TO_KNITTER' | 'INWARD_FROM_CLIENT';
 
 export interface IYarnTransaction extends Document {
+  productionType?: 'IN_HOUSE' | 'OUTSOURCED';
   status: 'POSTED' | 'REVERSED';
   transactionType: YarnTransactionType;
   partyId: Types.ObjectId;
@@ -31,6 +32,7 @@ export interface IYarnTransaction extends Document {
 
 const yarnTransactionSchema = new Schema<IYarnTransaction>(
   {
+    productionType: { type: String, enum: ['IN_HOUSE', 'OUTSOURCED'] },
     status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' },
     transactionType: {
       type: String,

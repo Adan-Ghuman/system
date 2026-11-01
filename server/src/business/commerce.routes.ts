@@ -21,6 +21,7 @@ import { YarnTransaction } from '../models/YarnTransaction.js';
 import { FabricInventory } from '../models/FabricInventory.js';
 import { Party } from '../models/Party.js';
 import { PaymentVoucher } from '../models/PaymentVoucher.js';
+import { paymentModeEnum } from '../modules/accounts/accounts.schema.js';
 import { operationInput, operationKinds } from './commerce.schema.js';
 import { submitOperation, saveDraft, postDraft, payBill, reverseOperation } from './commerce.js';
 import { businessContext } from './context.js';
@@ -65,7 +66,8 @@ const permitted = (req: Parameters<Parameters<typeof asyncHandler>[0]>[0], permi
 };
 workspaceRoutes.get('/yarn', requirePermission('knitting:read'), asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, 20);
-  const match = req.query.search ? { yarnSpec: new RegExp(escapeRegex(String(req.query.search)), 'i') } : {};
+  const match = { ...(req.query.search ? { yarnSpec: new RegExp(escapeRegex(String(req.query.search)), 'i') } : {}), ...(req.query.ownerKey ? { ownerKey: String(req.query.ownerKey) } : {}) };
+  if (req.query.format) { const rows = await YarnInventory.find(match).sort({ yarnSpec: 1, packageUnit: 1 });const owners = await Party.find({ _id: { $in: rows.map(row => row.ownerKey).filter(value => value !== 'OWN') } }).select('name');await sendTable(res, String(req.query.format), 'Yarn stock', ['Yarn', 'Owner', 'Package unit', 'Packages', 'Measured kg'], rows.map(row => [row.yarnSpec, row.ownerKey === 'OWN' ? 'Rozain Textile' : owners.find(owner => String(owner._id) === row.ownerKey)?.name || 'Owner not recorded', row.packageUnit, row.quantity, row.totalWeightKg]));return; }
   const [items, total] = await Promise.all([YarnInventory.find(match).sort({ yarnSpec: 1, packageUnit: 1 }).skip(skip).limit(limit), YarnInventory.countDocuments(match)]);
   res.json({ success: true, data: formatPaginatedResult(items, total, page, limit) });
 }));
@@ -98,35 +100,44 @@ workspaceRoutes.post('/receipts/:id/reverse', requirePermission('knitting:write'
 }));
 workspaceRoutes.get('/documents', asyncHandler(async (req, res) => {
   const kinds = req.query.kinds ? String(req.query.kinds).split(',') : [];
-  permitted(req, kinds.length && kinds.every(kind => kind.startsWith('YARN')) ? ['knitting:read'] : ['accounts:read']);
+  permitted(req, kinds.length && kinds.every(kind => kind.startsWith('YARN') && !['YARN_PURCHASE', 'YARN_SUPPLIER_BILL'].includes(kind)) ? ['knitting:read'] : ['accounts:read']);
   const { page, limit, skip } = parsePagination(req.query, 20);
   const search = req.query.search ? new RegExp(escapeRegex(String(req.query.search)), 'i') : undefined;
-  const match = { ...(kinds.length ? { kind: { $in: kinds } } : {}), ...(search ? { $or: [{ number: search }, { reference: search }, { poNo: search }, { externalReference: search }] } : {}) };
+  const dates: Record<string, Date> = {};if (req.query.from) dates.$gte = new Date(String(req.query.from) + 'T00:00:00+05:00');if (req.query.to) dates.$lte = new Date(String(req.query.to) + 'T23:59:59.999+05:00');
+  if (Object.values(dates).some(date => !Number.isFinite(+date)) || (dates.$gte && dates.$lte && dates.$gte > dates.$lte)) throw new BadRequestError('Choose a valid date range.');
+  const payableIds = req.query.side === 'SUPPLIER' ? await BusinessDocument.find({ direction: 'PAYABLE', kind: { $ne: 'CREDIT_NOTE' } }).distinct('_id') : undefined;
+  const supplierFilter = payableIds ? { $and: [{ $nor: [{ status: 'DRAFT', 'draft.direction': 'RECEIVABLE' }] }, { $or: [{ direction: 'PAYABLE', kind: { $ne: 'CREDIT_NOTE' } }, { kind: 'CREDIT_NOTE', sourceId: { $in: payableIds } }] }] } : {};
+  const match = { ...supplierFilter, ...(Object.keys(dates).length ? { date: dates } : {}), ...(req.query.partyId ? { partyId: String(req.query.partyId) } : {}), ...(kinds.length ? { kind: { $in: kinds } } : {}), ...(search ? { $or: [{ number: search }, { reference: search }, { poNo: search }, { externalReference: search }] } : {}) };
   if (req.query.format) {
     const rows = await BusinessDocument.find(match).populate('partyId', 'name').sort({ date: -1, _id: -1 });
-    await sendTable(res, String(req.query.format), 'Documents', ['Document', 'Type', 'Status', 'Party', 'Date', 'Paper reference', 'PO', 'External reference', 'Fabric', 'Yarn', 'Shade', 'Rolls', 'Kg', 'Rate', 'Basis', 'Bill total', 'Paid', 'Outstanding'], rows.flatMap(document => document.items.map(item => [document.number, document.kind, document.status, (document.partyId as unknown as { name?: string })?.name, document.date, document.reference, document.get('poNo'), document.get('externalReference'), item.fabricType, item.yarnSpec, item.color, item.rolls, item.weightKg, item.rate, item.basis, document.total, document.paid, money(document.total - document.credited - document.paid)])));return;
+    await sendTable(res, String(req.query.format), 'Documents', ['Document', 'Type', 'Status', 'Party', 'Date', 'Paper reference', 'PO', 'External reference', 'Fabric', 'Yarn', 'Shade', 'Rolls', 'Kg', 'Rate', 'Basis', 'Bill total', 'Paid', 'Outstanding'], rows.flatMap(document => document.items.map((item, index) => [document.number, document.kind, document.status, (document.partyId as unknown as { name?: string })?.name, document.date, document.reference, document.get('poNo'), document.get('externalReference'), item.fabricType, item.yarnSpec, item.color, item.rolls, item.weightKg, item.rate, item.basis, index === 0 ? document.total : null, index === 0 ? document.settlementStatus === 'NOT_RECORDED' ? 'Not recorded' : document.paid : null, index === 0 ? document.settlementStatus === 'NOT_RECORDED' ? 'Not recorded' : money(document.total - document.credited - document.paid) : null])));return;
   }
   const [items, total] = await Promise.all([BusinessDocument.find(match).populate('partyId', 'name code').sort({ date: -1, _id: -1 }).skip(skip).limit(limit), BusinessDocument.countDocuments(match)]);
   res.json({ success: true, data: formatPaginatedResult(items, total, page, limit) });
 }));
 workspaceRoutes.post('/documents', asyncHandler(async (req, res) => {
   const kind = z.enum(operationKinds).parse(req.body.kind);
-  permitted(req, kind.startsWith('YARN') ? ['knitting:write'] : kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);
+  permitted(req, ['YARN_PURCHASE', 'YARN_SUPPLIER_BILL'].includes(kind) ? ['knitting:write', 'accounts:write'] : kind.startsWith('YARN') ? ['knitting:write'] : kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);
   const result = req.body.saveAsDraft === true ? await saveDraft(req.body) : await submitOperation(operationInput.parse(req.body));
   res.status(201).json({ success: true, data: result });
 }));
 workspaceRoutes.post('/documents/:id/post', asyncHandler(async (req, res) => {
   const document = await BusinessDocument.findById(req.params.id);if (!document) throw new NotFoundError('Draft not found.');
-  permitted(req, document.kind.startsWith('YARN') ? ['knitting:write'] : document.kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : document.kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);res.json({ success: true, data: await postDraft(String(req.params.id)) });
+  permitted(req, ['YARN_PURCHASE', 'YARN_SUPPLIER_BILL'].includes(document.kind) ? ['knitting:write', 'accounts:write'] : document.kind.startsWith('YARN') ? ['knitting:write'] : document.kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : document.kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);res.json({ success: true, data: await postDraft(String(req.params.id)) });
 }));
 workspaceRoutes.post('/documents/:id/reverse', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
-  const original = await BusinessDocument.findById(req.params.id);if (original && ['FABRIC_RECEIPT', 'FABRIC_PURCHASE', 'CREDIT_NOTE'].includes(original.kind)) permitted(req, ['inventory:write']);
+  const original = await BusinessDocument.findById(req.params.id);if (original?.kind.startsWith('YARN')) permitted(req, ['knitting:write']);if (original && ['FABRIC_RECEIPT', 'FABRIC_PURCHASE', 'CREDIT_NOTE'].includes(original.kind)) permitted(req, ['inventory:write']);
   res.json({ success: true, data: await reverseOperation(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) });
 }));
 workspaceRoutes.post('/documents/:id/payments', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
-  res.status(201).json({ success: true, data: await payBill(String(req.params.id), z.object({ amount: z.number().min(0.01).multipleOf(0.01), date: z.string().datetime(), reference: z.string().optional(), refund: z.boolean().optional(), requestId: z.string().uuid() }).parse(req.body)) });
+  res.status(201).json({ success: true, data: await payBill(String(req.params.id), z.object({ amount: z.number().min(0.01).multipleOf(0.01), date: z.string().datetime(), reference: z.string().optional(), existingVoucherId: z.string().regex(/^[a-f0-9]{24}$/i).optional(), paymentMode: paymentModeEnum.optional(), bankName: z.string().max(150).optional(), chequeNo: z.string().max(100).optional(), chequeDate: z.string().datetime().optional(), transactionRef: z.string().max(150).optional(), refund: z.boolean().optional(), requestId: z.string().uuid() }).parse(req.body)) });
 }));
-workspaceRoutes.get('/documents/:id/payments', requirePermission('accounts:read'), asyncHandler(async (req, res) => { res.json({ success: true, data: await BillPayment.find({ billId: req.params.id }).sort({ date: -1 }) }); }));
+workspaceRoutes.get('/documents/:id/available-vouchers', requirePermission('accounts:read'), asyncHandler(async (req, res) => {
+  const bill = await BusinessDocument.findById(req.params.id);if (!bill) throw new NotFoundError('Bill not found.');
+  const linked = await BillPayment.find({ status: 'POSTED' }).select('voucherId');
+  const items = await PaymentVoucher.find({ _id: { $nin: linked.map(item => item.voucherId) }, partyId: bill.partyId, status: { $ne: 'REVERSED' }, voucherType: bill.direction === 'PAYABLE' ? 'PAYMENT' : 'RECEIPT', amount: { $lte: money(bill.total - bill.credited - bill.paid) } }).sort({ date: -1 });res.json({ success: true, data: items });
+}));
+workspaceRoutes.get('/documents/:id/payments', requirePermission('accounts:read'), asyncHandler(async (req, res) => { res.json({ success: true, data: await BillPayment.find({ billId: req.params.id }).populate('voucherId').sort({ date: -1 }) }); }));
 workspaceRoutes.post('/payments/:id/reverse', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
   const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body);
   const result = await postCommand('REVERSE_BILL_PAYMENT', { ...input, paymentId: req.params.id }, async session => {
@@ -134,20 +145,22 @@ workspaceRoutes.post('/payments/:id/reverse', requirePermission('accounts:write'
     const bill = await BusinessDocument.findById(payment.billId).session(session);if (!bill || !bill.partyId) throw new NotFoundError('Bill not found.');
     if (bill.intercompanyId) throw new BadRequestError('Reverse a linked settlement from the inter-company transaction.');
     if (money(bill.paid - payment.amount) < 0) throw new BadRequestError('Reverse the refund before reversing the original payment.');
-    await postPartyAmount(bill.partyId, bill.direction === 'PAYABLE' ? -payment.amount : payment.amount, payment._id, bill.number, new Date(), `Payment reversed: ${input.reason}`, session);
-    await PaymentVoucher.updateOne({ _id: payment.voucherId }, { $set: { status: 'REVERSED' } }, { session });
+    if (!payment.allocationOnly) {
+      await postPartyAmount(bill.partyId, bill.direction === 'PAYABLE' ? -payment.amount : payment.amount, payment._id, bill.number, new Date(), `Payment reversed: ${input.reason}`, session, 'ADJUSTMENT');
+      await PaymentVoucher.updateOne({ _id: payment.voucherId }, { $set: { status: 'REVERSED' } }, { session });
+    }
     bill.paid = money(bill.paid - payment.amount);await bill.save({ session });payment.status = 'REVERSED';await payment.save({ session });return payment.toObject();
   });res.json({ success: true, data: result });
 }));
 workspaceRoutes.get('/sources', requirePermission('accounts:read'), asyncHandler(async (req, res) => {
   const kind = String(req.query.kind);const { page, limit, skip } = parsePagination(req.query, 20);
   if (kind === 'CUSTOMER_BILL') {
-    const match = { status: 'POSTED' };const [rows, total] = await Promise.all([Dispatch.find(match).populate('customerId', 'name').sort({ date: -1 }).skip(skip).limit(limit), Dispatch.countDocuments(match)]);
+    const match = { status: 'POSTED', purpose: { $ne: 'CLIENT_RETURN' } };const [rows, total] = await Promise.all([Dispatch.find(match).populate('customerId', 'name').sort({ date: -1 }).skip(skip).limit(limit), Dispatch.countDocuments(match)]);
     const items = rows.map(row => ({ _id: row._id, label: row.dispatchNo + ' · ' + row.ogpNo, partyId: (row.customerId as unknown as { _id: Types.ObjectId })._id, items: [{ fabricType: row.fabricType, yarnSpec: row.yarnSpec, state: row.state, color: row.color, weightKg: row.totalNetWeightKg, rolls: row.totalRolls, sourceLineId: String(row._id), rate: 0, basis: 'KG' }] }));
     res.json({ success: true, data: formatPaginatedResult(await billableSources(items, 'RECEIVABLE'), total, page, limit) });return;
   }
-  const sources = kind === 'KNITTING_CHARGE' ? await KnittingReceipt.find({ status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit) : kind === 'DYEING_CHARGE' ? await DyeingReceipt.find({ status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit) : await BusinessDocument.find({ kind: 'FABRIC_RECEIPT', status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit);
-  const total = kind === 'KNITTING_CHARGE' ? await KnittingReceipt.countDocuments({ status: 'POSTED' }) : kind === 'DYEING_CHARGE' ? await DyeingReceipt.countDocuments({ status: 'POSTED' }) : await BusinessDocument.countDocuments({ kind: 'FABRIC_RECEIPT', status: 'POSTED' });
+  const sources = kind === 'KNITTING_CHARGE' ? await KnittingReceipt.find({ status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit) : kind === 'DYEING_CHARGE' ? await DyeingReceipt.find({ status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit) : await BusinessDocument.find({ kind: kind === 'YARN_SUPPLIER_BILL' ? 'YARN_RECEIPT' : 'FABRIC_RECEIPT', status: 'POSTED' }).populate('partyId', 'name').sort({ date: -1 }).skip(skip).limit(limit);
+  const total = kind === 'KNITTING_CHARGE' ? await KnittingReceipt.countDocuments({ status: 'POSTED' }) : kind === 'DYEING_CHARGE' ? await DyeingReceipt.countDocuments({ status: 'POSTED' }) : await BusinessDocument.countDocuments({ kind: kind === 'YARN_SUPPLIER_BILL' ? 'YARN_RECEIPT' : 'FABRIC_RECEIPT', status: 'POSTED' });
   const items = sources.map(source => {
     const value = source.toObject() as Record<string, unknown>;
     const party = (value.partyId || value.millPartyId) as { _id?: unknown; name?: string } | undefined;
@@ -161,10 +174,10 @@ workspaceRoutes.get('/documents/:id', requirePermission('accounts:read'), asyncH
 }));
 workspaceRoutes.get('/documents/:id/export', requirePermission('accounts:read'), asyncHandler(async (req, res) => {
   const document = await BusinessDocument.findById(req.params.id).populate('partyId', 'name');if (!document) throw new NotFoundError('Document not found.');
-  await sendTable(res, String(req.query.format || 'xlsx'), document.number, ['Date', 'Party', 'Paper reference', 'PO', 'External reference', 'Status', 'Fabric', 'Yarn', 'Shade', 'Description', 'Quantity', 'Kg', 'Rate', 'Basis', 'Subtotal', 'Tax', 'Total', 'Paid', 'Outstanding'], document.items.map(item => [document.date, (document.partyId as unknown as { name?: string })?.name, document.reference, document.get('poNo'), document.get('externalReference'), document.status, item.fabricType, item.yarnSpec, item.color, item.description, item.rolls, item.weightKg, item.rate, item.basis, document.baseAmount, document.taxAmount, document.total, document.paid, money(document.total - document.credited - document.paid)]));
+  await sendTable(res, String(req.query.format || 'xlsx'), document.number, ['Date', 'Party', 'Paper reference', 'PO', 'External reference', 'Status', 'Fabric', 'Yarn', 'Shade', 'Description', 'Quantity', 'Kg', 'Rate', 'Basis', 'Subtotal', 'Tax', 'Total', 'Paid', 'Outstanding', 'Additional charges'], document.items.map((item, index) => [document.date, (document.partyId as unknown as { name?: string })?.name, document.reference, document.get('poNo'), document.get('externalReference'), document.status, item.fabricType, item.yarnSpec, item.color, item.description, item.rolls, item.weightKg, item.rate, item.basis, index === 0 ? document.baseAmount : null, index === 0 ? document.taxAmount : null, index === 0 ? document.total : null, index === 0 ? document.settlementStatus === 'NOT_RECORDED' ? 'Not recorded' : document.paid : null, index === 0 ? document.settlementStatus === 'NOT_RECORDED' ? 'Not recorded' : money(document.total - document.credited - document.paid) : null, index === 0 ? document.additionalCharges.map(charge => charge.description + ': ' + charge.amount + (charge.taxable ? ' (taxable)' : '')).join('; ') : null]));
 }));
 workspaceRoutes.patch('/documents/:id/draft', asyncHandler(async (req, res) => {
-  const kind = z.enum(operationKinds).parse(req.body.kind);permitted(req, kind.startsWith('YARN') ? ['knitting:write'] : kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);const document = await BusinessDocument.findOneAndUpdate({ _id: req.params.id, kind, status: 'DRAFT' }, { $set: { draft: req.body, reference: String(req.body.reference || ''), partyId: Types.ObjectId.isValid(String(req.body.partyId)) ? req.body.partyId : undefined, date: Number.isFinite(new Date(req.body.date).valueOf()) ? new Date(req.body.date) : new Date() } }, { new: true });if (!document) throw new NotFoundError('Editable draft not found.');res.json({ success: true, data: document });
+  const kind = z.enum(operationKinds).parse(req.body.kind);permitted(req, ['YARN_PURCHASE', 'YARN_SUPPLIER_BILL'].includes(kind) ? ['knitting:write', 'accounts:write'] : kind.startsWith('YARN') ? ['knitting:write'] : kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);const document = await BusinessDocument.findOneAndUpdate({ _id: req.params.id, kind, status: 'DRAFT' }, { $set: { draft: req.body, reference: String(req.body.reference || ''), partyId: Types.ObjectId.isValid(String(req.body.partyId)) ? req.body.partyId : undefined, date: Number.isFinite(new Date(req.body.date).valueOf()) ? new Date(req.body.date) : new Date() } }, { new: true });if (!document) throw new NotFoundError('Editable draft not found.');res.json({ success: true, data: document });
 }));
 workspaceRoutes.get('/yarn-issues', requirePermission('knitting:read'), asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, 20);const match = { transactionType: 'OUTWARD_TO_KNITTER', remainingYarnBalanceKg: { $gt: 0 } };

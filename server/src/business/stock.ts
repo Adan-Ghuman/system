@@ -29,5 +29,5 @@ export async function moveFabric(item: Pick<OperationItem, 'fabricType' | 'yarnS
     const changed = await FabricInventory.findOneAndUpdate(match, { $setOnInsert: match, $inc: { totalRolls: item.rolls, totalWeightKg: weight(item.weightKg) } }, { upsert: !item.inventoryId, new: true, session });
     if (!changed) throw new BadRequestError('The original stock item changed. Refresh stock before reversing this issue.');
   }
-  await StockMovement.create([{ sourceId, material: 'FABRIC', item: `${item.fabricType} / ${item.yarnSpec} / ${item.color}`, quantity: sign * item.rolls, weightKg: sign * weight(item.weightKg), location, date, reason, actorId: businessContext.getStore()!.actorId }], { session });
+  await StockMovement.create([{ sourceId, material: 'FABRIC', item: `${item.fabricType} / ${item.yarnSpec} / ${item.color}`, quantity: sign * item.rolls, weightKg: sign * weight(item.weightKg), ownerKey: item.ownerKey || 'OWN', location, date, reason, actorId: businessContext.getStore()!.actorId }], { session });
 }

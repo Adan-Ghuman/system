@@ -1,5 +1,5 @@
 export type VoucherType = 'RECEIPT' | 'PAYMENT' | 'JOURNAL';
-export type PaymentMode = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE';
+export type PaymentMode = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE' | 'UNSPECIFIED';
 export type LedgerEntryType = 'DEBIT' | 'CREDIT';
 export type LedgerReferenceType = 'INVOICE' | 'PAYMENT' | 'OPENING_BALANCE' | 'ADJUSTMENT';
 

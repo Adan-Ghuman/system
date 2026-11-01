@@ -90,6 +90,7 @@ export function ReceiveKnittedModal({
   const [references, setReferences] = useDocumentReferences();
   const [ownerKey, setOwnerKey] = useState(preselectedBalance?.ownerKey || 'OWN');
   const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties') });
+  const [productionType, setProductionType] = useState<'IN_HOUSE' | 'OUTSOURCED'>('OUTSOURCED');
   const [partyId, setPartyId] = useState(preselectedBalance?.partyId || '');
   const [partyName, setPartyName] = useState(preselectedBalance?.partyName || '');
   const [gatePassNo, setGatePassNo] = useState('');
@@ -114,7 +115,7 @@ export function ReceiveKnittedModal({
     enabled: isOpen
   });
 
-  const knitters = partiesData?.items || [];
+  const knitters = productionType === 'IN_HOUSE' ? owners.data?.items || [] : partiesData?.items || [];
 
   // Fetch active yarn specifications
   const { data: specsData } = useQuery<YarnSpecsResponseData>({
@@ -234,7 +235,7 @@ export function ReceiveKnittedModal({
     setIsLoading(true);
 
     try {
-      const payload: ReceiveFabricPayload = { ownerKey,
+      const payload: ReceiveFabricPayload = { ownerKey, productionType,
         ...references,
         partyId: partyId || partyName,
         partyName: partyName || undefined,
@@ -278,7 +279,7 @@ export function ReceiveKnittedModal({
         <fieldset disabled={isLoading || Boolean(success)} className="space-y-6">
           <FormFeedback error={error} success={success} />
           <FormSection step={1} title="Who delivered the fabric?">
-            <PartyCombobox id="knitted-party" label="Knitter" value={partyId} parties={knitters} required
+            <Select label="Production" value={productionType} onChange={event => { setProductionType(event.target.value as typeof productionType);setPartyId('');setPartyName(''); }} options={[{ value: "OUTSOURCED", label: "Outsourced / job work" }, { value: "IN_HOUSE", label: "In-house machines" }]} /><PartyCombobox id="knitted-party" label={productionType === "IN_HOUSE" ? "Own production unit · same as yarn issue" : "Knitter"} value={partyId} parties={knitters} required
               placeholder="Choose or type the knitter name"
               onChange={(value, selected) => { setPartyId(value); setPartyName(selected?.name || value); }} />
             {preselectedBalance && <p className="rounded-lg border border-line bg-brand-soft p-3 text-xs text-ink">

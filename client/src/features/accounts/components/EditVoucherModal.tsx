@@ -24,7 +24,8 @@ const PAYMENT_MODES: { label: string; value: PaymentMode }[] = [
   { label: 'Cash in Hand', value: 'CASH' },
   { label: 'Bank Transfer (Online)', value: 'BANK_TRANSFER' },
   { label: 'Bank Cheque / Pay Order', value: 'CHEQUE' },
-  { label: 'Digital Wallet / Other Online', value: 'ONLINE' }
+  { label: 'Digital Wallet / Other Online', value: 'ONLINE' },
+  { label: 'Not recorded', value: 'UNSPECIFIED' }
 ];
 
 export function EditVoucherModal({

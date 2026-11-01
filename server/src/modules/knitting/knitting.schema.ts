@@ -3,6 +3,7 @@ import { documentReferenceFields } from '../../business/references.js';
 import { z } from 'zod';
 
 export const createYarnTransactionSchema = z.object({
+  productionType: z.enum(['IN_HOUSE', 'OUTSOURCED']).optional(),
   ownership: z.enum(['OWN', 'CLIENT']).default('OWN'),
   ownerPartyId: z.string().optional(),
   ...documentReferenceFields,
@@ -30,6 +31,7 @@ export const receiveFabricItemSchema = z.object({
 });
 
 export const receiveFabricSchema = z.object({
+  productionType: z.enum(['IN_HOUSE', 'OUTSOURCED']).optional(),
   ownerKey: z.string().default("OWN").transform(canonicalOwnerKey),
   ...documentReferenceFields,
   partyId: z.string().min(1, 'Party is required'),
@@ -108,6 +110,7 @@ export const yarnLineItemSchema = z.object({
 });
 
 export const createBulkYarnTransactionSchema = z.object({
+  productionType: z.enum(['IN_HOUSE', 'OUTSOURCED']).optional(),
   ownership: z.enum(['OWN', 'CLIENT']).default('OWN'),
   ownerPartyId: z.string().optional(),
   ...documentReferenceFields,

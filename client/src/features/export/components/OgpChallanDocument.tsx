@@ -31,7 +31,7 @@ export function OgpChallanDocument({ dispatch }: OgpChallanDocumentProps) {
         </div>
       </div>
 
-      <p className="mb-3 text-xs">{dispatch.status === "REVERSED" ? "REVERSED · " : ""}PO: {dispatch.poNo || "—"} · External reference: {dispatch.externalReference || "—"}</p><div className="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
+      <p className="mb-3 text-xs">{dispatch.status === "REVERSED" ? "REVERSED · " : ""}{dispatch.purpose === 'CLIENT_RETURN' ? 'CLIENT-OWNED FABRIC RETURN · ' : ''}PO: {dispatch.poNo || "—"} · External reference: {dispatch.externalReference || "—"}</p><div className="grid grid-cols-2 gap-4 text-xs mb-4 p-3 bg-zinc-50 border border-zinc-300 rounded-sm">
         <div>
           <div className="text-[10px] uppercase font-bold text-zinc-500">Delivered To (Customer)</div>
           <div className="font-bold text-sm text-slate-900 mt-0.5">{dispatch.customerId?.name}</div>

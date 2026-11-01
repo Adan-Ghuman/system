@@ -67,7 +67,8 @@ export function IssueYarnModal({
   const [references, setReferences] = useDocumentReferences();
   const [transactionType, setTransactionType] = useState<YarnTransactionType>(initialType);
   const [partyId, setPartyId] = useState('');
-  const [ownership, setOwnership] = useState<'OWN' | 'CLIENT'>('OWN');
+  const [ownership, setOwnership] = useState<'OWN' | 'CLIENT'>(initialType === 'INWARD_FROM_CLIENT' ? 'CLIENT' : 'OWN');
+  const [productionType, setProductionType] = useState<'IN_HOUSE' | 'OUTSOURCED'>('OUTSOURCED');
   const [ownerPartyId, setOwnerPartyId] = useState('');
   const { data: owners } = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<PartyItem>('/parties'), enabled: isOpen });
   const [gatePassNo, setGatePassNo] = useState('');
@@ -115,7 +116,7 @@ export function IssueYarnModal({
     enabled: isOpen
   });
 
-  const parties = partiesData?.items || [];
+  const parties = transactionType === 'OUTWARD_TO_KNITTER' && productionType === 'IN_HOUSE' ? owners?.items || [] : partiesData?.items || [];
 
 
   // Row Manipulation Handlers
@@ -227,6 +228,7 @@ export function IssueYarnModal({
       const payload: BulkCreateYarnTransactionPayload = {
         ...references,
         transactionType,
+        productionType: transactionType === 'OUTWARD_TO_KNITTER' ? productionType : undefined,
         ownership,
         ownerPartyId: ownership === 'CLIENT' ? ownerPartyId : undefined,
         partyId,
@@ -291,7 +293,7 @@ export function IssueYarnModal({
         <fieldset disabled={isLoading || Boolean(success)} className="space-y-6">
           <FormFeedback error={error} success={success} />
           <FormSection step={1} title={isReceive ? 'Who sent the yarn?' : 'Where is the yarn going?'}>
-            <PartyCombobox id="yarn-party" label={isReceive ? 'Supplier or client' : 'Knitter'} value={partyId} parties={parties}
+            {!isReceive && <Select label="Production" value={productionType} onChange={event => { setProductionType(event.target.value as typeof productionType);setPartyId(''); }} options={[{ value: "OUTSOURCED", label: "Outside knitter / job work" }, { value: "IN_HOUSE", label: "Own production unit" }]} />}<PartyCombobox id="yarn-party" label={isReceive ? 'Supplier or client' : productionType === 'IN_HOUSE' ? 'Own production unit' : 'Knitter'} value={partyId} parties={parties}
               placeholder={isReceive ? 'Choose or type the supplier name' : 'Choose or type the knitter name'}
               onChange={setPartyId} required />
             <div className="grid gap-4 sm:grid-cols-2">

@@ -1,3 +1,4 @@
+import { dyeingReportRoutes } from '../../business/dyeing-report.js';
 import { Router } from 'express';
 import { authenticate, requirePermission } from '../../middleware/auth.middleware.js';
 import { validateBody, validateQuery } from '../../middleware/validate.middleware.js';
@@ -31,6 +32,7 @@ import {
 const router = Router();
 
 router.use(authenticate);
+router.use(dyeingReportRoutes);
 
 router.get('/batches', requirePermission('dyeing:read'), validateQuery(queryBatchesSchema), asyncHandler(handleListBatches));
 router.get('/batches/next-no', requirePermission('dyeing:read'), asyncHandler(handleGetNextBatchNo));

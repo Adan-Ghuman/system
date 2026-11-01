@@ -20,11 +20,12 @@ const navigation = [
   { to: '/dyeing', label: 'Dyeing', icon: Palette, group: 'Operations' },
   { to: '/inventory', label: 'Fabric stock', icon: Boxes, group: 'Operations' },
   { to: '/units', label: 'Units & godowns', icon: Boxes, group: 'Operations' },
-  { to: '/dispatch', label: 'Deliveries & invoices', icon: Truck, group: 'Operations' },
+  { to: '/sales', label: 'Sales & billing', icon: Truck, group: 'Operations' },
+  { to: '/dispatch', label: 'Delivery register', icon: Truck, group: 'Operations' },
   { to: '/buying', label: 'Buy fabric', icon: Boxes, group: 'Operations' },
   { to: '/catalog', label: 'Color program & names', icon: Palette, group: 'Operations' },
   { to: '/production', label: 'Production report', icon: Layers, group: 'Operations' },
-  { to: '/bills', label: 'Bills & charges', icon: Wallet, group: 'Finance & parties' },
+  { to: '/bills', label: 'Supplier bills & charges', icon: Wallet, group: 'Finance & parties' },
   { to: '/parties', label: 'Parties', icon: Users, group: 'Finance & parties' },
   { to: '/accounts', label: 'Accounts & ledgers', icon: Wallet, group: 'Finance & parties' },
   { to: '/users', label: 'Staff & access', icon: Shield, group: 'Administration' }
@@ -37,7 +38,7 @@ export function AppLayout() {
   const { user, clearAuth } = useAuthStore();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
-  const access: Record<string, string[]> = { '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/units': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
+  const access: Record<string, string[]> = { '/sales': ['accounts:read'], '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/units': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
   const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (access[item.to] || []).every(permission => user?.permissions.includes(permission))));
   const path = location.pathname.replace(/^\/b\/[^/]+/, '') || '/';
   const link = (value: string) => value;
@@ -83,7 +84,7 @@ export function AppLayout() {
         </NavLink>
         <div className="flex-1 overflow-y-auto px-4 py-2">{renderNavigation()}</div>
         <div className="space-y-3 border-t border-line p-4">
-          <NavLink to={link("/dispatch")} className="flex items-center justify-between rounded-lg bg-subtle p-3 text-xs font-medium text-ink">Create a delivery<ArrowUpRight className="h-4 w-4" /></NavLink>
+          <NavLink to={link("/sales")} className="flex items-center justify-between rounded-lg bg-subtle p-3 text-xs font-medium text-ink">New sale / charge<ArrowUpRight className="h-4 w-4" /></NavLink>
           <div className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span>
             <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-strong">{user?.fullName}</p><p className="mt-0.5 truncate text-xs capitalize text-soft">{user?.role}</p></div>

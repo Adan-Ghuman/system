@@ -4,6 +4,9 @@ import { requirePermission } from '../middleware/auth.middleware.js';
 import { BusinessDocument, BillPayment } from './commerce.models.js';
 import { KnittingReceipt, DyeingReceipt } from './records.js';
 import { DyeingBatch } from '../models/DyeingBatch.js';
+import { ForbiddenError } from '../utils/errors.js';
+import { YarnTransaction } from '../models/YarnTransaction.js';
+import { businessContext } from './context.js';
 import { NotFoundError } from '../utils/errors.js';
 
 export const sourceRoutes = Router();
@@ -20,4 +23,12 @@ sourceRoutes.get('/production/:kind/:id', (req, res, next) => requirePermission(
   const rows = value.items as Array<Record<string, unknown>> | undefined;
   const items = rows ? rows.map(item => ({ ...item, rolls: item.rolls || item.rollsCount, color: item.color || 'ECRU', rate: 0, basis: 'KG', description: `Actual wastage: ${Number(item.wastageKg || 0).toFixed(3)} kg` })) : [{ fabricType: value.fabricType, yarnSpec: value.yarnSpec, color: value.targetColor, rolls: value.ecruRollsCount, weightKg: value.ecruWeightKg, rate: 0, basis: 'KG' }];
   res.json({ success: true, data: { ...value, number: value.receiptNo || value.number || value.batchNo, kind, reference: value.gatePassNo || value.ogpNo, partyId: value.partyId || value.millPartyId, date: value.date || value.dateIssued, direction: 'PAYABLE', total: 0, paid: 0, taxPercent: 0, taxAmount: 0, baseAmount: 0, items } });
+}));
+
+sourceRoutes.get('/yarn/:id', requirePermission('knitting:read'), asyncHandler(async (req, res) => {
+  const document = await BusinessDocument.findById(req.params.id).populate('partyId', 'name code');
+  if (document) { if (document.total && req.user?.role !== 'admin' && !req.user?.permissions.includes('accounts:read')) throw new ForbiddenError('Accounts access is required to open purchase bills.');res.json({ success: true, data: document });return; }
+  const source = await YarnTransaction.findById(req.params.id).populate('partyId', 'name code');
+  if (!source) throw new NotFoundError('Yarn source not found.');
+  res.json({ success: true, data: { ...source.toObject(), businessName: businessContext.getStore()?.name, number: source.gatePassNo, reference: source.gatePassNo, kind: source.transactionType, direction: 'PAYABLE', total: 0, paid: 0, baseAmount: 0, taxPercent: 0, taxAmount: 0, items: [{ yarnSpec: source.yarnSpec, fabricType: '', color: 'ECRU', rolls: source.boxCount, weightKg: source.grossWeightKg, rate: 0, basis: 'KG', description: source.packageUnit }] } });
 }));

@@ -45,7 +45,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
     const gross = parseFloat(val) || 0;
     const updated = [...rolls];
     const tare = updated[index].tareKg || 0;
-    const net = Math.max(0, Math.round((gross - tare) * 100) / 100);
+    const net = Math.max(0, Math.round((gross - tare) * 1000) / 1000);
     updated[index] = {
       ...updated[index],
       grossWeightKg: gross,
@@ -58,7 +58,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
     const tare = parseFloat(val) || 0;
     const updated = [...rolls];
     const gross = updated[index].grossWeightKg || 0;
-    const net = Math.max(0, Math.round((gross - tare) * 100) / 100);
+    const net = Math.max(0, Math.round((gross - tare) * 1000) / 1000);
     updated[index] = {
       ...updated[index],
       tareKg: tare,
@@ -125,7 +125,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
                       aria-label={"Gross weight for roll " + roll.rollNumber}
                       ref={isLast ? lastInputRef : null}
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       min="0.01"
                       value={roll.grossWeightKg || ''}
                       onChange={(e) => handleWeightChange(idx, e.target.value)}
@@ -136,7 +136,7 @@ export function RapidGridEntry({ rolls, onChange }: RapidGridEntryProps) {
                   <td className="py-1.5 px-3">
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.001"
                       min="0"
                       aria-label={"Tare weight for roll " + roll.rollNumber}
                       value={roll.tareKg || ''}

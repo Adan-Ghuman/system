@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useLocations } from '../../../business/useLocations.js';
 import { locationLabel } from '../../../business/locations.js';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
@@ -27,7 +28,7 @@ import { formatCurrency, formatWeight, formatDateTime } from '../../../lib/forma
 import { Truck, RefreshCw, Plus, Receipt, FileCheck, Search, Inbox, Printer, FileText, ArrowUpDown, Filter } from 'lucide-react';
 
 export function DispatchPage() {
-  const locations = useLocations();
+  const navigate = useNavigate();const locations = useLocations();
   const queryClient = useQueryClient();const [exportError, setExportError] = useState<string | null>(null);
   const businessId = useBusinessStore(state => state.id);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,7 +97,7 @@ export function DispatchPage() {
 
   return (
     <div className="space-y-6">
-      {exportError && <p role="alert" className="text-sm text-danger">{exportError}</p>}<PageHeader title="Deliveries & invoices" description="Create a delivery, record its rolls, and print the gate pass or invoice."><div className="flex max-w-full flex-wrap items-center gap-2">
+      {exportError && <p role="alert" className="text-sm text-danger">{exportError}</p>}<PageHeader title="Deliveries & invoices" description="Review deliveries and print gate passes. Create customer sales in Sales & billing, or return client-owned fabric here."><div className="flex max-w-full flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -112,9 +113,10 @@ export function DispatchPage() {
             <span>Refresh</span>
           </Button>
 
-          <Button size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 whitespace-nowrap shrink-0">
+          <Button size="sm" onClick={() => navigate('/sales?new=1')}>New sale / charge</Button>
+          <Button variant="outline" size="sm" onClick={() => setIsCreateOpen(true)} className="gap-1.5 whitespace-nowrap shrink-0">
             <Plus className="w-4 h-4" />
-            <span>New Delivery (Gate Pass & Bill)</span>
+            <span>Client return / legacy delivery</span>
           </Button>
         </div></PageHeader>
       {(hasQueryError1) && <QueryError onRetry={() => { refetch(); }} />}
@@ -255,7 +257,7 @@ export function DispatchPage() {
                 <tr>
                   <td colSpan={12} className="py-12 text-center text-soft">
                     <Inbox className="w-8 h-8 mx-auto mb-2 text-soft" />
-                    No dispatches recorded yet. Click &quot;New Dispatch (OGP)&quot; to create your first delivery.
+                    No deliveries recorded yet. Use New sale / charge to create a customer transaction.
                   </td>
                 </tr>
               ) : (
@@ -332,6 +334,7 @@ export function DispatchPage() {
 
                     <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 transition-colors z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1.5">
+                        {d.status !== 'REVERSED' && d.purpose !== 'CLIENT_RETURN' && !d.invoice && <Button size="sm" variant="outline" onClick={() => navigate('/sales?new=1&mode=EXISTING_DELIVERY&sourceId=' + d._id + '&customerId=' + d.customerId._id)}>Bill this delivery</Button>}
                         {businessId && d.status !== 'REVERSED' && <Button size="sm" variant="ghost" onClick={async () => { const reason = await requestReason('Why is this delivery being reversed? Its stock and unpaid bills will be reversed together.');if (!reason?.trim()) return;try { await api.post('/dispatch/' + d._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse the delivery.'); } }}>Reverse delivery</Button>}
 <Button
                           variant="outline"

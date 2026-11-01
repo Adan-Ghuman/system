@@ -1,3 +1,4 @@
+import { VoucherPreview } from '../../../business/VoucherPreview.js';
 import { PartyLink } from '../../../business/PartyLink.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
 import { QueryError } from '../../../components/ui/QueryError.js';
@@ -41,6 +42,7 @@ export function AccountsPage() {
   const [voucherSortOrder, setVoucherSortOrder] = useState<'desc' | 'asc'>('desc');
 
   const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+  const [printingVoucher, setPrintingVoucher] = useState<PaymentVoucherItem | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<PaymentVoucherItem | null>(null);
   const [selectedPartyForLedger, setSelectedPartyForLedger] = useState<string | null>(null);
   const [preselectedPartyForVoucher, setPreselectedPartyForVoucher] = useState<string | undefined>(undefined);
@@ -460,6 +462,7 @@ export function AccountsPage() {
                   <option value="CASH" className="bg-surface text-strong">Cash in Hand</option>
                   <option value="BANK_TRANSFER" className="bg-surface text-strong">Bank Transfer</option>
                   <option value="CHEQUE" className="bg-surface text-strong">Bank Cheque</option>
+                  <option value="UNSPECIFIED" className="bg-surface text-strong">Not recorded</option>
                 </select>
               </div>
 
@@ -577,6 +580,7 @@ export function AccountsPage() {
                       </td>
 
                       <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 z-10 border-l border-line shadow-sm">
+                        <Button size="sm" variant="outline" onClick={() => setPrintingVoucher(v)}>Print</Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -604,6 +608,7 @@ export function AccountsPage() {
         </Card>
       )}
 
+      {printingVoucher && <VoucherPreview voucher={printingVoucher} onClose={() => setPrintingVoucher(null)} />}
       {isVoucherOpen && <CreateVoucherModal
         isOpen={isVoucherOpen}
         preselectedPartyId={preselectedPartyForVoucher}

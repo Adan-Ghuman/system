@@ -34,6 +34,7 @@ export interface CreateDispatchModalProps {
 
 export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: CreateDispatchModalProps) {
   const saved = draft?.draft as Partial<CreateDispatchPayload & { inventoryId: string; poNo: string; externalReference: string; requestId: string }> | undefined;
+  const [purpose, setPurpose] = useState<'SALE' | 'CLIENT_RETURN'>(saved?.purpose || 'SALE');
   const [billNow, setBillNow] = useState(saved?.billNow ?? true);const [condition, setCondition] = useState<'RAW_ECRU' | 'FINISHED_DYED'>(saved?.state || 'FINISHED_DYED');
   const locations = useLocations();
   const [freshReferences] = useDocumentReferences();const [references, setReferences] = useState({ ...freshReferences, poNo: saved?.poNo || '', externalReference: saved?.externalReference || '', requestId: saved?.requestId || freshReferences.requestId });
@@ -56,9 +57,9 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
   const [success, setSuccess] = useState<string | null>(null);
 
   const { data: buyersData } = useQuery<{ items: PartyItem[] }>({
-    queryKey: ['party-options', 'isFabricBuyer'],
+    queryKey: ['party-options', purpose === 'CLIENT_RETURN' ? 'all' : 'isFabricBuyer'],
     queryFn: async () => {
-      return loadAllRecords<PartyItem>('/parties', { tag: 'isFabricBuyer' });
+      return loadAllRecords<PartyItem>('/parties', purpose === 'CLIENT_RETURN' ? {} : { tag: 'isFabricBuyer' });
     },
     enabled: isOpen
   });
@@ -73,7 +74,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
     enabled: isOpen
   });
 
-  const availableStock = (stockData?.items || []).filter(item => !(item as FabricInventoryItem & { ownerKey?: string }).ownerKey || (item as FabricInventoryItem & { ownerKey?: string }).ownerKey === 'OWN');
+  const availableStock = (stockData?.items || []).filter(item => (item.ownerKey || 'OWN') === (purpose === 'CLIENT_RETURN' ? customerId : 'OWN'));
 
   const activeStock = availableStock.find((s) => s._id === selectedStockId);
 
@@ -110,7 +111,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
     try {
       const payload: CreateDispatchPayload = {
         ...references, draftId: draft?._id,
-        billNow, state: condition, customerId,
+        purpose, billNow: purpose === 'CLIENT_RETURN' ? false : billNow, state: condition, customerId,
         fromLocation,
         fabricType: activeStock.fabricType,
         yarnSpec: activeStock.yarnSpec,
@@ -126,7 +127,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
 
       await api.post('/dispatch', payload);
 
-      setSuccess(billNow ? 'Delivery and customer bill saved.' : 'Delivery saved. You can bill it later under Bills & charges.');
+      setSuccess(purpose === 'CLIENT_RETURN' ? 'Client-owned fabric returned. No sale was created.' : billNow ? 'Delivery and customer bill saved.' : 'Delivery saved. You can bill it later under Bills & charges.');
       onSuccess();
 
       setTimeout(() => {
@@ -142,7 +143,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
     }
   }
 
-  async function saveDraft() { setIsLoading(true);setError(null);try { const body = { ...references, customerId, fromLocation, inventoryId: selectedStockId, fabricType: activeStock?.fabricType, yarnSpec: activeStock?.yarnSpec, color: activeStock?.color, rolls, ratePerKg: Number(ratePerKg), invoiceType, billNow, state: condition, driverName, vehicleNo, date: new Date(date).toISOString(), remarks };if (draft) await api.patch('/dispatch/drafts/' + draft._id, body);else await api.post('/dispatch/drafts', body);onSuccess();onClose(); } catch { setError('Could not save the draft. Your entries are still here.'); } finally { setIsLoading(false); } }
+  async function saveDraft() { setIsLoading(true);setError(null);try { const body = { ...references, purpose, customerId, fromLocation, inventoryId: selectedStockId, fabricType: activeStock?.fabricType, yarnSpec: activeStock?.yarnSpec, color: activeStock?.color, rolls, ratePerKg: Number(ratePerKg), invoiceType, billNow, state: condition, driverName, vehicleNo, date: new Date(date).toISOString(), remarks };if (draft) await api.patch('/dispatch/drafts/' + draft._id, body);else await api.post('/dispatch/drafts', body);onSuccess();onClose(); } catch { setError('Could not save the draft. Your entries are still here.'); } finally { setIsLoading(false); } }
   return (
     <Dialog footer={<div className="flex flex-wrap items-center justify-end gap-2">
           <Button variant="ghost" disabled={isLoading} onClick={saveDraft}>Save draft</Button><Button type="button" variant="outline" onClick={onClose}>
@@ -175,15 +176,15 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
           </div>
         )}
 
-        <FormSection step={1} title="Customer and fabric"><Select label="Fabric condition" value={condition} onChange={event => { setCondition(event.target.value as typeof condition);setSelectedStockId(""); }} options={[{ value: "FINISHED_DYED", label: "Finished / dyed" }, { value: "RAW_ECRU", label: "Raw / undyed" }]} />
+        <FormSection step={1} title="Customer and fabric"><Select label="Delivery purpose" value={purpose} onChange={event => { const value = event.target.value as typeof purpose;setPurpose(value);setSelectedStockId('');if (value === "CLIENT_RETURN") setBillNow(false); }} options={[{ value: "SALE", label: "Sell owned fabric" }, { value: "CLIENT_RETURN", label: "Return client-owned fabric · no fabric sale" }]} /><Select label="Fabric condition" value={condition} onChange={event => { setCondition(event.target.value as typeof condition);setSelectedStockId(""); }} options={[{ value: "FINISHED_DYED", label: "Finished / dyed" }, { value: "RAW_ECRU", label: "Raw / undyed" }]} />
 <div className="grid gap-3 sm:grid-cols-2">
           <PartySelector
             id="dispatchCustomer"
-            label="Customer (Buyer)"
+            label={purpose === "CLIENT_RETURN" ? "Client / fabric owner" : "Customer (Buyer)"}
             value={customerId}
             parties={buyers}
             placeholder="Search buyer name or code..."
-            onChange={(val) => setCustomerId(val)}
+            onChange={(val) => { setCustomerId(val);setSelectedStockId(''); }}
             className="text-xs"
           />
 
@@ -200,7 +201,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
         </div>
 
         <StockChoice
-          location={fromLocation} state={condition}
+          location={fromLocation} state={condition} ownerKey={purpose === 'CLIENT_RETURN' ? customerId : 'OWN'}
           id="stockSelect"
           label="Select Fabric from Stock"
           value={selectedStockId}
@@ -218,7 +219,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: Creat
 
         <DocumentReferences value={references} onChange={setReferences} />
           <FormSection step={2} title="Rolls and billing">
-<Select label="Posting option" value={billNow ? "BILL" : "DELIVERY"} onChange={event => setBillNow(event.target.value === "BILL")} options={[{ value: "BILL", label: "Deliver & bill together" }, { value: "DELIVERY", label: "Deliver only · bill later" }]} /><RapidGridEntry rolls={rolls} onChange={setRolls} />
+{purpose === "SALE" && <Select label="Posting option" value={billNow ? "BILL" : "DELIVERY"} onChange={event => setBillNow(event.target.value === "BILL")} options={[{ value: "BILL", label: "Deliver & bill together" }, { value: "DELIVERY", label: "Deliver only · bill later" }]} />}{purpose === "CLIENT_RETURN" && <p className="text-xs text-soft">This returns the client’s fabric without a sale. Record knitting charges separately.</p>}<RapidGridEntry rolls={rolls} onChange={setRolls} />
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Input

@@ -12,13 +12,13 @@ async function post(input: CreateVoucherInput, session: ClientSession) {
   if (money(input.amount) < 0.01) throw new BadRequestError('Enter an amount of at least 0.01.');
   const number = await nextDocumentNo(input.voucherType === 'PAYMENT' ? 'PAY' : 'RCPT', session);
   const [voucher] = await PaymentVoucher.create([{ ...input, amount: money(input.amount), voucherNo: number, date: new Date(input.date), chequeDate: input.chequeDate ? new Date(input.chequeDate) : undefined }], { session });
-  await postPartyAmount(input.partyId, input.voucherType === 'RECEIPT' ? -input.amount : input.amount, voucher._id, number, new Date(input.date), `${input.voucherType} via ${input.paymentMode}: ${input.remarks}`, session);return voucher;
+  await postPartyAmount(input.partyId, input.voucherType === 'RECEIPT' ? -input.amount : input.amount, voucher._id, number, new Date(input.date), `${input.voucherType} via ${input.paymentMode}: ${input.remarks}`, session, 'PAYMENT');return voucher;
 }
 async function reverse(id: string, session: ClientSession, reason: string) {
   const voucher = await PaymentVoucher.findOne({ _id: id, status: { $ne: 'REVERSED' } }).session(session);
   if (!voucher) throw new NotFoundError('Posted voucher not found.');
-  if (await BillPayment.exists({ voucherId: id }).session(session)) throw new BadRequestError('Open the bill to reverse this payment and its allocation together.');
-  await postPartyAmount(voucher.partyId, voucher.voucherType === 'RECEIPT' ? voucher.amount : -voucher.amount, voucher._id, voucher.voucherNo, new Date(), reason, session);
+  if (await BillPayment.exists({ voucherId: id, status: 'POSTED' }).session(session)) throw new BadRequestError('Open the bill to reverse this payment and its allocation together.');
+  await postPartyAmount(voucher.partyId, voucher.voucherType === 'RECEIPT' ? voucher.amount : -voucher.amount, voucher._id, voucher.voucherNo, new Date(), reason, session, 'ADJUSTMENT');
   voucher.status = 'REVERSED';voucher.remarks = `${voucher.remarks || ''} | ${reason}`;await voucher.save({ session });return voucher;
 }
 export async function postStandaloneVoucher(input: CreateVoucherInput) { return postCommand('STANDALONE_VOUCHER', input, session => post(input, session)); }

@@ -34,21 +34,22 @@ export function OptionalDetails({ title = 'Optional details', children }: { titl
   );
 }
 
-export function EntryCard({ title, children, onCopy, onRemove, canRemove }: {
+export function EntryCard({ title, children, onCopy, onRemove, canRemove, canCopy = true }: {
   title: string;
   children: ReactNode;
   onCopy: () => void;
   onRemove: () => void;
   canRemove: boolean;
+  canCopy?: boolean;
 }) {
   return (
     <section className="space-y-4 rounded-xl border border-line bg-canvas/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-medium text-strong">{title}</h4>
         <div className="flex items-center gap-1">
-          <Button type="button" variant="ghost" size="sm" onClick={onCopy} aria-label={'Copy details of ' + title}>
+          {canCopy && <Button type="button" variant="ghost" size="sm" onClick={onCopy} aria-label={'Copy details of ' + title}>
             <Copy className="h-3.5 w-3.5" /> Copy details
-          </Button>
+          </Button>}
           <Button type="button" variant="ghost" size="sm" onClick={onRemove} disabled={!canRemove} aria-label={'Remove ' + title}>
             <Trash2 className="h-3.5 w-3.5" /> <span className="sr-only">Remove</span>
           </Button>

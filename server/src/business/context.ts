@@ -8,3 +8,5 @@ export function businessObjectId() { const id = currentBusinessId(); return id ?
 export function usesExistingRecords() { return businessContext.getStore()?.usesExistingRecords === true; }
 export function businessRecordFilter() { const businessId = businessObjectId();return usesExistingRecords() ? { $or: [{ businessId }, { businessId: null }] } : { businessId }; }
 export function partyModelName() { return usesExistingRecords() ? 'RozainPartyAccount' : currentBusinessId() ? 'PartyAccount' : 'Party'; }
+
+export function voucherModelName() { return usesExistingRecords() ? 'RozainPaymentVoucher' : currentBusinessId() ? 'BusinessPaymentVoucher' : 'PaymentVoucher'; }

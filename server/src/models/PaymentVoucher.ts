@@ -3,7 +3,7 @@ import { partyModelName } from '../business/context.js';
 import { Schema, model, Document, Types } from 'mongoose';
 
 export type VoucherType = 'RECEIPT' | 'PAYMENT' | 'JOURNAL';
-export type PaymentMode = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE';
+export type PaymentMode = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'ONLINE' | 'UNSPECIFIED';
 
 export interface IPaymentVoucher extends Document {
   voucherNo: string;
@@ -40,7 +40,7 @@ const paymentVoucherSchema = new Schema<IPaymentVoucher>(
     },
     paymentMode: {
       type: String,
-      enum: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'ONLINE'],
+      enum: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'ONLINE', 'UNSPECIFIED'],
       required: true,
       index: true
     },

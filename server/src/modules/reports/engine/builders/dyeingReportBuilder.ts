@@ -1,3 +1,4 @@
+import { lotQuantities } from '../../../../business/dyeing-report.js';
 import ExcelJS from 'exceljs';
 import { COLORS, FONTS, BORDERS, NUMBER_FORMATS, autoFitColumns, sanitizeSheetName } from '../excelStyles.js';
 
@@ -14,6 +15,10 @@ export interface DyeingBatchReportItem {
   dateReceived?: Date;
   ecruRollsCount: number;
   ecruWeightKg: number;
+  receivedRawKg?: number;
+  receivedRawRolls?: number;
+  gsm?: string;
+  width?: string;
   finishRollsCount?: number;
   finishWeightKg?: number;
   shortageWeightKg?: number;
@@ -59,7 +64,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
   summaryWs.getCell('A2').value = `Period: ${data.dateFrom || 'All Records'} to ${data.dateTo || 'Present'} | Generated: ${new Date().toLocaleDateString()}`;
   summaryWs.getCell('A2').font = FONTS.metaLabel;
 
-  const sumHeaders = ['SR.', 'FABRIC VARIETY & SPEC', 'TOTAL LOTS', 'ECRU WEIGHT (KG)', 'FINISH WEIGHT (KG)', 'NET SHORTAGE (KG)', 'AVG SHORTAGE %'];
+  const sumHeaders = ['SR.', 'FABRIC VARIETY & SPEC', 'TOTAL LOTS', 'ECRU WEIGHT (KG)', 'FINISH WEIGHT (KG)', 'NET SHORTAGE (KG)', 'WEIGHTED SHORTAGE %', 'PROCESSED RAW KG'];
   const sumHeaderRow = summaryWs.addRow(sumHeaders);
   sumHeaderRow.height = 24;
   sumHeaderRow.eachCell((cell) => {
@@ -81,6 +86,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
     ecru: number;
     finish: number;
     shortage: number;
+    processed: number;
   }> = [];
 
   const usedSheetNames = new Set<string>();
@@ -134,7 +140,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       'Shortage (Kg)',
       'Loss %',
       'Party / Customer',
-      'Remarks'
+      'Remarks', 'Processed raw kg', 'Pending raw kg', 'GSM', 'Width / dia', 'Status'
     ];
 
     const hRow = ws.addRow(headers);
@@ -151,20 +157,23 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
     let totalEcru = 0;
     let totalFinish = 0;
     let totalShortage = 0;
+    let totalProcessed = 0;
 
     batches.forEach((b) => {
       rIdx++;
       const ecruWt = b.ecruWeightKg || 0;
       const finWt = b.finishWeightKg || 0;
       const hasReceipt = b.finishWeightKg !== undefined && b.finishWeightKg !== null;
-      const shortWt = hasReceipt ? (b.shortageWeightKg ?? Math.max(0, ecruWt - finWt)) : 0;
+      const quantities = lotQuantities(b);
+      const shortWt = quantities.shortageKg ?? 0;
 
       totalEcru += ecruWt;
       totalFinish += finWt;
       totalShortage += shortWt;
+      totalProcessed += quantities.processedKg || 0;
 
-      const formulaShortage = `IF(ISNUMBER(I${rIdx}),G${rIdx}-I${rIdx},0)`;
-      const formulaPercent = `IF(G${rIdx}>0, (J${rIdx}/G${rIdx})*100, 0)`;
+      const formulaShortage = `IF(ISNUMBER(N${rIdx}),N${rIdx}-I${rIdx},0)`;
+      const formulaPercent = `IF(N${rIdx}>0, (J${rIdx}/N${rIdx})*100, 0)`;
 
       const row = ws.addRow([
         b.dateIssued ? new Date(b.dateIssued) : null,
@@ -177,9 +186,9 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
         b.finishRollsCount || null,
         hasReceipt ? finWt : null,
         { formula: formulaShortage, result: shortWt },
-        { formula: formulaPercent, result: hasReceipt && ecruWt > 0 ? (shortWt / ecruWt) * 100 : 0 },
+        { formula: formulaPercent, result: quantities.shortagePercent || 0 },
         b.customerName || 'Rozain Textile',
-        b.remarks || ''
+        b.remarks || '', quantities.processedKg ?? null, quantities.pendingKg ?? null, b.gsm || '', b.width || '', b.status
       ]);
 
       row.height = 19;
@@ -219,9 +228,11 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       { formula: `SUM(H${dataStartRow}:H${rIdx})` },
       { formula: `SUM(I${dataStartRow}:I${rIdx})`, result: totalFinish },
       { formula: `SUM(J${dataStartRow}:J${rIdx})`, result: totalShortage },
-      { formula: `IF(G${rIdx + 1}>0, (J${rIdx + 1}/G${rIdx + 1})*100, 0)` },
+      { formula: `IF(N${rIdx + 1}>0, (J${rIdx + 1}/N${rIdx + 1})*100, 0)` },
       null,
-      null
+      null,
+      { formula: `SUM(N${dataStartRow}:N${rIdx})` },
+      { formula: `SUM(O${dataStartRow}:O${rIdx})` }
     ]);
 
     totRow.height = 24;
@@ -252,7 +263,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       lots: batches.length,
       ecru: totalEcru,
       finish: totalFinish,
-      shortage: totalShortage
+      shortage: totalShortage, processed: totalProcessed
     });
 
     sumSr++;
@@ -268,7 +279,7 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       s.ecru,
       s.finish,
       s.shortage,
-      s.ecru > 0 ? (s.shortage / s.ecru) * 100 : 0
+      s.processed > 0 ? (s.shortage / s.processed) * 100 : 0, s.processed
     ]);
 
     sRow.height = 20;
@@ -299,7 +310,8 @@ export function buildDyeingMillReportWorkbook(data: DyeingReportData): ExcelJS.W
       { formula: `SUM(D${summaryStartRow}:D${currentSummaryRow})` },
       { formula: `SUM(E${summaryStartRow}:E${currentSummaryRow})` },
       { formula: `SUM(F${summaryStartRow}:F${currentSummaryRow})` },
-      { formula: `IF(D${currentSummaryRow + 1}>0, (F${currentSummaryRow + 1}/D${currentSummaryRow + 1})*100, 0)` }
+      { formula: `IF(H${currentSummaryRow + 1}>0, (F${currentSummaryRow + 1}/H${currentSummaryRow + 1})*100, 0)` },
+      { formula: `SUM(H${summaryStartRow}:H${currentSummaryRow})` }
     ]);
 
     sTotRow.height = 24;

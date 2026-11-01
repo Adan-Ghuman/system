@@ -1,3 +1,4 @@
+import { DyeingStatusReport } from '../../../business/DyeingStatusReport.js';
 import { ExternalMillReceipts } from '../../../business/ExternalMillReceipts.js';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
 import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
@@ -33,6 +34,7 @@ import { RefreshCw, Plus, Edit, FileSpreadsheet, FileText, PackageCheck, Truck, 
 
 export function DyeingPage() {
   const queryClient = useQueryClient();const businessId = useBusinessStore(state => state.id);
+  const [showStatusReport, setShowStatusReport] = useState(false);
   const [mainTab, setMainTab] = useState<'batches' | 'received' | 'units'>('batches');
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
@@ -185,6 +187,8 @@ export function DyeingPage() {
         { title: 'Send fabric for dyeing', description: 'Record the mill, fabric, color and weight on an outgoing challan.', icon: Truck, onClick: () => setIsMultiGatePassOpen(true) },
         { title: 'Receive dyed fabric', description: 'Match a sent batch or enter an incoming paper challan.', icon: PackageCheck, onClick: () => setIsReceiveGatePassOpen(true) }
       ]} />
+      <Button variant="outline" onClick={() => setShowStatusReport(value => !value)}>{showStatusReport ? "Hide dyeing status report" : "Dyeing Status & Wastage Report"}</Button>
+      {showStatusReport && <DyeingStatusReport />}
       <OptionalDetails title="Reports & mill setup">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setIsGatePassModalOpen(true)}><FileText className="h-4 w-4" /> Challan register</Button>

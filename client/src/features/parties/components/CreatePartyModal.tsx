@@ -17,7 +17,6 @@ export interface CreatePartyModalProps {
 
 export function CreatePartyModal({ isOpen, onClose, onSuccess, onCreated }: CreatePartyModalProps) {
   const queryClient = useQueryClient();
-  const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
@@ -46,6 +45,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess, onCreated }: Crea
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    e.stopPropagation();
     if (isSubmittingRef.current || isLoading) return;
 
     isSubmittingRef.current = true;
@@ -58,7 +58,6 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess, onCreated }: Crea
       const finalBalance = balanceType === 'Dr' ? Math.abs(numBalance) : -Math.abs(numBalance);
 
       const payload: CreatePartyPayload = {
-        code: code.trim().toUpperCase() || undefined,
         name: name.trim(),
         contactPerson: contactPerson.trim(),
         phone: phone.trim(),
@@ -126,13 +125,7 @@ export function CreatePartyModal({ isOpen, onClose, onSuccess, onCreated }: Crea
 
         <FormSection step={1} title="Contact details">
 <div className="grid grid-cols-3 gap-3">
-          <Input
-            id="code"
-            label="Party code (optional)"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. 1234"
-          />
+          <Input label="Party code" value="Generated automatically" readOnly />
 
           <div className="col-span-2">
             <Input

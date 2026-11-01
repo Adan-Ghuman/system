@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { sendTable } from './export.js';
+import { Party } from '../models/Party.js';
 import { PipelineStage } from 'mongoose';
 import ExcelJS from 'exceljs';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -14,7 +16,7 @@ import { YarnTransaction } from '../models/YarnTransaction.js';
 import { BusinessDocument } from './commerce.models.js';
 import { uppercaseDisplay, uppercaseWorkbook } from '../utils/uppercaseDisplay.js';
 
-export interface ProductionRow { _id: string; date: Date; number: string; reference: string; kind: string; fabricType: string; yarnSpec: string; rolls: number; weightKg: number; wastageKg: number; color?: string; poNo?: string; externalReference?: string; }
+export interface ProductionRow { productionType?: string; _id: string; date: Date; number: string; reference: string; kind: string; fabricType: string; yarnSpec: string; rolls: number; weightKg: number; wastageKg: number; color?: string; poNo?: string; externalReference?: string; }
 export const productionRoutes = Router();
 productionRoutes.get('/', requirePermission('knitting:read', 'dyeing:read'), asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, 20);
@@ -22,18 +24,18 @@ productionRoutes.get('/', requirePermission('knitting:read', 'dyeing:read'), asy
   if (req.query.from) date.$gte = new Date(String(req.query.from) + 'T00:00:00+05:00');
   if (req.query.to) date.$lte = new Date(String(req.query.to) + 'T23:59:59.999+05:00');
   if (Object.values(date).some(value => !Number.isFinite(value.valueOf())) || (date.$gte && date.$lte && date.$gte > date.$lte)) throw new BadRequestError('Choose a valid date range.');
-  const filter = { ...(Object.keys(date).length ? { date } : {}), ...(req.query.partyId ? { partyId: String(req.query.partyId) } : {}), ...(req.query.color ? { color: new RegExp('^' + escapeRegex(String(req.query.color)) + '$', 'i') } : {}), ...(req.query.search ? { $or: ['fabricType', 'yarnSpec', 'reference', 'number', 'color'].map(field => ({ [field]: new RegExp(escapeRegex(String(req.query.search)), 'i') })) } : {}) };
+  const filter = { ...(req.query.productionType ? { productionType: String(req.query.productionType) } : {}), ...(Object.keys(date).length ? { date } : {}), ...(req.query.partyId ? { partyId: String(req.query.partyId) } : {}), ...(req.query.color ? { color: new RegExp('^' + escapeRegex(String(req.query.color)) + '$', 'i') } : {}), ...(req.query.search ? { $or: ['fabricType', 'yarnSpec', 'reference', 'number', 'color'].map(field => ({ [field]: new RegExp(escapeRegex(String(req.query.search)), 'i') })) } : {}) };
   const pipeline: PipelineStage[] = [
     { $match: { status: 'POSTED' } }, { $unwind: '$items' },
-    { $project: { partyId: { $toString: '$partyId' }, color: { $literal: 'ECRU' }, poNo: 1, externalReference: 1, date: 1, number: '$receiptNo', reference: '$gatePassNo', kind: { $literal: 'KNITTING' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rollsCount', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } },
+    { $project: { partyId: { $toString: '$partyId' }, color: { $literal: 'ECRU' }, poNo: 1, externalReference: 1, date: 1, number: '$receiptNo', reference: '$gatePassNo', productionType: { $ifNull: ['$productionType', 'UNSPECIFIED'] }, kind: { $literal: 'KNITTING' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rollsCount', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } },
     { $unionWith: { coll: DyeingReceipt.collection.name, pipeline: [{ $match: { ...businessRecordFilter(), status: 'POSTED' } }, { $unwind: '$items' }, { $project: { partyId: { $toString: '$partyId' }, color: '$items.color', poNo: 1, externalReference: 1, date: 1, number: 1, reference: '$gatePassNo', kind: { $literal: 'DYEING_RECEIVED' }, fabricType: '$items.fabricType', yarnSpec: '$items.yarnSpec', rolls: '$items.rolls', weightKg: '$items.weightKg', wastageKg: '$items.wastageKg' } }] } },
     { $unionWith: { coll: DyeingBatch.collection.name, pipeline: [{ $match: { ...businessRecordFilter(), status: { $ne: 'REVERSED' } } }, { $project: { partyId: { $toString: '$millPartyId' }, color: '$targetColor', poNo: 1, externalReference: 1, date: '$dateIssued', number: '$batchNo', reference: '$ogpNo', kind: { $literal: 'DYEING_SENT' }, fabricType: 1, yarnSpec: 1, rolls: '$ecruRollsCount', weightKg: '$ecruWeightKg', wastageKg: { $literal: 0 } } }] } },
     { $match: filter }, { $sort: { date: -1, _id: -1, fabricType: 1 } }
   ];
   if (req.query.format) {
     const rows = await KnittingReceipt.aggregate<ProductionRow>(pipeline);
-    const headers = ['Date', 'Document', 'Paper reference', 'Stage', 'Fabric', 'Yarn', 'Rolls', 'Actual kg', 'Actual loss kg', 'Color / shade', 'PO', 'External reference'];
-    const values = rows.map(row => [row.date.toISOString().slice(0, 10), row.number, row.reference, row.kind, row.fabricType, row.yarnSpec, row.rolls, row.weightKg, row.wastageKg, row.color, row.poNo, row.externalReference]);
+    const headers = ['Date', 'Document', 'Paper reference', 'Stage', 'Fabric', 'Yarn', 'Rolls', 'Actual kg', 'Actual loss kg', 'Color / shade', 'PO', 'External reference', 'Production origin'];
+    const values = rows.map(row => [row.date.toISOString().slice(0, 10), row.number, row.reference, row.kind, row.fabricType, row.yarnSpec, row.rolls, row.weightKg, row.wastageKg, row.color, row.poNo, row.externalReference, row.productionType]);
     if (req.query.format === 'csv') {
       const quote = (value: unknown) => '"' + uppercaseDisplay(String(typeof value === 'string' && /^[=+@-]/.test(value) ? "'" + value : value ?? '')).replace(/"/g, '""') + '"';
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');res.setHeader('Content-Disposition', 'attachment; filename="Production.csv"');res.send('\uFEFF' + [headers, ...values].map(row => row.map(quote).join(',')).join('\r\n'));return;
@@ -49,9 +51,24 @@ productionRoutes.get('/', requirePermission('knitting:read', 'dyeing:read'), asy
 
 productionRoutes.get('/movements', (req, res, next) => requirePermission(req.query.material === 'YARN' ? 'knitting:read' : 'inventory:read')(req, res, next), asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query, 20);
-  const match = { ...(req.query.material ? { material: String(req.query.material) } : {}), ...(req.query.search ? { $or: ['item', 'reason'].map(field => ({ [field]: new RegExp(escapeRegex(String(req.query.search)), 'i') })) } : {}) };
-  const [items, total] = await Promise.all([StockMovement.find(match).sort({ date: -1, _id: -1 }).skip(skip).limit(limit), StockMovement.countDocuments(match)]);
-  res.json({ success: true, data: { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) } });
+  const date: Record<string, Date> = {};
+  if (req.query.from) date.$gte = new Date(String(req.query.from) + 'T00:00:00+05:00');
+  if (req.query.to) date.$lte = new Date(String(req.query.to) + 'T23:59:59.999+05:00');
+  if (Object.values(date).some(value => !Number.isFinite(+value)) || (date.$gte && date.$lte && date.$gte > date.$lte)) throw new BadRequestError('Choose a valid date range.');
+  const match = { ...(req.query.material ? { material: String(req.query.material) } : {}), ...(Object.keys(date).length ? { date } : {}), ...(req.query.search ? { $or: ['item', 'reason'].map(field => ({ [field]: new RegExp(escapeRegex(String(req.query.search)), 'i') })) } : {}) };
+  const rows = await StockMovement.find(match).populate('partyId', 'name').sort({ date: -1, _id: -1 }).lean();
+  const missing = rows.filter(row => row.material === 'YARN' && !row.ownerKey).map(row => row.sourceId);
+  const [transactions, documents] = await Promise.all([YarnTransaction.find({ _id: { $in: missing } }).populate('partyId', 'name').lean(), BusinessDocument.find({ _id: { $in: missing } }).populate('partyId', 'name').lean()]);
+  const enriched = rows.map(row => {
+    const transaction = transactions.find(source => String(source._id) === String(row.sourceId));
+    const line = documents.find(source => String(source._id) === String(row.sourceId))?.items.find(item => item.yarnSpec === row.item);
+    return { ...row, ownerKey: row.ownerKey || transaction?.ownerKey || line?.ownerKey, packageUnit: row.packageUnit || transaction?.packageUnit || line?.packageUnit, partyId: row.partyId || transaction?.partyId };
+  }).filter(row => !req.query.ownerKey || row.ownerKey === req.query.ownerKey);
+  if (req.query.format) {
+    const owners = await Party.find({ _id: { $in: enriched.map(row => row.ownerKey).filter(value => value && value !== 'OWN') } }).select('name');
+    await sendTable(res, String(req.query.format), 'Stock movements', ['Date', 'Item', 'Owner', 'Party', 'Package unit', 'Packages', 'Measured kg', 'Reason'], enriched.map(row => [row.date, row.item, row.ownerKey === 'OWN' ? 'Rozain Textile' : owners.find(owner => String(owner._id) === row.ownerKey)?.name || 'Owner not recorded', (row.partyId as unknown as { name?: string })?.name, row.packageUnit, row.quantity, row.weightKg, row.reason]));return;
+  }
+  res.json({ success: true, data: { items: enriched.slice(skip, skip + limit), total: enriched.length, page, limit, totalPages: Math.max(1, Math.ceil(enriched.length / limit)) } });
 }));
 
 productionRoutes.get('/balances', requirePermission('knitting:read', 'dyeing:read', 'inventory:read'), asyncHandler(async (req, res) => {

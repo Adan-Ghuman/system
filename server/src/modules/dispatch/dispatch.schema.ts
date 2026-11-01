@@ -11,6 +11,7 @@ export const dispatchRollInputSchema = z.object({
 
 export const createDispatchSchema = z.object({
   ...documentReferenceFields,
+  purpose: z.enum(['SALE', 'CLIENT_RETURN']).default('SALE'),
   billNow: z.boolean().default(true),
   draftId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
   state: z.enum(['RAW_ECRU', 'FINISHED_DYED']).default('FINISHED_DYED'),

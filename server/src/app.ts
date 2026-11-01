@@ -2,6 +2,7 @@ import { intercompanyRoutes } from './business/intercompany.routes.js';
 import { sourceRoutes } from './business/source.routes.js';
 import { productionRoutes } from './business/production.routes.js';
 import { workspaceRoutes } from './business/commerce.routes.js';
+import { salesRoutes } from './business/sales.routes.js';
 import { externalMillRoutes } from './business/external-mill.js';
 import { catalogRoutes } from './business/catalog.routes.js';
 import { businessRoutes, businessScope, defaultBusinessScope } from './business/routes.js';
@@ -71,6 +72,7 @@ export function createApp(): express.Application {
   businessScope.use('/catalog', catalogRoutes);
   businessScope.use('/workspace/external-mill-receipts', externalMillRoutes);
   businessScope.use('/workspace', workspaceRoutes);
+  businessScope.use('/workspace/sales', salesRoutes);
   businessScope.use('/production', productionRoutes);
   businessScope.use('/intercompany', intercompanyRoutes);
   businessScope.use('/sources', sourceRoutes);
@@ -80,6 +82,7 @@ export function createApp(): express.Application {
   workspace.use('/catalog', catalogRoutes);
   workspace.use('/workspace/external-mill-receipts', externalMillRoutes);
   workspace.use('/workspace', workspaceRoutes);
+  workspace.use('/workspace/sales', salesRoutes);
   workspace.use('/production', productionRoutes);
   workspace.use('/sources', sourceRoutes);
   workspace.use(operations);

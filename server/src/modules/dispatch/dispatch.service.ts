@@ -1,3 +1,4 @@
+import { money } from '../../business/posting.js';
 import { referenceFields } from '../../business/references.js';
 import { currentBusinessId } from '../../business/context.js';
 import { postDelivery } from '../../business/delivery.js';
@@ -17,10 +18,10 @@ export function calculateInvoiceFinancials(
   ratePerKg: number,
   invoiceType: InvoiceType
 ) {
-  const baseAmount = Math.round(totalWeightKg * ratePerKg * 100) / 100;
+  const baseAmount = money(totalWeightKg * ratePerKg);
   const taxPercent = invoiceType === 'TAX_18_PERCENT' ? 18.0 : 0;
-  const taxAmount = Math.round(baseAmount * (taxPercent / 100) * 100) / 100;
-  const grandTotal = Math.round((baseAmount + taxAmount) * 100) / 100;
+  const taxAmount = money(baseAmount * taxPercent / 100);
+  const grandTotal = money(baseAmount + taxAmount);
 
   return {
     baseAmount,

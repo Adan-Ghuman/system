@@ -11,6 +11,9 @@ export interface IDispatchRoll {
 }
 
 export interface IDispatch extends Document {
+  purpose?: 'SALE' | 'CLIENT_RETURN';
+  ownerKey?: string;
+  sourceInventoryId?: Types.ObjectId;
   status: 'POSTED' | 'REVERSED';
   state: 'RAW_ECRU' | 'FINISHED_DYED';
   dispatchNo: string;
@@ -43,6 +46,9 @@ const dispatchRollSchema = new Schema<IDispatchRoll>(
 
 const dispatchSchema = new Schema<IDispatch>(
   {
+    purpose: { type: String, enum: ['SALE', 'CLIENT_RETURN'] },
+    ownerKey: { type: String },
+    sourceInventoryId: { type: Schema.Types.ObjectId },
     status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' },
     state: { type: String, enum: ['RAW_ECRU', 'FINISHED_DYED'], default: 'FINISHED_DYED' },
     dispatchNo: {

@@ -51,7 +51,7 @@ export interface YarnGatePassLineItem {
   remarks?: string;
 }
 
-export interface BulkCreateYarnTransactionPayload {
+export interface BulkCreateYarnTransactionPayload { productionType?: 'IN_HOUSE' | 'OUTSOURCED';
   ownership?: 'OWN' | 'CLIENT';
   ownerPartyId?: string;
   transactionType: YarnTransactionType;
@@ -91,7 +91,7 @@ export interface ReceiveFabricLineItem {
   remarks?: string;
 }
 
-export interface ReceiveFabricPayload { ownerKey?: string;
+export interface ReceiveFabricPayload { productionType?: 'IN_HOUSE' | 'OUTSOURCED'; ownerKey?: string;
   partyId: string;
   partyName?: string;
   date?: string;

@@ -13,6 +13,7 @@ export async function postReturn(id: string, input: z.infer<typeof returnInput>)
   return postCommand('SOURCE_RETURN', { ...input, id }, async session => {
     const original = await BusinessDocument.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!original?.partyId) throw new NotFoundError('Posted bill not found.');
+    if (original.settlementStatus === 'NOT_RECORDED') throw new BadRequestError('Payments and credits were not linked to this bill. Reconcile its settlement history before recording another credit or return.');
     if (original.intercompanyId || ['CREDIT_NOTE', 'FABRIC_RECEIPT'].includes(original.kind)) throw new BadRequestError('Open the original sale, purchase or processing bill. Linked trades require a paired correction.');
     if (new Date(input.date) < original.date) throw new BadRequestError('The return cannot be earlier than the bill.');
     const purchase = original.kind === 'FABRIC_PURCHASE' || original.kind === 'SUPPLIER_BILL';

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { documentReferenceFields } from '../../business/references.js';
 
 export const voucherTypeEnum = z.enum(['RECEIPT', 'PAYMENT', 'JOURNAL']);
-export const paymentModeEnum = z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'ONLINE']);
+export const paymentModeEnum = z.enum(['CASH', 'BANK_TRANSFER', 'CHEQUE', 'ONLINE', 'UNSPECIFIED']);
 
 export const createVoucherSchema = z.object({
   ...documentReferenceFields,

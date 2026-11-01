@@ -153,7 +153,7 @@ export function DashboardPage() {
     <div className="space-y-7">
       <PageHeader title="Overview" description={<>Welcome back, {user?.fullName?.split(' ')[0] || 'operator'}. Here is your workspace at a glance.</>}>
         <Button variant="outline" size="sm" preventDoubleClick onClick={handleRefreshAll} isLoading={isFetchingParties}><RefreshCw className="h-4 w-4" />Refresh</Button>
-        <Link to="/dispatch" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-emerald-800"><Plus className="h-4 w-4" />New delivery</Link>
+        <Link to="/sales" className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-emerald-800"><Plus className="h-4 w-4" />New sale / charge</Link>
       </PageHeader>
       {(hasQueryError1 || hasQueryError2 || hasQueryError3 || hasQueryError4) && <QueryError onRetry={() => { refetchParties(); refetchInventory(); refetchBatches(); refetchAccounts(); }} />}
 
