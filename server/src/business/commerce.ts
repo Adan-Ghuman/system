@@ -1,3 +1,4 @@
+import { canonicalOwnerKey } from './ownership.js';
 import { customerSources } from './sales-sources.js';
 import { ClientSession, Types } from 'mongoose';
 import { BusinessDocument, BillAllocation, BillPayment } from './commerce.models.js';
@@ -43,11 +44,16 @@ export async function getChargeSource(kind: string, id: string, session?: Client
     throw new NotFoundError('Choose a posted dyeing receipt. The outgoing batch cannot be billed separately from its receipts.');
   }
   const source = await BusinessDocument.findOne({ _id: id, kind: kind === 'YARN_SUPPLIER_BILL' ? 'YARN_RECEIPT' : 'FABRIC_RECEIPT', status: 'POSTED' }).session(session || null);
-  if (!source) throw new NotFoundError('Fabric receipt not found.');
+  if (!source) throw new NotFoundError(kind === 'YARN_SUPPLIER_BILL' ? 'Purchased yarn receipt not found.' : 'Fabric receipt not found.');
   return { source, partyId: source.partyId, items: source.items.map(item => ({ id: String(item._id), fabricType: item.fabricType, yarnSpec: item.yarnSpec, weightKg: item.weightKg, rolls: item.rolls })) };
 }
 
 async function allocateBill(input: OperationInput, billId: Types.ObjectId, session: ClientSession) {
+  const groups = new Set(input.items.map(item => item.sourceId || input.sourceId).filter(Boolean));
+  for (const sourceId of groups) await allocateSource({ ...input, sourceId, items: input.items.filter(item => (item.sourceId || input.sourceId) === sourceId) }, billId, session);
+}
+
+async function allocateSource(input: OperationInput, billId: Types.ObjectId, session: ClientSession) {
   if (!input.sourceId) return;
   const { source, partyId, items } = await getChargeSource(input.kind, input.sourceId, session);
   if ((input.direction === 'PAYABLE' || input.kind === 'CUSTOMER_BILL') && String(partyId || '') !== input.partyId) throw new BadRequestError('This source belongs to a different party.');
@@ -82,12 +88,17 @@ export async function submitOperationInSession(input: OperationInput, session: C
     const isStock = ['FABRIC_RECEIPT', 'FABRIC_PURCHASE'].includes(input.kind);
     const isYarn = ['YARN_ADJUSTMENT', 'YARN_RETURN', 'YARN_RECEIPT', 'YARN_PURCHASE', 'YARN_CLIENT_RETURN'].includes(input.kind);
     if ((!isYarn || ['YARN_RECEIPT', 'YARN_PURCHASE', 'YARN_CLIENT_RETURN'].includes(input.kind)) && (!input.partyId || !await Party.findById(input.partyId).session(session))) throw new BadRequestError('Choose a party in the active business.');
-    if (['SUPPLIER_BILL', 'YARN_SUPPLIER_BILL'].includes(input.kind) && !input.sourceId) throw new BadRequestError('Choose the fabric receipt to bill.');
-    if (input.kind === 'CUSTOMER_BILL' && !input.sourceId) throw new BadRequestError('Choose the delivery to bill. A bill never moves stock a second time.');
-    if (['KNITTING_CHARGE', 'DYEING_CHARGE'].includes(input.kind) && !input.sourceId && !paperService) throw new BadRequestError('Choose the completed work this charge belongs to.');
-    if (input.sourceId && ['SUPPLIER_BILL', 'YARN_SUPPLIER_BILL', 'CUSTOMER_BILL', 'KNITTING_CHARGE', 'DYEING_CHARGE'].includes(input.kind)) {
-      const source = await getChargeSource(input.kind, input.sourceId, session);
-      for (const item of input.items) { const line = source.items.find(value => value.id === item.sourceLineId);if (!line) throw new BadRequestError('Choose the original source line for each bill item.');item.fabricType = line.fabricType;item.yarnSpec = line.yarnSpec; }
+    if (['SUPPLIER_BILL', 'YARN_SUPPLIER_BILL'].includes(input.kind) && !paperService && !input.sourceId && !input.items.every(item => item.sourceId)) throw new BadRequestError(input.kind === 'YARN_SUPPLIER_BILL' ? 'Choose the purchased yarn receipts to bill.' : 'Choose the fabric receipts to bill.');
+    if (input.kind === 'CUSTOMER_BILL' && !input.sourceId && !input.items.every(item => item.sourceId)) throw new BadRequestError('Choose the delivery to bill. A bill never moves stock a second time.');
+    if (['KNITTING_CHARGE', 'DYEING_CHARGE'].includes(input.kind) && !input.sourceId && !input.items.every(item => item.sourceId) && !paperService) throw new BadRequestError('Choose the completed work this charge belongs to.');
+    if (['SUPPLIER_BILL', 'YARN_SUPPLIER_BILL', 'CUSTOMER_BILL', 'KNITTING_CHARGE', 'DYEING_CHARGE'].includes(input.kind)) {
+      for (const item of input.items) {
+        const sourceId = item.sourceId || input.sourceId;if (!sourceId) continue;
+        const source = await getChargeSource(input.kind, sourceId, session);
+        const line = source.items.find(value => value.id === item.sourceLineId);if (!line) throw new BadRequestError('Choose the original receipt line for each bill item.');item.fabricType = line.fabricType;item.yarnSpec = line.yarnSpec;
+        const saved = source.source.toObject() as { location?: string; fromLocation?: string; ownerKey?: string; state?: 'RAW_ECRU' | 'FINISHED_DYED'; color?: string; items?: Array<{ _id: unknown; ownerKey?: string; state?: 'RAW_ECRU' | 'FINISHED_DYED'; color?: string }> };
+        const detail = saved.items?.find(value => String(value._id) === item.sourceLineId);item.sourceLocation = saved.fromLocation || saved.location || 'ZR_GODOWN';item.ownerKey = canonicalOwnerKey(detail?.ownerKey || saved.ownerKey || 'OWN');item.state = detail?.state || saved.state || item.state;item.color = detail?.color || saved.color || item.color;
+      }
     }
     if (input.items.some(item => !isYarn && ((item.basis === 'KG' && item.weightKg <= 0) || (item.basis === 'ROLL' && item.rolls <= 0)))) throw new BadRequestError('Bill quantities must be positive.');
     const hasBill = !['FABRIC_RECEIPT', 'YARN_ADJUSTMENT', 'YARN_RETURN', 'YARN_RECEIPT', 'YARN_CLIENT_RETURN'].includes(input.kind);
@@ -196,7 +207,7 @@ export async function reverseOperation(id: string, input: { requestId?: string; 
     if (document.kind === 'CREDIT_NOTE') {
       const original = await BusinessDocument.findById(document.sourceId).session(session);if (!original?.partyId) throw new BadRequestError('Original bill not found.');
       if (original.paid > money(original.total - original.credited)) throw new BadRequestError('Record or reverse the outstanding refund first.');
-      if (['FABRIC_PURCHASE', 'SUPPLIER_BILL', 'CUSTOMER_BILL'].includes(original.kind)) for (const item of document.items) await moveFabric(item.toObject(), document.location, original.direction === 'PAYABLE' ? 1 : -1, document._id, new Date(), input.reason, session);
+      if (!document.financialOnly && ['FABRIC_PURCHASE', 'SUPPLIER_BILL', 'CUSTOMER_BILL'].includes(original.kind)) for (const item of document.items) await moveFabric(item.toObject(), document.returnLocationsRecorded ? item.sourceLocation || document.location : document.location, original.direction === 'PAYABLE' ? 1 : -1, document._id, new Date(), input.reason, session);
       original.credited = money(original.credited - document.total);await original.save({ session });
     }
     if (['YARN_ADJUSTMENT', 'YARN_RETURN', 'YARN_RECEIPT', 'YARN_PURCHASE', 'YARN_CLIENT_RETURN'].includes(document.kind)) {

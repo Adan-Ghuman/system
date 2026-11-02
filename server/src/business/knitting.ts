@@ -64,7 +64,10 @@ export async function postSingleYarnDelivery(input: CreateYarnTransactionInput) 
 }
 
 export async function postKnittingReceipt(input: ReceiveFabricInput) {
-  return postCommand('KNITTING_RECEIPT', input, async session => {
+  return postCommand('KNITTING_RECEIPT', input, session => postKnittingReceiptInSession(input, session));
+}
+
+export async function postKnittingReceiptInSession(input: ReceiveFabricInput, session: ClientSession) {
     if (!input.gatePassNo?.trim()) throw new BadRequestError('Enter the receipt challan number.');
     const party = await resolveParty(input.partyId, true, session);
     const date = new Date(input.date);
@@ -104,14 +107,13 @@ export async function postKnittingReceipt(input: ReceiveFabricInput) {
       await rememberFabricNames([item], session);
       const stockMatch = { fabricType: item.fabricType, yarnSpec: item.yarnSpec, state: 'RAW_ECRU', color: 'ECRU', location: 'ZR_GODOWN', ownerKey: owners[0] };
       await FabricInventory.findOneAndUpdate(stockMatch, { $setOnInsert: stockMatch, $inc: { totalRolls: item.rollsCount, totalWeightKg: received } }, { upsert: true, session });
-      stored.push({ ...item, weightKg: received, wastageKg: waste, allocations });
+      stored.push({ ...item, ownerKey: owners[0], weightKg: received, wastageKg: waste, allocations });
       totalReceivedKg = weight(totalReceivedKg + received);totalWastageKg = weight(totalWastageKg + waste);totalRolls += item.rollsCount;
     }
-    const [receipt] = await KnittingReceipt.create([{ receiptNo: await nextDocumentNo('KR', session), productionType: input.productionType, partyId: party._id, gatePassNo: input.gatePassNo, date, ...referenceFields(input), remarks: input.remarks, actorId: businessContext.getStore()!.actorId, items: stored }], { session });
-    for (const item of stored) await StockMovement.create([{ sourceId: receipt._id, material: 'FABRIC', item: `${item.fabricType} / ${item.yarnSpec}`, weightKg: item.weightKg, quantity: item.rollsCount, location: 'ZR_GODOWN', date, reason: 'Knitted fabric received', actorId: businessContext.getStore()!.actorId }], { session });
+    const [receipt] = await KnittingReceipt.create([{ receiptReferenceKey: String(party._id) + ':' + input.gatePassNo.trim().toUpperCase(), receiptNo: await nextDocumentNo('KR', session), productionType: input.productionType, partyId: party._id, gatePassNo: input.gatePassNo, date, ...referenceFields(input), remarks: input.remarks, actorId: businessContext.getStore()!.actorId, items: stored }], { session });
+    for (const item of stored) await StockMovement.create([{ sourceId: receipt._id, material: 'FABRIC', item: `${item.fabricType} / ${item.yarnSpec}`, weightKg: item.weightKg, quantity: item.rollsCount, ownerKey: item.ownerKey, partyId: party._id, location: 'ZR_GODOWN', date, reason: 'Knitted fabric received', actorId: businessContext.getStore()!.actorId }], { session });
     const remainingIssues = await YarnTransaction.find({ partyId: party._id, transactionType: 'OUTWARD_TO_KNITTER' }).session(session);
     return { receipt: receipt.toObject(), reconciledKg: totalReceivedKg, totalReceivedKg, totalRolls, totalWastageKg, itemsCount: stored.length, remainingYarnInFieldKg: weight(remainingIssues.reduce((sum, issue) => sum + issue.remainingYarnBalanceKg, 0)) };
-  });
 }
 
 export async function reverseYarnDelivery(id: string, input: { reason: string; requestId?: string }) {

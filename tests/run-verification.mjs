@@ -9,3 +9,4 @@ execFileSync(process.execPath, ['tests/inspect-pdfs.mjs'], { stdio: 'inherit' })
 execFileSync(process.execPath, ['tests/inspect-downloads.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/unknown-settlement.e2e.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/unified-sales.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_SALES_BROWSER: '1' } });
+execFileSync(process.execPath, ['tests/consistent-transactions.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_TRANSACTIONS_BROWSER: '1' } });

@@ -1,3 +1,4 @@
+import { TransactionsPage } from '../business/TransactionsPage.js';
 import { SalesPage } from '../business/SalesPage.js';
 import { ReasonDialog } from '../components/ui/ReasonDialog.js';
 import { LedgerPage } from '../business/LedgerPage.js';
@@ -112,6 +113,7 @@ export function App() {
             <Route path="catalog" element={<CatalogPage />} />
             <Route path="buying" element={<WorkspacePage mode="buying" />} />
             <Route path="bills" element={<WorkspacePage mode="bills" />} />
+            <Route path="transactions" element={<TransactionsPage />} />
             <Route path="sales" element={<SalesPage />} />
             <Route path="yarn" element={<YarnPage />} />
             <Route path="production" element={<ProductionPage />} />

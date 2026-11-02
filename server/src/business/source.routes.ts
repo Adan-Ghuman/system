@@ -21,7 +21,7 @@ sourceRoutes.get('/production/:kind/:id', (req, res, next) => requirePermission(
   if (!source) throw new NotFoundError('Source document not found.');
   const value = source.toObject() as Record<string, unknown>;
   const rows = value.items as Array<Record<string, unknown>> | undefined;
-  const items = rows ? rows.map(item => ({ ...item, rolls: item.rolls || item.rollsCount, color: item.color || 'ECRU', rate: 0, basis: 'KG', description: `Actual wastage: ${Number(item.wastageKg || 0).toFixed(3)} kg` })) : [{ fabricType: value.fabricType, yarnSpec: value.yarnSpec, color: value.targetColor, rolls: value.ecruRollsCount, weightKg: value.ecruWeightKg, rate: 0, basis: 'KG' }];
+  const items = rows ? rows.map(item => ({ ...item, rolls: item.rolls || item.rollsCount, color: item.color || 'ECRU', rate: 0, basis: 'KG', description: item.wastageKg === undefined ? 'Actual wastage: Not recorded' : `Actual wastage: ${Number(item.wastageKg).toFixed(3)} kg` })) : [{ fabricType: value.fabricType, yarnSpec: value.yarnSpec, color: value.targetColor, rolls: value.ecruRollsCount, weightKg: value.ecruWeightKg, rate: 0, basis: 'KG' }];
   res.json({ success: true, data: { ...value, number: value.receiptNo || value.number || value.batchNo, kind, reference: value.gatePassNo || value.ogpNo, partyId: value.partyId || value.millPartyId, date: value.date || value.dateIssued, direction: 'PAYABLE', total: 0, paid: 0, taxPercent: 0, taxAmount: 0, baseAmount: 0, items } });
 }));
 

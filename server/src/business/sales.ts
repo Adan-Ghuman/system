@@ -40,15 +40,15 @@ async function prepareSale(input: SaleInput, session?: ClientSession) {
     items = [{ ...items[0], fabricType: stock.fabricType, yarnSpec: stock.yarnSpec, color: stock.color, state: stock.state, rolls: input.rolls.length, weightKg: kg, ownerKey: 'OWN', basis: 'KG' }];
   } else if (input.sourceMode === 'WORK') {
     const available = await customerSources(input.mode, input.customerId, session);
-    const source = available.items.find(s => s._id === input.sourceId);
-    if (!source) throw new BadRequestError('Choose eligible completed work or a delivery for this customer. Unassigned work needs a confirmed customer first.');
-    if (input.date < source.date) throw new BadRequestError('The bill date cannot precede the delivery or completed work.');
     const seen = new Set<string>();
     items = items.map(item => {
-      const line = source.items.find(l => l.sourceLineId === item.sourceLineId);
-      if (!line || seen.has(item.sourceLineId)) throw new BadRequestError('Each selected source line can be billed once in this entry.');seen.add(item.sourceLineId);
+      const source = available.items.find(s => s._id === (item.sourceId || input.sourceId));
+      if (!source) throw new BadRequestError('Choose eligible completed work or a delivery for this customer. Unassigned work needs a confirmed customer first.');
+      if (input.date < source.date) throw new BadRequestError('The bill date cannot precede the delivery or completed work.');
+      const line = source.items.find(l => l.sourceLineId === item.sourceLineId);const key = source._id + ':' + item.sourceLineId;
+      if (!line || seen.has(key)) throw new BadRequestError('Each selected receipt line can be billed once in this entry.');seen.add(key);
       if (item.weightKg > line.weightKg + 0.000001 || item.rolls > line.rolls) throw new BadRequestError('The quantity exceeds the remaining unbilled work.');
-      return { ...item, fabricType: line.fabricType, yarnSpec: line.yarnSpec, color: line.color, state: line.state };
+      return { ...item, sourceId: source._id, fabricType: line.fabricType, yarnSpec: line.yarnSpec, color: line.color, state: line.state };
     });
   }
   if (input.billNow && items.some(i => !(i.rate > 0) || (i.basis === 'KG' && !(i.weightKg > 0)) || (i.basis === 'ROLL' && !(i.rolls > 0)))) throw new BadRequestError('Enter a positive rate and billed quantity on each line.');
@@ -87,7 +87,8 @@ export async function postSale(input: SaleInput) {
       if (input.draftId) await BusinessDocument.updateOne({ _id: input.draftId, status: 'DRAFT' }, { $set: { kind: 'SALES_DRAFT', status: 'POSTED', sourceId: result.dispatch._id } }, { session });
     } else {
       const paper = input.sourceMode === 'PAPER' ? { reference: input.reference, reason: input.paper!.reason, confirmedBy: businessContext.getStore()!.actorId, confirmedAt: new Date(), periodFrom: input.paper?.periodFrom ? new Date(input.paper.periodFrom) : undefined, periodTo: input.paper?.periodTo ? new Date(input.paper.periodTo) : undefined } : undefined;
-      const result = await submitOperationInSession(operationInput.parse({ ...input, kind: prepared.kind, partyId: input.customerId, direction: 'RECEIVABLE', sourceId: paper ? undefined : input.sourceId, items: prepared.items }), session, input.draftId, paper);
+      const selectedSources = [...new Set(prepared.items.map(i => i.sourceId).filter(Boolean))];
+      const result = await submitOperationInSession(operationInput.parse({ ...input, kind: prepared.kind, partyId: input.customerId, direction: 'RECEIVABLE', sourceId: paper || selectedSources.length > 1 ? undefined : selectedSources[0] || input.sourceId, items: prepared.items }), session, input.draftId, paper);
       billId = String(result._id);deliveryId = input.mode === 'EXISTING_DELIVERY' ? input.sourceId : undefined;
     }
     if (billId) {

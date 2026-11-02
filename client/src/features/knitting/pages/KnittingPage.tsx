@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
 import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
 import { useBusinessStore } from '../../../business/store.js';
@@ -31,7 +32,7 @@ import { downloadExcelReport } from '../../../lib/reportExport.js';
 import { RefreshCw, ArrowUpRight, ArrowDownLeft, PackageCheck, Edit, FileSpreadsheet, Sliders } from 'lucide-react';
 
 export function KnittingPage() {
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();const queryClient = useQueryClient();
   const businessId = useBusinessStore(state => state.id);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'balances' | 'transactions' | 'specs' | 'receipts'>('balances');
@@ -131,9 +132,10 @@ export function KnittingPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Knitting" description="Send yarn, receive knitted fabric, and track balances with each knitter."><Button variant="ghost" size="sm" preventDoubleClick onClick={handleRefetchAll}><RefreshCw className="h-4 w-4" /> Refresh</Button></PageHeader>
+      <Button variant="outline" onClick={() => navigate('/transactions?action=SUPPLIER&mode=KNITTING')}>Receive knitting & record bill / payment</Button>
       <WorkflowActions actions={[
         { title: 'Send yarn to a knitter', description: 'Record boxes and yarn weight on an outgoing challan.', icon: ArrowUpRight, onClick: () => { setIssueType('OUTWARD_TO_KNITTER'); setIsIssueModalOpen(true); } },
-        { title: 'Receive knitted fabric', description: 'Record rolls and actual weight delivered to your godown.', icon: PackageCheck, onClick: () => { setSelectedBalance(null); setIsReceiveModalOpen(true); } }
+        { title: 'Receive knitted fabric', description: 'Receipt only; record a bill later from its saved history.', icon: PackageCheck, onClick: () => { setSelectedBalance(null); setIsReceiveModalOpen(true); } }
       ]} />
       <OptionalDetails title="Reports, client yarn & setup">
         <div className="flex flex-wrap gap-2">

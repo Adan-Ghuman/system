@@ -33,7 +33,7 @@ export async function customerSources(kind: string, customerId: string, session?
   }) });
   for (const receipt of dyeing) sources.push({ _id: String(receipt._id), date: receipt.date.toISOString(), label: `${receipt.gatePassNo} · ${receipt.number} · ${receipt.date.toISOString().slice(0, 10)}`, items: receipt.items.map(item => {
     const batch = batches.find(b => String(b._id) === String(item.batchId));
-    const owner = batch?.ownerKey ? canonicalOwnerKey(batch.ownerKey) : undefined;
+    const owner = batch?.ownerKey ? canonicalOwnerKey(batch.ownerKey) : item.ownerKey ? canonicalOwnerKey(item.ownerKey) : undefined;
     const related = owner && owner !== 'OWN' ? owner : batch?.allocatedCustomerId ? String(batch.allocatedCustomerId) : undefined;
     const assignment = assignments.find(a => String(a.sourceId) === String(receipt._id) && a.sourceLineId === String(item._id));
     return { sourceLineId: String(item._id), fabricType: item.fabricType || '', yarnSpec: item.yarnSpec || '', color: item.color || '', state: 'FINISHED_DYED', rolls: item.rolls || 0, weightKg: item.weightKg || 0, eligible: related ? related === customerId : String(assignment?.customerId) === customerId, assignable: !related && !assignment };

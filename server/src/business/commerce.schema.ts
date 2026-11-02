@@ -7,7 +7,7 @@ export const itemInput = z.object({
   fabricType: z.string().trim().max(150).default(''), yarnSpec: z.string().trim().max(150).default(''),
   color: z.string().trim().max(120).default('ECRU'), state: z.enum(['RAW_ECRU', 'FINISHED_DYED']).default('RAW_ECRU'),
   rolls: z.number().int().default(0), weightKg: z.number().finite().default(0), rate: z.number().nonnegative().default(0),
-  basis: z.enum(['KG', 'ROLL', 'JOB']).default('KG'), description: z.string().trim().max(500).default(''), sourceLineId: z.string().default(''),
+  basis: z.enum(['KG', 'ROLL', 'JOB']).default('KG'), description: z.string().trim().max(500).default(''), sourceLineId: z.string().default(''), sourceId: z.string().regex(/^[a-f0-9]{24}$/i).optional(), sourceLocation: z.string().trim().max(80).optional(),
   packageUnit: z.enum(['cartons', 'bags', 'cones', 'packages']).default('cartons'), ownerKey: z.string().default('OWN').transform(canonicalOwnerKey)
 });
 export const additionalChargeInput = z.object({ description: z.string().trim().min(1).max(150), amount: z.number().finite().positive(), taxable: z.boolean().default(false) });

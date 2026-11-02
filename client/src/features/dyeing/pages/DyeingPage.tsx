@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { DyeingStatusReport } from '../../../business/DyeingStatusReport.js';
 import { ExternalMillReceipts } from '../../../business/ExternalMillReceipts.js';
 import { requestReason } from '../../../components/ui/ReasonDialog.js';
@@ -35,7 +36,7 @@ import { RefreshCw, Plus, Edit, FileSpreadsheet, FileText, PackageCheck, Truck, 
 export function DyeingPage() {
   const queryClient = useQueryClient();const businessId = useBusinessStore(state => state.id);
   const [showStatusReport, setShowStatusReport] = useState(false);
-  const [mainTab, setMainTab] = useState<'batches' | 'received' | 'units'>('batches');
+  const navigate = useNavigate();const [mainTab, setMainTab] = useState<'batches' | 'received' | 'units'>('batches');
   const [selectedMill, setSelectedMill] = useState<DyeingMillType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -183,9 +184,10 @@ export function DyeingPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Dyeing" description="Send raw fabric, receive dyed fabric, and follow each batch."><Button variant="ghost" size="sm" onClick={refreshDyeing}><RefreshCw className="h-4 w-4" /> Refresh</Button></PageHeader>
+      <Button variant="outline" onClick={() => navigate('/transactions?action=SUPPLIER&mode=DYEING')}>Receive dyeing & record bill / payment</Button>
       <WorkflowActions actions={[
         { title: 'Send fabric for dyeing', description: 'Record the mill, fabric, color and weight on an outgoing challan.', icon: Truck, onClick: () => setIsMultiGatePassOpen(true) },
-        { title: 'Receive dyed fabric', description: 'Match a sent batch or enter an incoming paper challan.', icon: PackageCheck, onClick: () => setIsReceiveGatePassOpen(true) }
+        { title: 'Receive dyed fabric', description: 'Receipt only; record a bill later from its saved history.', icon: PackageCheck, onClick: () => setIsReceiveGatePassOpen(true) }
       ]} />
       <Button variant="outline" onClick={() => setShowStatusReport(value => !value)}>{showStatusReport ? "Hide dyeing status report" : "Dyeing Status & Wastage Report"}</Button>
       {showStatusReport && <DyeingStatusReport />}

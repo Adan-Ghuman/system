@@ -25,7 +25,7 @@ export const saleInput = z.object({
   if (input.mode === 'FABRIC' && input.items[0].basis !== 'KG') fail('items', 'Fabric delivery rates use measured kg.');
   if (input.mode !== 'FABRIC' && !input.billNow) fail('billNow', 'Only a new delivery can be billed later.');
   if (input.sourceMode === 'PAPER' && (!service || !input.paper || !input.reference)) fail('paper', 'A paper service bill needs its reference, confirmation and evidence note.');
-  if (input.mode !== 'FABRIC' && input.sourceMode !== 'PAPER' && !input.sourceId) fail('sourceId', 'Choose the delivery or completed work being billed.');
+  if (input.mode !== 'FABRIC' && input.sourceMode !== 'PAPER' && !input.sourceId && !input.items.every(i => i.sourceId)) fail('sourceId', 'Choose the delivery or completed work being billed.');
   if (input.payment.kind === 'UNKNOWN' && !(service && input.sourceMode === 'PAPER')) fail('payment', 'Unknown payment history is available for existing paper service bills.');
   if (input.payment.kind === 'EXISTING' && !input.payment.voucherId) fail('payment', 'Choose the existing receipt to link.');
   if (!input.billNow && input.payment.kind !== 'LATER') fail('payment', 'A delivery without a bill cannot receive a bill payment.');

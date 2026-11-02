@@ -15,7 +15,7 @@ export async function verifyBrowserRawShade({ page, go, dialog, close, screensho
   console.log('PASS browser raw stock locks current shade to ECRU and corrects the existing 13-roll/277.60-kg row with an audit reason.');
 
   await go('buying');await page.getByLabel('Find a document').fill('BROWSER-OLD-RAW-DRAFT');await page.getByRole('button', { name: 'Continue draft', exact: true }).click();
-  assert.equal(await dialog().getByLabel('Current shade', { exact: true }).inputValue(), 'ECRU');await dialog().getByRole('button', { name: 'Save receipt', exact: true }).click();await page.locator('#print-area').waitFor();await close();
+  assert.equal(await page.getByLabel('Current shade 1', { exact: true }).inputValue(), 'ECRU');assert.equal(await page.getByLabel('Billing timing').inputValue(),'LATER');await page.getByRole('button',{name:'Review transaction',exact:true}).click();await page.getByRole('button',{name:'Save transaction',exact:true}).click();await page.getByRole('region',{name:'Saved transaction'}).waitFor();await page.getByRole('button',{name:'Print goods / work receipt',exact:true}).click();await page.locator('#print-area').waitFor();await close();
   await go('inventory');await page.getByPlaceholder('Search fabric, spec, color...').fill('Browser old raw draft');const draftRow = page.getByRole('row').filter({ hasText: 'Browser old raw draft' });await draftRow.getByText('ECRU', { exact: true }).waitFor();
 
   await go('dyeing');await page.getByRole('button', { name: /^Send fabric for dyeing/ }).click();

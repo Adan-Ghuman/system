@@ -26,15 +26,16 @@ import { InventoryLocation, FabricInventoryItem } from '../../inventory/types/in
 import { PartyItem } from '../../parties/types/party.types.js';
 
 export interface CreateDispatchModalProps {
+  initialPurpose?: 'SALE' | 'CLIENT_RETURN';
   draft?: OperationDocument;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft }: CreateDispatchModalProps) {
+export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initialPurpose }: CreateDispatchModalProps) {
   const saved = draft?.draft as Partial<CreateDispatchPayload & { inventoryId: string; poNo: string; externalReference: string; requestId: string }> | undefined;
-  const [purpose, setPurpose] = useState<'SALE' | 'CLIENT_RETURN'>(saved?.purpose || 'SALE');
+  const [purpose, setPurpose] = useState<'SALE' | 'CLIENT_RETURN'>(saved?.purpose || initialPurpose || 'SALE');
   const [billNow, setBillNow] = useState(saved?.billNow ?? true);const [condition, setCondition] = useState<'RAW_ECRU' | 'FINISHED_DYED'>(saved?.state || 'FINISHED_DYED');
   const locations = useLocations();
   const [freshReferences] = useDocumentReferences();const [references, setReferences] = useState({ ...freshReferences, poNo: saved?.poNo || '', externalReference: saved?.externalReference || '', requestId: saved?.requestId || freshReferences.requestId });

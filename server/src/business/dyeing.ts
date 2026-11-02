@@ -1,4 +1,4 @@
-import { Types } from 'mongoose';
+import { Types, ClientSession } from 'mongoose';
 import { DyeingBatch } from '../models/DyeingBatch.js';
 import { DyeingUnit } from '../models/DyeingUnit.js';
 import { Party } from '../models/Party.js';
@@ -56,7 +56,10 @@ export async function postSingleDyeingIssue(input: CreateBatchInput) {
 }
 
 export async function postDyeingReceipt(input: ReceiveGatePassInput, complete = false) {
-  return postCommand('DYEING_RECEIPT', input, async session => {
+  return postCommand('DYEING_RECEIPT', input, async session => (await postDyeingReceiptInSession(input, session, complete)).batches);
+}
+
+export async function postDyeingReceiptInSession(input: ReceiveGatePassInput, session: ClientSession, complete = false) {
     const result = [], receiptItems = [];
     const date = new Date(input.dateReceived);
     for (const item of input.items) {
@@ -80,11 +83,10 @@ export async function postDyeingReceipt(input: ReceiveGatePassInput, complete = 
       batch.dateReceived = date;batch.igpNo = input.igpNo;batch.shortageWeightKg = weight(batch.receivedRawKg - batch.finishWeightKg);batch.shortagePercent = Math.round(batch.shortageWeightKg / batch.receivedRawKg * 10000) / 100;
       batch.status = batch.receivedRawKg >= batch.ecruWeightKg - 0.000001 && batch.receivedRawRolls === batch.ecruRollsCount ? 'COMPLETED' : 'IN_PROCESS';
       await batch.save({ session });result.push(batch.toObject());
-      receiptItems.push({ batchId: batch._id, fabricType: batch.fabricType, yarnSpec: batch.yarnSpec, color: batch.targetColor, rawKg, rawRolls, weightKg: item.finishWeightKg, rolls: item.finishRollsCount, wastageKg: weight(rawKg - item.finishWeightKg) });
+      receiptItems.push({ ownerKey, batchId: batch._id, fabricType: batch.fabricType, yarnSpec: batch.yarnSpec, color: batch.targetColor, rawKg, rawRolls, weightKg: item.finishWeightKg, rolls: item.finishRollsCount, wastageKg: weight(rawKg - item.finishWeightKg) });
     }
-    await DyeingReceipt.create([{ number: await nextDocumentNo('DR', session), gatePassNo: input.igpNo, partyId: result[0]?.millPartyId, date, ...referenceFields(input), actorId: businessContext.getStore()!.actorId, items: receiptItems }], { session });
-    return result;
-  });
+    const [receipt] = await DyeingReceipt.create([{ receiptReferenceKey: String(result[0]?.millPartyId) + ':' + input.igpNo.trim().toUpperCase(), number: await nextDocumentNo('DR', session), gatePassNo: input.igpNo, partyId: result[0]?.millPartyId, date, ...referenceFields(input), actorId: businessContext.getStore()!.actorId, items: receiptItems }], { session });
+    return { batches: result, receipt: receipt.toObject() };
 }
 
 export async function completeDyeingBatch(id: string, input: SettleBatchInput) {
@@ -97,6 +99,10 @@ export async function reverseDyeingReceipt(id: string, input: { reason: string; 
     const receipt = await DyeingReceipt.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!receipt) throw new NotFoundError('Posted dyeing receipt not found.');
     if (await BillAllocation.exists({ sourceId: id }).session(session)) throw new BadRequestError('Reverse the processing bill before reversing its receipt.');
+    if (receipt.receiptOrigin === 'EXTERNAL_PROCESSING_RETURN') {
+      for (const item of receipt.items) await moveFabric({ fabricType: item.fabricType || '', yarnSpec: item.yarnSpec || '', color: item.color || '', state: 'FINISHED_DYED', ownerKey: item.ownerKey || '', rolls: item.rolls || 0, weightKg: item.weightKg || 0 }, receipt.location, -1, receipt._id, new Date(), `External return reversed: ${input.reason}`, session);
+      receipt.status = 'REVERSED';await receipt.save({ session });return receipt.toObject();
+    }
     for (const item of receipt.items) {
       const batch = await DyeingBatch.findById(item.batchId).session(session);
       if (!batch) throw new NotFoundError('The source batch is missing.');
