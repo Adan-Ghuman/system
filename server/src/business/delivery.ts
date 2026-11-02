@@ -52,7 +52,10 @@ export async function reverseDelivery(id: string, input: { reason: string; reque
   return postCommand('REVERSE_DELIVERY', { ...input, id }, async session => {
     const dispatch = await Dispatch.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!dispatch) throw new NotFoundError('Posted delivery not found.');
-    const bills = await BusinessDocument.find({ sourceId: id, status: 'POSTED' }).session(session);
+    const allocations = await BillAllocation.find({ sourceId: id }).session(session);
+    const bills = await BusinessDocument.find({ kind: 'CUSTOMER_BILL', status: 'POSTED', $or: [{ sourceId: id }, { 'items.sourceId': id }, { _id: { $in: allocations.map(allocation => allocation.billId) } }] }).session(session);
+    const billSources = await BillAllocation.find({ billId: { $in: bills.map(bill => bill._id) } }).session(session);
+    if (bills.some(bill => (bill.sourceId && String(bill.sourceId) !== id) || bill.items.some(item => item.sourceId && String(item.sourceId) !== id)) || billSources.some(allocation => String(allocation.sourceId) !== id)) throw new BadRequestError('This delivery is included in a bill covering multiple deliveries. Reverse that bill and its payments or credits first, then reverse the delivery.');
     if (bills.some(bill => bill.settlementStatus === 'NOT_RECORDED')) throw new BadRequestError('Reconcile the payment history before reversing this delivery.');
     if (bills.some(bill => bill.paid > 0)) throw new BadRequestError('Reverse its recorded payments before reversing this delivery.');
     if (bills.some(bill => bill.credited > 0)) throw new BadRequestError('Reverse its return / credit notes before reversing this delivery.');

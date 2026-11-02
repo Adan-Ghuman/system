@@ -2,6 +2,8 @@ import { money } from '../../business/posting.js';
 import { referenceFields } from '../../business/references.js';
 import { currentBusinessId } from '../../business/context.js';
 import { postDelivery } from '../../business/delivery.js';
+import { BusinessDocument } from '../../business/commerce.models.js';
+import { billableSources } from '../../business/billable-sources.js';
 import { escapeRegex } from '../../utils/search.js';
 import mongoose, { Types } from 'mongoose';
 import { Dispatch, IDispatch } from '../../models/Dispatch.js';
@@ -190,6 +192,22 @@ export async function executeDispatch(input: CreateDispatchInput): Promise<{
   }
 }
 
+async function activeInvoices(filter: Record<string, unknown>) {
+  const invoices = await Invoice.find(filter);
+  if (!currentBusinessId() || !invoices.length) return invoices;
+  const reversed = await BusinessDocument.find({ _id: { $in: invoices.map(invoice => invoice._id) }, status: 'REVERSED' }).select('_id');
+  const reversedDeliveries = await Dispatch.find({ _id: { $in: invoices.map(invoice => invoice.dispatchId) }, status: 'REVERSED' }).select('_id');
+  const reversedIds = new Set(reversed.map(document => String(document._id)));
+  const reversedDeliveryIds = new Set(reversedDeliveries.map(document => String(document._id)));
+  return invoices.filter(invoice => !reversedIds.has(String(invoice._id)) && !reversedDeliveryIds.has(String(invoice.dispatchId)));
+}
+
+async function billingAvailability(dispatches: IDispatch[]) {
+  if (!currentBusinessId()) return new Map<string, boolean>();
+  const sources = await billableSources(dispatches.map(dispatch => ({ _id: dispatch._id, label: dispatch.dispatchNo, items: [{ sourceLineId: String(dispatch._id), rolls: dispatch.totalRolls, weightKg: dispatch.totalNetWeightKg }] })), 'RECEIVABLE');
+  return new Map(sources.map(source => [String(source._id), !source.disabled]));
+}
+
 export async function listDispatches(query: QueryDispatchesInput) {
   const { page, limit, skip } = parsePagination(query, 20);
   const filter: Record<string, unknown> = {};
@@ -213,7 +231,7 @@ export async function listDispatches(query: QueryDispatchesInput) {
   }
 
   if (query.invoiceType) {
-    const matchingInvoices = await Invoice.find({ invoiceType: query.invoiceType }, 'dispatchId');
+    const matchingInvoices = await activeInvoices({ invoiceType: query.invoiceType });
     const matchingDispatchIds = matchingInvoices.map((inv) => inv.dispatchId);
     filter._id = { $in: matchingDispatchIds };
   }
@@ -230,11 +248,13 @@ export async function listDispatches(query: QueryDispatchesInput) {
   ]);
 
   const dispatchIds = items.map((d) => d._id);
-  const invoices = await Invoice.find({ dispatchId: { $in: dispatchIds } });
+  const invoices = await activeInvoices({ dispatchId: { $in: dispatchIds } });
   const invoiceMap = new Map(invoices.map((inv) => [inv.dispatchId.toString(), inv]));
+  const available = await billingAvailability(items);
 
   const enrichedItems = items.map((d) => ({
     ...d.toObject(),
+    canBill: d.status !== 'REVERSED' && d.purpose !== 'CLIENT_RETURN' && !invoiceMap.has(String(d._id)) && available.get(String(d._id)) !== false,
     invoice: invoiceMap.get(d._id.toString()) || null
   }));
 
@@ -247,6 +267,7 @@ export async function getDispatchDetails(id: string) {
     throw new NotFoundError('Dispatch not found');
   }
 
-  const invoice = await Invoice.findOne({ dispatchId: dispatch._id });
-  return { dispatch, invoice };
+  const [invoice = null] = await activeInvoices({ dispatchId: dispatch._id });
+  const available = await billingAvailability([dispatch]);
+  return { dispatch, invoice, canBill: dispatch.status !== 'REVERSED' && dispatch.purpose !== 'CLIENT_RETURN' && !invoice && available.get(String(dispatch._id)) !== false };
 }

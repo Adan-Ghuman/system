@@ -75,7 +75,7 @@ productionRoutes.get('/balances', requirePermission('knitting:read', 'dyeing:rea
   const asOf = req.query.to ? new Date(String(req.query.to) + 'T23:59:59.999+05:00') : new Date();
   if (!Number.isFinite(asOf.valueOf())) throw new BadRequestError('Choose a valid balance date.');
   const stock = await StockMovement.aggregate([{ $match: { date: { $lte: asOf } } }, { $group: { _id: { material: '$material', location: '$location' }, weightKg: { $sum: '$weightKg' }, quantity: { $sum: '$quantity' } } }, { $sort: { '_id.material': 1, '_id.location': 1 } }]);
-  const issues = await YarnTransaction.find({ transactionType: 'OUTWARD_TO_KNITTER', date: { $lte: asOf }, status: { $ne: 'REVERSED' } });
+  const issues = await YarnTransaction.find({ transactionType: 'OUTWARD_TO_KNITTER', date: { $lte: asOf }, $or: [{ status: { $ne: 'REVERSED' } }, { reversedAt: { $gt: asOf } }] });
   const receipts = await KnittingReceipt.find({ date: { $lte: asOf }, $or: [{ status: 'POSTED' }, { reversedAt: { $gt: asOf } }] });
   const returns = await BusinessDocument.find({ kind: 'YARN_RETURN', date: { $lte: asOf }, $or: [{ status: 'POSTED' }, { reversedAt: { $gt: asOf } }] });
   const consumption = receipts.reduce((sum, receipt) => sum + receipt.items.reduce((total, item) => total + item.weightKg + item.wastageKg, 0), 0);

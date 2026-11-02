@@ -1,5 +1,7 @@
 # Implementation and verification - 15 October 2026
 
+For the current audit scope and correction regressions, see [System flow verification](../flow-audit/README.md), dated 2 November 2026. The notes below describe the earlier release.
+
 The application uses one workspace. Rozain Textile and ZR Trading are distinct sibling companies represented using the existing unit/godown and party-ledger pattern. ZR Trading has a godown location and a linked party account, without a company selector or separate workspace. All existing records remain editable in their original collections, with the same IDs, stock and balances. The verification uses a disposable MongoDB replica set and an isolated browser server; it does not enter records in the operating database.
 
 ## Operator workflow

@@ -45,6 +45,7 @@ export interface DispatchItem { purpose?: 'SALE' | 'CLIENT_RETURN'; ownerKey?: s
   date: string;
   remarks?: string;
   invoice?: DispatchInvoiceSummary | null;
+  canBill?: boolean;
   createdAt: string;
 }
 

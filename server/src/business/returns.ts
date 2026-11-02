@@ -28,6 +28,11 @@ export async function postReturn(id: string, input: z.infer<typeof returnInput>)
       const already = previous.flatMap(document => document.items).filter(item => item.sourceLineId === entry.lineId);
       if (entry.rolls + already.reduce((sum, item) => sum + item.rolls, 0) > line.rolls || weight(entry.weightKg + already.reduce((sum, item) => sum + item.weightKg, 0)) > line.weightKg) throw new BadRequestError('The return exceeds the quantity on the original bill.');
       if ((purchase || sale) && (!entry.rolls || !entry.weightKg)) throw new BadRequestError('Fabric returns need positive rolls and measured kg.');
+      if (purchase || sale) {
+        const remainingRolls = line.rolls - entry.rolls - already.reduce((sum, item) => sum + item.rolls, 0);
+        const remainingKg = weight(line.weightKg - entry.weightKg - already.reduce((sum, item) => sum + item.weightKg, 0));
+        if ((remainingRolls === 0) !== (remainingKg === 0)) throw new BadRequestError('The final returned rolls must reconcile with the remaining measured kg on this bill line.');
+      }
       const delivery = sale ? await Dispatch.findOne({ _id: line.sourceId || original.sourceId, status: 'POSTED' }).session(session) : null;
       if (sale && !delivery) throw new BadRequestError('The original delivery is unavailable.');
       const sourceReceipt = purchase && (line.sourceId || original.sourceId) ? await BusinessDocument.findById(line.sourceId || original.sourceId).session(session) : null;

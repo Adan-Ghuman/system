@@ -464,7 +464,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                     <td className="py-2 px-3 text-center whitespace-nowrap sticky right-0 bg-canvas group-hover:bg-surface z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1">
                         <button
-                          disabled={Boolean(businessId) && e.referenceType !== "ADJUSTMENT"}
+                          disabled={Boolean(businessId) && (e.referenceType !== "ADJUSTMENT" || Boolean(e.referenceId))}
                           type="button"
                           onClick={() => {
                             setEditingEntry(e);
@@ -481,6 +481,7 @@ export function PartyLedgerModal({ partyId, isOpen, onClose, onSuccess }: PartyL
                         </button>
 
                         <button
+                          disabled={Boolean(businessId) && (e.referenceType !== "ADJUSTMENT" || Boolean(e.referenceId))}
                           type="button"
                           onClick={() => {
                             setDeletingEntry(e);

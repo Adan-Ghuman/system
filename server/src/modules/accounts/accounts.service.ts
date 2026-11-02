@@ -381,7 +381,7 @@ export async function updateLedgerEntry(entryId: string, input: UpdateLedgerEntr
     if (!entry) {
       throw new NotFoundError('Ledger entry not found');
     }
-    if (currentBusinessId() && entry.referenceType !== 'ADJUSTMENT') throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
+    if (currentBusinessId() && (entry.referenceType !== 'ADJUSTMENT' || entry.referenceId)) throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
 
 
     if (input.amount !== undefined) entry.amount = input.amount;
@@ -420,7 +420,7 @@ export async function deleteLedgerEntry(entryId: string): Promise<void> {
     if (!entry) {
       throw new NotFoundError('Ledger entry not found');
     }
-    if (currentBusinessId() && entry.referenceType !== 'ADJUSTMENT') throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
+    if (currentBusinessId() && (entry.referenceType !== 'ADJUSTMENT' || entry.referenceId)) throw new BadRequestError('Open the source bill or payment to correct it. Posted source entries cannot be edited or deleted independently.');
 
 
     const partyId = entry.partyId;

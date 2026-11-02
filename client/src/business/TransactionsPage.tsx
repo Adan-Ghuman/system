@@ -44,7 +44,7 @@ const views = [['ALL', 'All activity'], ['CUSTOMER', 'Customer bills'], ['SUPPLI
 const errorText = (error: unknown) => (error as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not complete the request. Please retry.';
 export function TransactionsPage() {
   const user = useAuthStore(s => s.user);const businessId = useBusinessStore(s => s.id);const client = useQueryClient();const [params, setParams] = useSearchParams();
-  const [view, setView] = useState(params.get('view') || 'ALL');const [search, setSearch] = useState('');const debounced = useDebounce(search, 300);const [from, setFrom] = useState('');const [to, setTo] = useState('');const { page, limit, setPage, setLimit } = useQueryPagination([view, debounced, from, to]);
+  const [view, setView] = useState(params.get('view') || 'ALL');const [search, setSearch] = useState(params.get('search') || '');const debounced = useDebounce(search, 300);const [from, setFrom] = useState('');const [to, setTo] = useState('');const { page, limit, setPage, setLimit } = useQueryPagination([view, debounced, from, to]);
   const [moneyRecovery, setMoneyRecovery] = useState(false);const [entry, setEntry] = useState<Entry | null>(null);const [chooser, setChooser] = useState(false);const [recovery, setRecovery] = useState<Recovery[]>([]);const [result, setResult] = useState<{ type: 'CUSTOMER' | 'SUPPLIER'; saved: SaleResult | PurchaseResult } | null>(null);
   const [operation, setOperation] = useState('');const [preview, setPreview] = useState<OperationDocument | null>(null);const [paying, setPaying] = useState<OperationDocument | null>(null);const [returning, setReturning] = useState<OperationDocument | null>(null);const [voucher, setVoucher] = useState<PrintableVoucher | null>(null);const [gatePass, setGatePass] = useState<DispatchItem | null>(null);
   const [activity, setActivity] = useState<{ work?: Array<{ _id: string; number: string; reference: string; date: string; kind: string; status: string }>; documents: OperationDocument[]; payments: Array<{ _id: string; date: string; amount: number; status: string; voucherId?: PrintableVoucher }>; movements: Array<{ _id: string; date: string; item: string; quantity: number; weightKg: number; reason: string }> } | null>(null);
@@ -59,6 +59,7 @@ export function TransactionsPage() {
   }
   useEffect(() => {
     if (params.get('view')) setView(params.get('view')!);
+    if (params.has('search')) setSearch(params.get('search') || '');
     if (params.get('new') === '1') { setChooser(true);setParams({}, { replace: true });return; }
     const action = params.get('action');if (!action) return;
     const draftId = params.get('draftId');

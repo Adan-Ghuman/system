@@ -65,7 +65,7 @@ export function SalesForm({ draft, initial, cacheKey, onSaved, onDraftSaved, onC
   const snapshot = JSON.stringify(body());
   useEffect(() => { if (!uncertain && !review) sessionStorage.setItem(cacheKey, JSON.stringify({ body: JSON.parse(snapshot) })); }, [snapshot, cacheKey, uncertain, review]);
   function chooseCustomer(id: string) { setCustomerId(id);if (customerId || !saved.sourceId) setSourceId('');if (mode !== 'FABRIC' && !paper) setItems([blankOperationLine()]); }
-  function chooseMode(value: SaleMode) { setMode(value);setSourceId('');setInventoryId('');setBillNow(true);setSourceMode('WORK');setPaymentKind('LATER');setCharges([]);if (!draft && !initial) setItems([blankOperationLine()]); }
+  function chooseMode(value: SaleMode) { setMode(value);setSourceId('');setInventoryId('');setBillNow(true);setSourceMode('WORK');setPaymentKind('LATER');setCharges([]);if (!(draft?.kind === 'CUSTOMER_BILL' && !saved.sourceId && !saved.mode)) setItems([blankOperationLine()]); }
   function chooseWork(id: string) { setSourceId(id);const source = sources.data?.items.find(s => s._id === id);setItems(source?.items.map(i => ({ ...blankOperationLine(), ...i, basis: 'KG' })) || [blankOperationLine()]); }
   const change = (index: number, patch: Partial<OperationLine>) => setItems(current => current.map((line, at) => at === index ? { ...line, ...patch } : line));
   async function prepare() {

@@ -83,6 +83,7 @@ export function DispatchPage() {
     let totalGrand = 0;
 
     dispatches.forEach((d) => {
+      if (d.status === 'REVERSED') return;
       totalRolls += d.totalRolls;
       totalNetKg += d.totalNetWeightKg;
       if (d.invoice) {
@@ -139,7 +140,7 @@ export function DispatchPage() {
         <Card className="bg-surface/80 border-line p-3">
           <CardContent className="p-0">
             <div className="text-xs font-medium text-soft normal-case tracking-normal">
-              Total Sales (Base Amount)
+              Delivery-time invoices · base
             </div>
             <div className="text-lg font-bold font-mono text-strong mt-1">
               {formatCurrency(kpis.totalBase)}
@@ -152,7 +153,7 @@ export function DispatchPage() {
           <CardContent className="p-0">
             <div className="text-xs font-medium text-warning normal-case tracking-normal flex items-center gap-1">
               <Receipt className="w-3 h-3" />
-              18% GST Sales Tax
+              Delivery-time invoices · GST
             </div>
             <div className="text-lg font-bold font-mono text-warning mt-1">
               {formatCurrency(kpis.totalTax)}
@@ -334,7 +335,7 @@ export function DispatchPage() {
 
                     <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 transition-colors z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1.5">
-                        {d.status !== 'REVERSED' && d.purpose !== 'CLIENT_RETURN' && !d.invoice && <Button size="sm" variant="outline" onClick={() => navigate('/sales?new=1&mode=EXISTING_DELIVERY&sourceId=' + d._id + '&customerId=' + d.customerId._id)}>Bill this delivery</Button>}
+                        {d.status !== 'REVERSED' && d.purpose !== 'CLIENT_RETURN' && !d.invoice && (d.canBill !== false ? <Button size="sm" variant="outline" onClick={() => navigate('/transactions?action=CUSTOMER&mode=EXISTING_DELIVERY&sourceId=' + d._id + '&partyId=' + d.customerId._id)}>Bill this delivery</Button> : <Button size="sm" variant="outline" onClick={() => navigate('/transactions?search=' + encodeURIComponent(d.dispatchNo))}>View bills</Button>)}
                         {businessId && d.status !== 'REVERSED' && <Button size="sm" variant="ghost" onClick={async () => { const reason = await requestReason('Why is this delivery being reversed? Its stock and unpaid bills will be reversed together.');if (!reason?.trim()) return;try { await api.post('/dispatch/' + d._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse the delivery.'); } }}>Reverse delivery</Button>}
 <Button
                           variant="outline"
