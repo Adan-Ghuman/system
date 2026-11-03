@@ -1,3 +1,4 @@
+import { yarnProductionRoutes } from './business/yarn-production.routes.js';
 import { reconciliationRoutes } from './business/reconciliation.routes.js';
 import { transactionRoutes } from './business/transactions.routes.js';
 import { intercompanyRoutes } from './business/intercompany.routes.js';
@@ -66,6 +67,7 @@ export function createApp(): express.Application {
   const operations = express.Router();
   operations.use('/parties', partyRoutes);
   operations.use('/knitting', knittingRoutes);
+  operations.use('/yarn-production', yarnProductionRoutes);
   operations.use('/dyeing', dyeingRoutes);
   operations.use('/inventory', inventoryRoutes);
   operations.use('/dispatch', dispatchRoutes);

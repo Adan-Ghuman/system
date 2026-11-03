@@ -22,6 +22,7 @@ interface StockChange {
   color?: string;
   partyId?: Types.ObjectId;
   sourceId: Types.ObjectId;
+  sourceKind?: string;
   date: Date;
   reason: string;
 }

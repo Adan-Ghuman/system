@@ -12,3 +12,4 @@ execFileSync(process.execPath, ['tests/flow-corrections.e2e.mjs'], { stdio: 'inh
 execFileSync(process.execPath, ['tests/unified-sales.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_SALES_BROWSER: '1' } });
 execFileSync(process.execPath, ['tests/consistent-transactions.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_TRANSACTIONS_BROWSER: '1' } });
 execFileSync(process.execPath, ['tests/shortage-reconciliation.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_SHORTAGE_BROWSER: '1' } });
+execFileSync(process.execPath, ['tests/yarn-production.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_YARN_PRODUCTION_BROWSER: '1' } });

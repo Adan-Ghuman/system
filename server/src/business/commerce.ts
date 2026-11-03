@@ -1,3 +1,4 @@
+import { YarnProductionRun } from './yarn-production.models.js';
 import { moveYarn } from './stock-reconciliation.js';
 import { Reconciliation } from './reconciliation.models.js';
 import { currentShortageReason } from './context.js';
@@ -211,6 +212,9 @@ export async function reverseOperation(id: string, input: { requestId?: string; 
   return postCommand('REVERSE_DOCUMENT', { ...input, id } as typeof input, async session => {
     const document = await BusinessDocument.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!document) throw new NotFoundError('Posted document not found.');
+    if (['YARN_RECEIPT', 'YARN_PURCHASE'].includes(document.kind) && await YarnProductionRun.exists({ linkedReceiptId: document._id }).session(session)) {
+      throw new BadRequestError('Unlink this receipt in Yarn Stock → Machine Production before reversing it.');
+    }
     if (document.settlementStatus === 'NOT_RECORDED') throw new BadRequestError('Reconcile the payment history before reversing this bill.');
     if (document.intercompanyId) throw new BadRequestError('Reverse this from its linked inter-company transaction.');
     if (document.paid) throw new BadRequestError('Reverse the recorded payments before reversing this bill.');
