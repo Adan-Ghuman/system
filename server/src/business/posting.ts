@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import mongoose, { ClientSession } from 'mongoose';
 import { PostingRequest, DocumentCounter } from './records.js';
-import { currentBusinessId, businessContext, usesExistingRecords } from './context.js';
+import { currentBusinessId, businessContext, usesExistingRecords, postingContext } from './context.js';
 import { existingNumberFloor } from './existing-records.js';
 import { BadRequestError, ConflictError, ForbiddenError } from '../utils/errors.js';
 
@@ -16,7 +16,7 @@ export async function nextDocumentNo(kind: string, session?: ClientSession) {
   const counter = await DocumentCounter.findOneAndUpdate({ kind }, { $inc: { value: 1 } }, { upsert: true, new: true, session });
   return `${kind}-${String(counter!.value).padStart(5, '0')}`;
 }
-export async function postCommand<T, I extends { requestId?: string }>(kind: string, input: I, action: (session: ClientSession) => Promise<T>): Promise<T> {
+export async function postCommand<T, I extends { requestId?: string; shortageReason?: string }>(kind: string, input: I, action: (session: ClientSession) => Promise<T>): Promise<T> {
   if (!currentBusinessId()) throw new ForbiddenError('Choose a business before posting.');
   const requestId = input.requestId || randomUUID();
   const hash = createHash('sha256').update(JSON.stringify({ actorId: businessContext.getStore()!.actorId, input })).digest('hex');
@@ -30,7 +30,9 @@ export async function postCommand<T, I extends { requestId?: string }>(kind: str
         result = existing.result as T;
         return;
       }
-      result = await action(session);
+      const fields = input as I & { reference?: string; gatePassNo?: string; ogpNo?: string; igpNo?: string; receiptReference?: string; externalReference?: string };
+      const reference = fields.reference || fields.gatePassNo || fields.ogpNo || fields.igpNo || fields.receiptReference || fields.externalReference;
+      result = await postingContext.run({ kind, reference, shortageReason: input.shortageReason }, () => action(session));
       await PostingRequest.create([{ requestId, kind, hash, result: JSON.parse(JSON.stringify(result)) }], { session });
     });
     return result!;

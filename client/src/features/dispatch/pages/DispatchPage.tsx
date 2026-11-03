@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useLocations } from '../../../business/useLocations.js';
 import { locationLabel } from '../../../business/locations.js';
-import { requestReason } from '../../../components/ui/ReasonDialog.js';
+import { requestStockReversal } from '../../../components/ui/ReasonDialog.js';
 import { DeliveryDrafts } from '../../../business/DeliveryDrafts.js';
 import { OperationDocument } from '../../../business/types.js';
 import { useBusinessStore } from '../../../business/store.js';
@@ -336,7 +336,7 @@ export function DispatchPage() {
                     <td className="py-3 px-4 text-center whitespace-nowrap sticky right-0 bg-surface group-hover:bg-subtle/90 transition-colors z-10 border-l border-line shadow-sm">
                       <div className="flex items-center justify-center gap-1.5">
                         {d.status !== 'REVERSED' && d.purpose !== 'CLIENT_RETURN' && !d.invoice && (d.canBill !== false ? <Button size="sm" variant="outline" onClick={() => navigate('/transactions?action=CUSTOMER&mode=EXISTING_DELIVERY&sourceId=' + d._id + '&partyId=' + d.customerId._id)}>Bill this delivery</Button> : <Button size="sm" variant="outline" onClick={() => navigate('/transactions?search=' + encodeURIComponent(d.dispatchNo))}>View bills</Button>)}
-                        {businessId && d.status !== 'REVERSED' && <Button size="sm" variant="ghost" onClick={async () => { const reason = await requestReason('Why is this delivery being reversed? Its stock and unpaid bills will be reversed together.');if (!reason?.trim()) return;try { await api.post('/dispatch/' + d._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse the delivery.'); } }}>Reverse delivery</Button>}
+                        {businessId && d.status !== 'REVERSED' && <Button size="sm" variant="ghost" onClick={async () => { const reversal = await requestStockReversal('Why is this delivery being reversed? Its stock and unpaid bills will be reversed together.');if (!reversal?.reason) return;try { await api.post('/dispatch/' + d._id + '/reverse', { ...reversal, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse the delivery.'); } }}>Reverse delivery</Button>}
 <Button
                           variant="outline"
                           size="sm"

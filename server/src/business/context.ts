@@ -10,3 +10,6 @@ export function businessRecordFilter() { const businessId = businessObjectId();r
 export function partyModelName() { return usesExistingRecords() ? 'RozainPartyAccount' : currentBusinessId() ? 'PartyAccount' : 'Party'; }
 
 export function voucherModelName() { return usesExistingRecords() ? 'RozainPaymentVoucher' : currentBusinessId() ? 'BusinessPaymentVoucher' : 'PaymentVoucher'; }
+
+export const postingContext = new AsyncLocalStorage<{ kind: string; reference?: string; shortageReason?: string }>();
+export const currentShortageReason = () => postingContext.getStore()?.shortageReason;

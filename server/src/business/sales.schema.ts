@@ -20,7 +20,7 @@ export const saleInput = z.object({
 }).superRefine((input, ctx) => {
   const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
   const service = ['KNITTING_CHARGE', 'DYEING_CHARGE'].includes(input.mode);
-  if (input.mode === 'FABRIC' && (!input.inventoryId || !input.rolls.length || input.items.length !== 1)) fail('inventoryId', 'Choose fabric stock and enter its roll weights.');
+  if (input.mode === 'FABRIC' && ((!input.inventoryId && !input.shortageReason) || !input.rolls.length || input.items.length !== 1)) fail('inventoryId', 'Choose fabric stock and enter its roll weights.');
   if (input.mode === 'FABRIC' && input.additionalCharges.length) fail('additionalCharges', 'Additional charges can be entered when billing an existing delivery.');
   if (input.mode === 'FABRIC' && input.items[0].basis !== 'KG') fail('items', 'Fabric delivery rates use measured kg.');
   if (input.mode !== 'FABRIC' && !input.billNow) fail('billNow', 'Only a new delivery can be billed later.');

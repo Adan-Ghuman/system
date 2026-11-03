@@ -290,7 +290,7 @@ export function ReceiveKnittedModal({
               <Input id="knitted-date" label="Received date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>
           </FormSection>
-          <Select label="Fabric / yarn owner" value={canonicalOwnerKey(ownerKey, owners.data?.items || [])} onChange={event => setOwnerKey(event.target.value)} options={ownerOptions(owners.data?.items || [])} /><DocumentReferences value={references} onChange={setReferences} />
+          <Select label="Fabric / yarn owner" value={canonicalOwnerKey(ownerKey, owners.data?.items || [])} onChange={event => setOwnerKey(event.target.value)} options={ownerOptions(owners.data?.items || [])} /><DocumentReferences shortage value={references} onChange={setReferences} />
           <FormSection step={2} title="What fabric did you receive?" description="Add a separate item for each fabric type or yarn count.">
             {rows.map((row, index) => (
               <EntryCard key={row.id} title={'Fabric item ' + (index + 1)} onCopy={() => handleDuplicateRow(index)}

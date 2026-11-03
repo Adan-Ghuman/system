@@ -1,3 +1,4 @@
+import { ShortageFabricFields, emptyFabricIdentity } from '../../../components/ui/ShortageFabricFields.js';
 import { useLocations } from '../../../business/useLocations.js';
 import { StockChoice } from '../../../components/ui/StockChoice.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
@@ -70,13 +71,14 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initial
   const { data: stockData } = useQuery<{ items: FabricInventoryItem[] }>({
     queryKey: ['inventory-items-for-dispatch', fromLocation, condition],
     queryFn: async () => {
-      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, state: condition });
+      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, state: condition, includeZero: 'true' });
     },
     enabled: isOpen
   });
 
-  const availableStock = (stockData?.items || []).filter(item => (item.ownerKey || 'OWN') === (purpose === 'CLIENT_RETURN' ? customerId : 'OWN'));
+  const availableStock = (stockData?.items || []).filter(item => (item.ownerKey || 'OWN') === (purpose === 'CLIENT_RETURN' ? customerId : 'OWN') && (references.shortageReason !== undefined || (item.totalRolls > 0 && item.totalWeightKg > 0)));
 
+  const [manualFabric, setManualFabric] = useState(emptyFabricIdentity);
   const activeStock = availableStock.find((s) => s._id === selectedStockId);
 
   const financials = useMemo(() => {
@@ -94,7 +96,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initial
     e.preventDefault();
     if (isSubmittingRef.current || isLoading) return;
 
-    if (!activeStock) {
+    if (!activeStock && !references.shortageReason?.trim()) {
       setError('Please select a finished dyed fabric stock item to dispatch');
       return;
     }
@@ -114,9 +116,10 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initial
         ...references, draftId: draft?._id,
         purpose, billNow: purpose === 'CLIENT_RETURN' ? false : billNow, state: condition, customerId,
         fromLocation,
-        fabricType: activeStock.fabricType,
-        yarnSpec: activeStock.yarnSpec,
-        color: activeStock.color,
+        inventoryId: activeStock?._id,
+        fabricType: activeStock?.fabricType || manualFabric.fabricType,
+        yarnSpec: activeStock?.yarnSpec || manualFabric.yarnSpec,
+        color: activeStock?.color || (condition === 'RAW_ECRU' ? 'ECRU' : manualFabric.color),
         rolls,
         ratePerKg: billNow ? parseFloat(ratePerKg) : 1,
         invoiceType,
@@ -201,6 +204,7 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initial
           />
         </div>
 
+        <DocumentReferences shortage value={references} onChange={setReferences} />
         <StockChoice
           location={fromLocation} state={condition} ownerKey={purpose === 'CLIENT_RETURN' ? customerId : 'OWN'}
           id="stockSelect"
@@ -216,9 +220,10 @@ export function CreateDispatchModal({ isOpen, onClose, onSuccess, draft, initial
                 }))]
           }
         />
+        {references.shortageReason !== undefined && !activeStock && <ShortageFabricFields value={manualFabric} raw={condition === 'RAW_ECRU'} onChange={setManualFabric} />}
 </FormSection>
 
-        <DocumentReferences value={references} onChange={setReferences} />
+
           <FormSection step={2} title="Rolls and billing">
 {purpose === "SALE" && <Select label="Posting option" value={billNow ? "BILL" : "DELIVERY"} onChange={event => setBillNow(event.target.value === "BILL")} options={[{ value: "BILL", label: "Deliver & bill together" }, { value: "DELIVERY", label: "Deliver only · bill later" }]} />}{purpose === "CLIENT_RETURN" && <p className="text-xs text-soft">This returns the client’s fabric without a sale. Record knitting charges separately.</p>}<RapidGridEntry rolls={rolls} onChange={setRolls} />
 

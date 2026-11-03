@@ -1,3 +1,4 @@
+import { ShortageOption } from '../../../components/ui/ShortageOption.js';
 import { useLocations } from '../../../business/useLocations.js';
 import { FormSection } from '../../../components/ui/WorkflowForm.js';
 import { useState, useEffect, useRef, FormEvent } from 'react';
@@ -38,6 +39,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrec
   const [totalWeightKg, setTotalWeightKg] = useState('0');
   const [correctionMode, setCorrectionMode] = useState(false);
   const [correctionReason, setCorrectionReason] = useState('');
+  const [shortageReason, setShortageReason] = useState<string>();
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +68,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrec
       setError(null);
       setSuccess(null);
       const correctShade = initialCorrection && item.state === 'RAW_ECRU' && item.color !== 'ECRU';
-      setCorrectionMode(correctShade);if (correctShade) { setColor('ECRU');setCustomColor(''); }setCorrectionReason('');setRequestId(crypto.randomUUID());
+      setCorrectionMode(correctShade);if (correctShade) { setColor('ECRU');setCustomColor(''); }setCorrectionReason('');setShortageReason(undefined);setRequestId(crypto.randomUUID());
     }
   }, [item, isOpen, initialCorrection]);
 
@@ -99,6 +101,7 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrec
 
       const payload: UpdateFabricInventoryPayload = {
         requestId,
+        shortageReason: correctionMode ? undefined : shortageReason,
         correctionReason: correctionMode ? correctionReason.trim() : undefined,
         location,
         state,
@@ -237,11 +240,12 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrec
 </FormSection>
 
         <FormSection step={2} title="Stock quantities">
+          {!correctionMode && <ShortageOption value={shortageReason} onChange={setShortageReason} />}
 <div className="grid grid-cols-2 gap-3">
           <Input
             id="editRolls"
             type="number"
-            min="0"
+            min={shortageReason === undefined ? Math.min(0, item.totalRolls) : undefined}
             label="Total Rolls In Stock"
             readOnly={correctionMode}
             value={totalRolls}
@@ -252,8 +256,8 @@ export function EditStockModal({ isOpen, onClose, onSuccess, item, initialCorrec
           <Input
             id="editWeightKg"
             type="number"
-            step="0.01"
-            min="0"
+            step="0.001"
+            min={shortageReason === undefined ? Math.min(0, item.totalWeightKg) : undefined}
             label="Total Weight (Kg)"
             readOnly={correctionMode}
             value={totalWeightKg}

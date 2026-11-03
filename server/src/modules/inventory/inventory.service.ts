@@ -186,7 +186,7 @@ export async function recordStockAdjustment(input: CreateAdjustmentInput): Promi
 export async function listInventoryItems(query: Partial<QueryInventoryInput> = {}) {
   const { page, limit, skip } = parsePagination(query, 20);
   const filter: Record<string, unknown> = {
-    $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
+    ...(query.includeZero === 'true' ? {} : { $or: [{ totalRolls: { $ne: 0 } }, { totalWeightKg: { $ne: 0 } }] })
   };
 
   if (query.location) {
@@ -238,7 +238,7 @@ export interface InventorySummaryQuery {
 
 export async function getInventorySummary(query: InventorySummaryQuery = {}) {
   const matchFilter: Record<string, unknown> = {
-    $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
+    $or: [{ totalRolls: { $ne: 0 } }, { totalWeightKg: { $ne: 0 } }]
   };
 
   if (query.location && query.location !== 'ALL') {
@@ -251,7 +251,7 @@ export async function getInventorySummary(query: InventorySummaryQuery = {}) {
     const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     matchFilter.$and = [
       {
-        $or: [{ totalRolls: { $gt: 0 } }, { totalWeightKg: { $gt: 0 } }]
+        $or: [{ totalRolls: { $ne: 0 } }, { totalWeightKg: { $ne: 0 } }]
       },
       {
         $or: [

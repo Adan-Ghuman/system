@@ -1,3 +1,5 @@
+import { loadAllRecords } from '../../../lib/pagedResources.js';
+import { ownerOptions } from '../../../business/ownership.js';
 import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { useLocations } from '../../../business/useLocations.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
@@ -85,6 +87,8 @@ export function ReceiveGatePassModal({
   initialMill = 'HB_DYEING'
 }: ReceiveGatePassModalProps) {
   // Mode toggle: 'DIRECT' (Mirror Paper Challan) vs 'LINK_BATCHES' (Select from Sent Batches)
+  const [directOwner, setDirectOwner] = useState('OWN');
+  const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<{ _id: string; name: string }>('/parties') });
   const [references, setReferences] = useDocumentReferences();const locations = useLocations();const [destination, setDestination] = useState('ZR_GODOWN');
   const [entryMode, setEntryMode] = useState<'DIRECT' | 'LINK_BATCHES'>('LINK_BATCHES');
 
@@ -324,6 +328,17 @@ export function ReceiveGatePassModal({
 
     try {
       if (entryMode === 'DIRECT') {
+        if (references.shortageReason?.trim()) {
+          await api.post('/dyeing/gate-passes/receive', {
+            ...references, millName, customMillName, igpNo: igpNo.trim(), dateReceived: new Date(dateReceived).toISOString(),
+            destination, remarks, ownerKey: directOwner,
+            items: rows.map(row => ({ fabricType: row.fabricType.trim(), yarnSpec: row.yarnSpec.trim(),
+              targetColor: row.targetColor.trim(), finishRollsCount: Number(row.rolls), finishWeightKg: Number(row.finishWeightKg) }))
+          });
+          onSuccess();
+          onClose();
+          return;
+        }
         await api.post('/workspace/external-mill-receipts', { ...references, millName, customMillName, reference: igpNo.trim(), date: new Date(dateReceived).toISOString(), location: destination, remarks: [remarks, driverName ? 'Driver: ' + driverName : '', vehicleNo ? 'Vehicle: ' + vehicleNo : ''].filter(Boolean).join(' · '), items: rows.map(row => ({ fabricType: row.fabricType.trim(), yarnSpec: row.yarnSpec.trim(), color: row.targetColor.trim(), rolls: Number(row.rolls), weightKg: Number(row.finishWeightKg), description: [row.lotNo ? 'Lot: ' + row.lotNo : '', row.gsm ? 'GSM: ' + row.gsm : '', row.width ? 'Width: ' + row.width : '', row.remarks].filter(Boolean).join(' · ') })) });
         onSuccess();onClose();return;
       }
@@ -345,7 +360,7 @@ export function ReceiveGatePassModal({
           if (!Number.isFinite(finishKg) || finishKg <= 0 || !Number.isInteger(finishRolls) || finishRolls < 1) {
             throw new Error('Enter the actual rolls and weight received for batch ' + matched.batchNo + '.');
           }
-          if (matched && matched.ecruWeightKg > 0 && finishKg > matched.ecruWeightKg) {
+          if (!references.shortageReason?.trim() && matched && matched.ecruWeightKg > 0 && finishKg > matched.ecruWeightKg) {
             throw new Error(
               `Batch ${matched.batchNo}: Finish weight (${finishKg} kg) cannot be more than lot weight (${matched.ecruWeightKg} kg)`
             );
@@ -390,7 +405,7 @@ export function ReceiveGatePassModal({
     (total, value) => ({ rolls: total.rolls + (parseInt(value.finishRolls, 10) || 0), weight: total.weight + (parseFloat(value.finishKg) || 0) }),
     { rolls: 0, weight: 0 }
   );
-  const hasWeightViolation = entryMode === 'DIRECT' ? directSummary.hasWeightViolation : hasModeBViolation;
+  const hasWeightViolation = entryMode === 'DIRECT' ? directSummary.hasWeightViolation : !references.shortageReason?.trim() && hasModeBViolation;
 
   function changeMill(value: string) {
     setMillName(value as DyeingMillType);
@@ -418,7 +433,7 @@ export function ReceiveGatePassModal({
               <Input id="receive-dyeing-date" label="Received date" type="date" value={dateReceived} onChange={(e) => setDateReceived(e.target.value)} required />
             </div>
           </FormSection>
-          <DocumentReferences value={references} onChange={setReferences} /><FormSection step={2} title="Which fabric are you receiving?">
+          <DocumentReferences shortage value={references} onChange={setReferences} /><FormSection step={2} title="Which fabric are you receiving?">
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" aria-pressed={entryMode === 'LINK_BATCHES'} onClick={() => setEntryMode('LINK_BATCHES')}
                 className={'rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ' + (entryMode === 'LINK_BATCHES' ? 'border-emerald-500/60 bg-brand-soft' : 'border-control bg-canvas/40')}>
@@ -431,7 +446,9 @@ export function ReceiveGatePassModal({
                 <span className="mt-1 block text-xs text-soft">Receive finished fabric from a mill when no earlier send-out is recorded.</span>
               </button>
             </div>
-            {entryMode === 'DIRECT' && <Select label="Receive into location" value={destination} onChange={event => setDestination(event.target.value)} options={locations} />}
+            {entryMode === 'DIRECT' && references.shortageReason !== undefined && <Select label="Fabric owner" value={directOwner}
+              onChange={event => setDirectOwner(event.target.value)} options={ownerOptions(owners.data?.items || [])} />}
+            {entryMode === 'DIRECT' && <Select label="Receive into location"  value={destination} onChange={event => setDestination(event.target.value)} options={locations} />}
             {entryMode === 'LINK_BATCHES' ? (
               <div className="space-y-3">
                 <Input id="receive-batch-search" label="Find a sent batch" value={batchSearch} onChange={(e) => setBatchSearch(e.target.value)} placeholder="Batch number, challan, fabric or color" />
@@ -463,8 +480,8 @@ export function ReceiveGatePassModal({
                         <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4">
                           <Input id={'receive-batch-rolls-' + batch._id} label="Rolls received" type="number" min="1" step="1" value={selected.finishRolls} required
                             onChange={(e) => setSelectedBatchIds((current) => ({ ...current, [batch._id]: { ...selected, finishRolls: e.target.value } }))} />
-                          <Input label="Raw rolls covered by this return" type="number" min="1" step="1" required value={selected.rawRolls} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawRolls: event.target.value } }))} /><Input label="Raw kg covered by this return" type="number" min="0.001" step="0.001" required value={selected.rawKg} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawKg: event.target.value } }))} /><Input id={'receive-batch-weight-' + batch._id} label="Weight received (kg)" type="number" min="0.001" max={batch.ecruWeightKg || undefined} step="0.001" value={selected.finishKg} required
-                            placeholder="e.g. 25.50" error={overWeight ? 'Cannot exceed the sent weight.' : undefined}
+                          <Input label="Raw rolls covered by this return" type="number" min="1" step="1" required value={selected.rawRolls} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawRolls: event.target.value } }))} /><Input label="Raw kg covered by this return" type="number" min="0.001" step="0.001" required value={selected.rawKg} onChange={event => setSelectedBatchIds(current => ({ ...current, [batch._id]: { ...selected, rawKg: event.target.value } }))} /><Input id={'receive-batch-weight-' + batch._id} label="Weight received (kg)" type="number" min="0.001" max={references.shortageReason !== undefined ? undefined : batch.ecruWeightKg || undefined} step="0.001" value={selected.finishKg} required
+                            placeholder="e.g. 25.50" error={overWeight && references.shortageReason === undefined ? 'Cannot exceed the sent weight.' : undefined}
                             onChange={(e) => setSelectedBatchIds((current) => ({ ...current, [batch._id]: { ...selected, finishKg: e.target.value } }))} />
                         </div>
                       )}
@@ -496,7 +513,7 @@ export function ReceiveGatePassModal({
                           onChange={(e) => handleRowChange(row.id, 'rolls', e.target.value)} placeholder="e.g. 10" />
                         <Input id={'receive-weight-' + row.id} label="Weight received (kg)" type="number" min="0.001" step="0.001" value={row.finishWeightKg} required
                           onChange={(e) => handleRowChange(row.id, 'finishWeightKg', e.target.value)} placeholder="e.g. 25.50"
-                          error={overWeight ? 'Cannot exceed the sent weight.' : undefined} />
+                          error={overWeight && references.shortageReason === undefined ? 'Cannot exceed the sent weight.' : undefined} />
                       </div>
 
                       {sentKg > 0 && receivedKg > 0 && !overWeight && <p className="text-xs text-soft">Weight loss: <strong className="text-strong">{(sentKg - receivedKg).toFixed(3)} kg ({((sentKg - receivedKg) / sentKg * 100).toFixed(1)}%)</strong></p>}

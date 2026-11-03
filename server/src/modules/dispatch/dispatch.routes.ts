@@ -1,3 +1,4 @@
+import { shortageReasonField } from '../../business/references.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { reverseDelivery } from '../../business/delivery.js';
@@ -35,7 +36,7 @@ router.patch('/drafts/:id', requirePermission('dispatch:write'), asyncHandler(as
 
 router.get('/', requirePermission('dispatch:read'), validateQuery(queryDispatchesSchema), asyncHandler(handleListDispatches));
 router.post('/', requirePermission('dispatch:write'), validateBody(createDispatchSchema), asyncHandler(handleCreateDispatch));
-router.post('/:id/reverse', requirePermission('dispatch:write'), requirePermission('accounts:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDelivery(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) }); }));
+router.post('/:id/reverse', requirePermission('dispatch:write'), requirePermission('accounts:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDelivery(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body)) }); }));
 router.get('/:id', requirePermission('dispatch:read'), asyncHandler(handleGetDispatch));
 
 export default router;

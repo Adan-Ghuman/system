@@ -93,6 +93,7 @@ export interface InventorySummaryGroup {
 }
 
 export interface UpdateFabricInventoryPayload {
+  shortageReason?: string;
   requestId?: string;
   correctionReason?: string;
   fabricType?: string;

@@ -49,7 +49,7 @@ export interface DispatchItem { purpose?: 'SALE' | 'CLIENT_RETURN'; ownerKey?: s
   createdAt: string;
 }
 
-export interface CreateDispatchPayload { purpose?: 'SALE' | 'CLIENT_RETURN'; draftId?: string; billNow?: boolean; state?: 'RAW_ECRU' | 'FINISHED_DYED';
+export interface CreateDispatchPayload { inventoryId?: string; purpose?: 'SALE' | 'CLIENT_RETURN'; draftId?: string; billNow?: boolean; state?: 'RAW_ECRU' | 'FINISHED_DYED';
   customerId: string;
   fromLocation: InventoryLocation;
   fabricType: string;

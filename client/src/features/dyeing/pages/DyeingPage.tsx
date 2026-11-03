@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { DyeingStatusReport } from '../../../business/DyeingStatusReport.js';
 import { ExternalMillReceipts } from '../../../business/ExternalMillReceipts.js';
-import { requestReason } from '../../../components/ui/ReasonDialog.js';
+import { requestStockReversal } from '../../../components/ui/ReasonDialog.js';
 import { ReceiptHistory } from '../../../business/ReceiptHistory.js';
 import { useBusinessStore } from '../../../business/store.js';
 import { useQueryPagination } from '../../../hooks/useQueryPagination.js';
@@ -242,7 +242,7 @@ export function DyeingPage() {
                         <td className="px-4 py-3 text-right text-xs"><p className="font-mono text-ink whitespace-nowrap">{formatWeight(batch.ecruWeightKg)}</p><p className="mt-1 text-soft">{batch.ecruRollsCount} rolls</p></td>
                         <td className="px-4 py-3 text-right text-xs">{batch.status === 'COMPLETED' ? <><p className="font-mono text-brand whitespace-nowrap">{formatWeight(batch.finishWeightKg || 0)}</p><p className="mt-1 text-soft">{batch.finishRollsCount} rolls</p></> : <span className="text-soft">Waiting</span>}</td>
                         <td className="px-4 py-3"><Badge variant={batch.status === 'COMPLETED' ? 'success' : batch.status === 'IN_PROCESS' ? 'default' : 'warning'} className="text-xs">{batch.status === 'COMPLETED' ? 'Received' : batch.status === 'IN_PROCESS' ? 'Being dyed' : 'At mill'}</Badge>{batch.status === 'COMPLETED' && <p className={'mt-2 text-xs ' + ((batch.shortagePercent || 0) > 5 ? 'text-warning' : 'text-soft')}>Loss: {(batch.shortageWeightKg || 0).toFixed(2)} kg · {(batch.shortagePercent || 0).toFixed(1)}%</p>}</td>
-                        <td className="px-4 py-3"><div className="flex flex-wrap gap-2">{batch.status !== 'COMPLETED' && <Button size="sm" onClick={() => setSettlingBatch(batch)}>Receive fabric</Button>}<Button variant="outline" size="sm" onClick={async () => { if (!businessId) { setEditingBatch(batch);return; }const reason = await requestReason('Why is this dyeing issue being reversed? Reverse its receipts first.');if (!reason?.trim()) return;try { await api.post('/workspace/dyeing-issues/' + batch._id + '/reverse', { reason, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse this issue.'); } }}><Edit className="h-3.5 w-3.5" /> {businessId ? 'Reverse issue' : 'Edit'}</Button></div></td>
+                        <td className="px-4 py-3"><div className="flex flex-wrap gap-2">{batch.status !== 'COMPLETED' && <Button size="sm" onClick={() => setSettlingBatch(batch)}>Receive fabric</Button>}<Button variant="outline" size="sm" onClick={async () => { if (!businessId) { setEditingBatch(batch);return; }const reversal = await requestStockReversal('Why is this dyeing issue being reversed? Reverse its receipts first.');if (!reversal?.reason) return;try { await api.post('/workspace/dyeing-issues/' + batch._id + '/reverse', { ...reversal, requestId: crypto.randomUUID() });await queryClient.invalidateQueries(); } catch (failure) { setExportError((failure as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not reverse this issue.'); } }}><Edit className="h-3.5 w-3.5" /> {businessId ? 'Reverse issue' : 'Edit'}</Button></div></td>
                       </tr>
                     ))}
                   </tbody>

@@ -12,7 +12,7 @@ export const DocumentCounter = businessModel<InferSchemaType<typeof counterSchem
 const commandSchema = new Schema<{ requestId: string; kind: string; hash: string; result: unknown }>({ requestId: { type: String, required: true, unique: true }, kind: { type: String, required: true }, hash: { type: String, required: true }, result: Schema.Types.Mixed }, { timestamps: true });
 export const PostingRequest = businessModel('PostingRequest', commandSchema);
 
-const stockSchema = new Schema({ yarnSpec: { type: String, required: true }, ownerKey: { type: String, default: 'OWN' }, totalWeightKg: { type: Number, default: 0, min: 0 }, packageUnit: { type: String, default: 'cartons' }, quantity: { type: Number, default: 0, min: 0 } }, { timestamps: true });
+const stockSchema = new Schema({ yarnSpec: { type: String, required: true }, ownerKey: { type: String, default: 'OWN' }, totalWeightKg: { type: Number, default: 0 }, packageUnit: { type: String, default: 'cartons' }, quantity: { type: Number, default: 0 } }, { timestamps: true });
 stockSchema.index({ yarnSpec: 1, ownerKey: 1, packageUnit: 1 }, { unique: true });
 export const YarnInventory = businessModel<InferSchemaType<typeof stockSchema>>('YarnInventory', stockSchema);
 
@@ -24,6 +24,8 @@ const receiptSchema = new Schema({ receiptReferenceKey: String, receiptNo: { typ
 receiptSchema.index({ receiptReferenceKey: 1 }, { unique: true, partialFilterExpression: { receiptReferenceKey: { $type: 'string' }, status: 'POSTED' } });
 export const KnittingReceipt = businessModel<InferSchemaType<typeof receiptSchema>>('KnittingReceipt', receiptSchema);
 
-const dyeingReceiptSchema = new Schema({ receiptReferenceKey: String, receiptOrigin: String, evidence: String, location: { type: String, default: 'ZR_GODOWN' }, number: { type: String, required: true, unique: true }, gatePassNo: { type: String, required: true }, partyId: { type: Schema.Types.ObjectId, ref: partyModelName }, status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' }, date: { type: Date, required: true }, actorId: { type: String, required: true }, items: [{ ownerKey: String, batchId: Schema.Types.ObjectId, fabricType: String, yarnSpec: String, color: String, rawKg: Number, rawRolls: Number, weightKg: Number, rolls: Number, wastageKg: Number }] }, { timestamps: true });
+const dyeingReceiptSchema = new Schema({ receiptReferenceKey: String, receiptOrigin: String, evidence: String, location: { type: String, default: 'ZR_GODOWN' }, number: { type: String, required: true, unique: true }, gatePassNo: { type: String, required: true }, partyId: { type: Schema.Types.ObjectId, ref: partyModelName }, status: { type: String, enum: ['POSTED', 'REVERSED'], default: 'POSTED' }, date: { type: Date, required: true }, actorId: { type: String, required: true }, items: [{ ownerKey: String, batchId: Schema.Types.ObjectId, finishedLocation: String,
+  allocations: [{ batchId: Schema.Types.ObjectId, rawKg: Number, rawRolls: Number, weightKg: Number, rolls: Number, wastageKg: Number }],
+  fabricType: String, yarnSpec: String, color: String, rawKg: Number, rawRolls: Number, weightKg: Number, rolls: Number, wastageKg: Number }] }, { timestamps: true });
 dyeingReceiptSchema.index({ receiptReferenceKey: 1 }, { unique: true, partialFilterExpression: { receiptReferenceKey: { $type: 'string' }, status: 'POSTED' } });
 export const DyeingReceipt = businessModel<InferSchemaType<typeof dyeingReceiptSchema>>('DyeingReceipt', dyeingReceiptSchema);

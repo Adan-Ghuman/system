@@ -1,3 +1,4 @@
+import { ShortageOption } from '../../../components/ui/ShortageOption.js';
 import { useState, useMemo, useRef, FormEvent } from 'react';
 import { api } from '../../../lib/api.js';
 import { Dialog } from '../../../components/ui/Dialog.js';
@@ -14,6 +15,8 @@ export interface SettleBatchModalProps {
 }
 
 export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBatchModalProps) {
+  const [shortageReason, setShortageReason] = useState<string>();
+  const [requestId] = useState(() => crypto.randomUUID());
   const [finishRollsCount, setFinishRollsCount] = useState(String(batch?.ecruRollsCount || ''));
   const [finishWeightKg, setFinishWeightKg] = useState('');
   const [dateReceived, setDateReceived] = useState(getLocalDateInput());
@@ -71,7 +74,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
         remarks: remarks.trim()
       };
 
-      await api.put(`/dyeing/batches/${batch._id}/settle`, payload);
+      await api.put(`/dyeing/batches/${batch._id}/settle`, { ...payload, requestId, shortageReason });
 
       setSuccess(`Batch ${batch.batchNo} settled successfully. Finished dyed inventory credited.`);
       onSuccess();
@@ -101,6 +104,7 @@ export function SettleBatchModal({ batch, isOpen, onClose, onSuccess }: SettleBa
       footer={<FormFooter formId="receive-batch-form" summary={finishWeightKg ? `${finishRollsCount || 0} rolls · ${formatWeight(Number(finishWeightKg))}` : 'Enter the actual received weight'} onClose={onClose} isLoading={isLoading} isSaved={Boolean(success)} disabled={settlementMath.isExceeded} submitLabel="Save receipt" />}
     >
       <form id="receive-batch-form" onSubmit={handleSubmit}>
+        <ShortageOption value={shortageReason} onChange={setShortageReason} />
         <FormFeedback error={error} success={success} />
         <fieldset disabled={isLoading || Boolean(success)} className="min-w-0 space-y-6">
           <FormSection step={1} title="Which batch came back?">

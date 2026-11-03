@@ -48,14 +48,14 @@ transactionRoutes.get('/activity/:id', requirePermission('accounts:read'), async
   const allocations = await BillAllocation.find({ $or: [{ sourceId: id }, { billId: id }] });
   const roots = [...new Set([String(id), ...allocations.map(a => String(a.sourceId))])];
   const knitting = await KnittingReceipt.find({ $or: [{ _id: { $in: roots } }, { 'items.allocations.transactionId': { $in: roots } }] });
-  const dyeing = await DyeingReceipt.find({ $or: [{ _id: { $in: roots } }, { 'items.batchId': { $in: roots } }] });
+  const dyeing = await DyeingReceipt.find({ $or: [{ _id: { $in: roots } }, { 'items.batchId': { $in: roots } }, { 'items.allocations.batchId': { $in: roots } }] });
   const sources = [...new Set([...roots, ...knitting.map(r => String(r._id)), ...dyeing.map(r => String(r._id))])];
   const allAllocations = await BillAllocation.find({ sourceId: { $in: sources } });
   let documents = await BusinessDocument.find({ $or: [{ _id: { $in: [id, ...allAllocations.map(a => a.billId)] } }, { sourceId: { $in: sources } }, { 'items.sourceId': { $in: sources } }] }).populate('partyId', 'name code').sort({ date: 1, _id: 1 });
   const credits = await BusinessDocument.find({ kind: 'CREDIT_NOTE', sourceId: { $in: documents.map(d => d._id) } }).populate('partyId', 'name code');
   documents = [...documents, ...credits.filter(c => !documents.some(d => String(d._id) === String(c._id)))].sort((a, b) => +a.date - +b.date);
   const payments = await BillPayment.find({ billId: { $in: documents.map(d => d._id) } }).populate('voucherId').sort({ date: 1 });
-  const movementSources = [...sources, ...dyeing.flatMap(r => r.items.map(i => i.batchId).filter(Boolean).map(String)), ...knitting.flatMap(r => r.items.flatMap(i => i.allocations.map(a => String(a.transactionId))))];
+  const movementSources = [...sources, ...dyeing.flatMap(r => r.items.flatMap(i => [i.batchId, ...i.allocations.map(allocation => allocation.batchId)]).filter(Boolean).map(String)), ...knitting.flatMap(r => r.items.flatMap(i => i.allocations.map(a => String(a.transactionId))))];
   const movements = await StockMovement.find({ sourceId: { $in: movementSources } }).sort({ date: 1 });
   const work = [...knitting.map(r => ({ _id: r._id, number: r.receiptNo, reference: r.gatePassNo, date: r.date, kind: 'KNITTING', status: r.status })), ...dyeing.map(r => ({ _id: r._id, number: r.number, reference: r.gatePassNo, date: r.date, kind: 'DYEING_RECEIVED', status: r.status }))];
   res.json({ success: true, data: { documents, payments, movements, work } });

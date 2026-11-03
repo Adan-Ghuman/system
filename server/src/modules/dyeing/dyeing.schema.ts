@@ -90,6 +90,8 @@ export const receiveGatePassSchema = z.object({
   millName: millNameEnum.optional().default('HB_DYEING'),
   customMillName: z.string().trim().optional().default(''),
   millPartyId: z.string().optional(),
+  ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
+  destination: z.string().trim().min(1).optional(),
   driverName: z.string().trim().optional().default(''),
   vehicleNo: z.string().trim().optional().default(''),
   remarks: z.string().optional().default(''),
@@ -97,6 +99,7 @@ export const receiveGatePassSchema = z.object({
 });
 
 export const settleBatchSchema = z.object({
+  ...documentReferenceFields,
   finishRollsCount: z.number().int().min(1, 'Finish roll count must be at least 1'),
   finishWeightKg: z.number().positive('Finished weight must be positive'),
   dateReceived: z.string().datetime().optional().default(() => new Date().toISOString()),
@@ -109,6 +112,8 @@ export const updateBatchSchema = z.object({
   batchNo: z.string().trim().toUpperCase().optional(),
   millName: millNameEnum.optional(),
   millPartyId: z.string().optional(),
+  ownerKey: z.string().default('OWN').transform(canonicalOwnerKey),
+  destination: z.string().trim().min(1).optional(),
   customMillName: z.string().trim().optional(),
   fabricType: z.string().min(1).trim().optional(),
   yarnSpec: z.string().trim().optional(),

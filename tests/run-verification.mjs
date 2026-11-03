@@ -11,3 +11,4 @@ execFileSync(process.execPath, ['tests/unknown-settlement.e2e.mjs'], { stdio: 'i
 execFileSync(process.execPath, ['tests/flow-corrections.e2e.mjs'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['tests/unified-sales.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_SALES_BROWSER: '1' } });
 execFileSync(process.execPath, ['tests/consistent-transactions.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_TRANSACTIONS_BROWSER: '1' } });
+execFileSync(process.execPath, ['tests/shortage-reconciliation.e2e.mjs'], { stdio: 'inherit', env: { ...process.env, QA_SHORTAGE_BROWSER: '1' } });

@@ -27,7 +27,8 @@ export async function customerSources(kind: string, customerId: string, session?
   for (const receipt of knitting) sources.push({ _id: String(receipt._id), date: receipt.date.toISOString(), label: `${receipt.gatePassNo} · ${receipt.receiptNo} · ${receipt.date.toISOString().slice(0, 10)}`, items: receipt.items.map(item => {
     const owners = [...new Set(item.allocations.map(a => issues.find(i => String(i._id) === String(a.transactionId))?.ownerKey).filter((value): value is string => Boolean(value)).map(canonicalOwnerKey))];
     const complete = item.allocations.every(a => issues.some(i => String(i._id) === String(a.transactionId) && Boolean(i.ownerKey)));
-    const related = complete && owners.length === 1 && owners[0] !== 'OWN' ? owners[0] : undefined;
+    const recordedOwner = item.ownerKey ? canonicalOwnerKey(item.ownerKey) : undefined;
+    const related = recordedOwner && recordedOwner !== 'OWN' ? recordedOwner : complete && owners.length === 1 && owners[0] !== 'OWN' ? owners[0] : undefined;
     const assignment = assignments.find(a => String(a.sourceId) === String(receipt._id) && a.sourceLineId === String(item._id));
     return { sourceLineId: String(item._id), fabricType: item.fabricType, yarnSpec: item.yarnSpec, color: 'ECRU', state: 'RAW_ECRU', rolls: item.rollsCount, weightKg: item.weightKg, eligible: related ? related === customerId : String(assignment?.customerId) === customerId, assignable: complete && !related && !assignment && owners.length <= 1 };
   }) });

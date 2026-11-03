@@ -15,6 +15,7 @@ export const createDispatchSchema = z.object({
   billNow: z.boolean().default(true),
   draftId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
   state: z.enum(['RAW_ECRU', 'FINISHED_DYED']).default('FINISHED_DYED'),
+  inventoryId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
   customerId: z.string().min(1, 'Customer is required'),
   fromLocation: locationEnum,
   fabricType: z.string().min(1, 'Fabric type is required').trim(),

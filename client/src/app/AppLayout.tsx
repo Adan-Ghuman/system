@@ -11,7 +11,7 @@ import { ThemePicker } from '../components/ui/Theme.js';
 import { LoadingState } from '../components/ui/LoadingState.js';
 import { Dialog } from '../components/ui/Dialog.js';
 import { cn } from '../lib/cn.js';
-import { LayoutDashboard, Users, Layers, Palette, Boxes, Truck, Wallet, LogOut, Shield, Menu, ArrowUpRight } from 'lucide-react';
+import { LayoutDashboard, Users, Layers, Palette, Boxes, Truck, Wallet, LogOut, Shield, Menu, ArrowUpRight, ClipboardList } from 'lucide-react';
 
 const navigation = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, group: 'Workspace' },
@@ -20,6 +20,7 @@ const navigation = [
   { to: '/dyeing', label: 'Dyeing', icon: Palette, group: 'Operations' },
   { to: '/inventory', label: 'Fabric stock', icon: Boxes, group: 'Operations' },
   { to: '/units', label: 'Units & godowns', icon: Boxes, group: 'Operations' },
+  { to: '/reconciliation', label: 'Reconciliation', icon: ClipboardList, group: 'Operations' },
   { to: '/transactions', label: 'Transactions', icon: Wallet, group: 'Operations' },
   { to: '/dispatch', label: 'Delivery register', icon: Truck, group: 'Operations' },
   { to: '/buying', label: 'Buy fabric', icon: Boxes, group: 'Operations' },
@@ -38,7 +39,7 @@ export function AppLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const access: Record<string, string[]> = { '/sales': ['accounts:read'], '/transactions': ['accounts:read'], '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/units': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
-  const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (access[item.to] || []).every(permission => user?.permissions.includes(permission))));
+  const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (item.to === '/reconciliation' ? ['inventory:read', 'knitting:read', 'dyeing:read'].some(permission => user?.permissions.includes(permission)) : (access[item.to] || []).every(permission => user?.permissions.includes(permission)))));
   const path = location.pathname.replace(/^\/b\/[^/]+/, '') || '/';
   const link = (value: string) => value;
   const businesses = useQuery({ queryKey: ['businesses'], queryFn: async () => (await api.get<{ data: BusinessItem[] }>('/businesses')).data.data });

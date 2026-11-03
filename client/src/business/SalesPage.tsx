@@ -18,7 +18,7 @@ import { PaginationControls } from '../components/ui/Pagination.js';
 import { QueryError } from '../components/ui/QueryError.js';
 import { FormFeedback } from '../components/ui/WorkflowForm.js';
 import { formatCurrency, formatDate } from '../lib/formatters.js';
-import { requestReason } from '../components/ui/ReasonDialog.js';
+import { requestStockReversal } from '../components/ui/ReasonDialog.js';
 import { SaleEntryCache, SaleMode, SaleResult, SaleRow } from './sales.types.js';
 import { SalesForm } from './SalesForm.js';
 import { OperationDocument } from './types.js';
@@ -65,8 +65,8 @@ export function SalesPage() {
       else if (action === 'PAY') setPaying(bill);
       else if (action === 'RETURN') setReturning(bill);
       else if (action === 'REVERSE') {
-        const reason = await requestReason(`Why is ${bill.number} being reversed? Recorded payments and credits must be reconciled first.`);
-        if (reason?.trim()) { await api.post('/workspace/documents/' + bill._id + '/reverse', { reason, requestId: crypto.randomUUID() });await client.invalidateQueries(); }
+        const reversal = await requestStockReversal(`Why is ${bill.number} being reversed? Recorded payments and credits must be reconciled first.`);
+        if (reversal?.reason) { await api.post('/workspace/documents/' + bill._id + '/reverse', { ...reversal, requestId: crypto.randomUUID() });await client.invalidateQueries(); }
       } else setPreview(bill);
     } catch (failure) { setError(errorText(failure)); } finally { setBusy(''); }
   }

@@ -4,6 +4,7 @@ import { BusinessDocument, BillAllocation, BillPayment } from './commerce.models
 import { KnittingReceipt, DyeingReceipt } from './records.js';
 import { Party } from '../models/Party.js';
 import { YarnTransaction } from '../models/YarnTransaction.js';
+import { DyeingUnit } from '../models/DyeingUnit.js';
 import { DyeingBatch } from '../models/DyeingBatch.js';
 import { PaymentVoucher } from '../models/PaymentVoucher.js';
 import { billTotals, submitOperationInSession, payBillInSession } from './commerce.js';
@@ -76,7 +77,7 @@ async function prepare(input: PurchaseInput, session?: ClientSession) {
       }
       for (const [yarnSpec, kg] of required) {
         const issues = await YarnTransaction.find({ partyId: input.partyId, ownerKey: input.ownerKey, yarnSpec, transactionType: 'OUTWARD_TO_KNITTER', status: { $ne: 'REVERSED' }, date: { $lte: new Date(receiptDate) }, remainingYarnBalanceKg: { $gt: 0 }, $or: [{ productionType: input.productionType }, { productionType: { $exists: false } }] }).session(session || null);
-        if (weight(issues.reduce((sum, issue) => sum + issue.remainingYarnBalanceKg, 0)) + 0.000001 < kg) throw new BadRequestError(`${yarnSpec}: not enough recorded yarn with this unit, owner and receipt date. Check the outgoing yarn challan.`);
+        if (!input.shortageReason && weight(issues.reduce((sum, issue) => sum + issue.remainingYarnBalanceKg, 0)) + 0.000001 < kg) throw new BadRequestError(`${yarnSpec}: not enough recorded yarn with this unit, owner and receipt date. Check the outgoing yarn challan.`);
       }
     }
     if (input.mode === 'DYEING' && input.receiptOrigin === 'BATCH') {
@@ -127,6 +128,17 @@ export async function postPurchase(input: PurchaseInput) {
         receiptKind = 'DYEING_RECEIVED';const first = await DyeingBatch.findById(items[0].batchId).session(session);if (!first) throw new NotFoundError('Dyeing batch not found.');
         const result = await postDyeingReceiptInSession(receiveGatePassSchema.parse({ ...input, dateReceived: date, igpNo: input.receiptReference, millName: first.millName, customMillName: first.customMillName || '', items: items.map(i => ({ batchId: i.batchId, ecruWeightKg: i.rawKg, ecruRollsCount: i.rawRolls, finishWeightKg: i.weightKg, finishRollsCount: i.rolls })) }), session);
         receiptId = String(result.receipt._id);items = items.map((item, index) => ({ ...item, sourceId: receiptId, sourceLineId: String(result.receipt.items[index]._id), ownerKey: result.receipt.items[index].ownerKey || input.ownerKey }));
+      } else if (input.shortageReason) {
+        const mill = await DyeingUnit.findOne({ partyId: input.partyId, type: 'DYEING_MILL', isActive: true }).session(session);
+        if (!mill) throw new BadRequestError('Choose the registered dyeing mill linked to this supplier.');
+        receiptKind = 'DYEING_RECEIVED';
+        const result = await postDyeingReceiptInSession(receiveGatePassSchema.parse({
+          ...input, dateReceived: date, igpNo: input.receiptReference, millName: mill.code, destination: input.location,
+          items: items.map(item => ({ fabricType: item.fabricType, yarnSpec: item.yarnSpec, targetColor: item.color,
+            ecruWeightKg: item.rawKg, ecruRollsCount: item.rawRolls, finishWeightKg: item.weightKg, finishRollsCount: item.rolls }))
+        }), session);
+        receiptId = String(result.receipt._id);
+        items = items.map((item, index) => ({ ...item, sourceId: receiptId, sourceLineId: String(result.receipt.items[index]._id) }));
       } else {
         receiptKind = 'DYEING_RECEIVED';const [receipt] = await DyeingReceipt.create([{ receiptReferenceKey: input.partyId + ':' + input.receiptReference.toUpperCase(), number: await nextDocumentNo('DR', session), gatePassNo: input.receiptReference, partyId: input.partyId, date: new Date(date), actorId: businessContext.getStore()!.actorId, ...referenceFields(input), receiptOrigin: 'EXTERNAL_PROCESSING_RETURN', location: input.location, evidence: input.evidence!.reason, items: items.map(i => ({ fabricType: i.fabricType, yarnSpec: i.yarnSpec, color: i.color.toUpperCase(), state: 'FINISHED_DYED', rolls: i.rolls, weightKg: i.weightKg, ownerKey: canonicalOwnerKey(input.ownerKey) })) }], { session });
         receiptId = String(receipt._id);

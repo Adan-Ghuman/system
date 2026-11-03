@@ -1,9 +1,12 @@
+import { moveYarn } from './stock-reconciliation.js';
+import { Reconciliation } from './reconciliation.models.js';
+import { currentShortageReason } from './context.js';
 import { canonicalOwnerKey } from './ownership.js';
 import { customerSources } from './sales-sources.js';
 import { ClientSession, Types } from 'mongoose';
 import { BusinessDocument, BillAllocation, BillPayment } from './commerce.models.js';
 import { OperationInput, operationInput } from './commerce.schema.js';
-import { YarnInventory, StockMovement, KnittingReceipt, DyeingReceipt } from './records.js';
+import { KnittingReceipt, DyeingReceipt } from './records.js';
 import { YarnTransaction } from '../models/YarnTransaction.js';
 import { Dispatch } from '../models/Dispatch.js';
 import { Party } from '../models/Party.js';
@@ -119,6 +122,7 @@ export async function submitOperationInSession(input: OperationInput, session: C
       if (item.ownerKey !== 'OWN') throw new BadRequestError('Purchased fabric belongs to this business.');
       await moveFabric(item, input.location, 1, id, values.date, 'Fabric purchase received', session);
     }
+    if (input.kind === 'YARN_RETURN' && input.items.length !== 1) throw new BadRequestError('Record each unused yarn return against one issue line.');
     if (isYarn) {
       if (['YARN_ADJUSTMENT', 'YARN_RETURN'].includes(input.kind) && !input.remarks.trim()) throw new BadRequestError('Explain why the yarn quantity is changing.');
       for (const item of input.items) {
@@ -130,19 +134,26 @@ export async function submitOperationInSession(input: OperationInput, session: C
         let deltaWeight = weight(item.weightKg) * sign, deltaQuantity = item.rolls * sign;
         if (input.kind === 'YARN_RETURN') {
           if (!input.sourceId || deltaWeight <= 0 || deltaQuantity < 0) throw new BadRequestError('Choose the yarn issue and enter positive returned kg.');
-          const issue = await YarnTransaction.findOne({ _id: input.sourceId, yarnSpec: item.yarnSpec, transactionType: 'OUTWARD_TO_KNITTER', remainingYarnBalanceKg: { $gte: deltaWeight } }).session(session);
-          if (!issue) throw new BadRequestError('Returned weight exceeds unused yarn at this knitter.');
+          const issue = await YarnTransaction.findOne({ _id: input.sourceId, yarnSpec: item.yarnSpec,
+            transactionType: 'OUTWARD_TO_KNITTER', status: { $ne: 'REVERSED' }, date: { $lte: values.date } }).session(session);
+          if (!issue) throw new BadRequestError('Choose a posted yarn issue dated before this return.');
           if (item.packageUnit !== issue.packageUnit) throw new BadRequestError('Returned yarn must use the original package unit.');
-          if (deltaQuantity > issue.boxCount - (issue.returnedPackages || 0)) throw new BadRequestError('The return exceeds the original package count.');
+          const missingKg = weight(Math.max(0, deltaWeight - Math.max(0, issue.remainingYarnBalanceKg)));
+          const missingPackages = Math.max(0, deltaQuantity - Math.max(0, issue.boxCount - (issue.returnedPackages || 0)));
+          if (missingKg || missingPackages) {
+            const reason = currentShortageReason();
+            if (!reason) throw new BadRequestError('The return exceeds unused yarn weight or packages at this knitter.');
+            await Reconciliation.create([{ kind: 'YARN_RETURN', sourceId: id, lineId: issue._id, item: item.yarnSpec, yarnSpec: item.yarnSpec,
+              ownerKey: item.ownerKey, packageUnit: item.packageUnit, partyId: issue.partyId, location: 'Knitting', date: values.date,
+              reference: input.reference || number, quantity: -missingPackages, weightKg: -missingKg, reason, actorId: values.actorId }], { session });
+          }
           issue.returnedPackages = (issue.returnedPackages || 0) + deltaQuantity;
           issue.remainingYarnBalanceKg = weight(issue.remainingYarnBalanceKg - deltaWeight);await issue.save({ session });
           if (issue.ownerKey !== item.ownerKey) throw new BadRequestError('Returned yarn must retain its original owner.');
         }
-        const match = { yarnSpec: item.yarnSpec, ownerKey: item.ownerKey, packageUnit: item.packageUnit };
-        const stock = await YarnInventory.findOne(match).session(session);
-        if ((stock?.totalWeightKg || 0) + deltaWeight < -0.000001 || (stock?.quantity || 0) + deltaQuantity < 0) throw new BadRequestError('The correction would make yarn stock negative.');
-        await YarnInventory.findOneAndUpdate(match, { $inc: { totalWeightKg: deltaWeight, quantity: deltaQuantity }, $setOnInsert: match }, { upsert: true, session });
-        await StockMovement.create([{ sourceId: id, material: 'YARN', item: item.yarnSpec, weightKg: deltaWeight, quantity: deltaQuantity, location: 'ZR_GODOWN', date: values.date, ownerKey: item.ownerKey, packageUnit: item.packageUnit, partyId: input.partyId, reason: input.remarks || input.kind.replaceAll('_', ' '), actorId: values.actorId }], { session });
+        await moveYarn({ yarnSpec: item.yarnSpec, ownerKey: item.ownerKey, packageUnit: item.packageUnit, sourceId: id,
+          date: values.date, partyId: document.partyId || undefined, reason: input.remarks || input.kind.replaceAll('_', ' ') },
+        { quantity: deltaQuantity, weightKg: deltaWeight }, session, 'The correction would make yarn stock negative.');
       }
     }
     if (hasBill) {
@@ -196,7 +207,7 @@ export async function payBillInSession(id: string, input: BillPaymentInput, sess
     return payment.toObject();
 }
 
-export async function reverseOperation(id: string, input: { requestId?: string; reason: string }) {
+export async function reverseOperation(id: string, input: { requestId?: string; reason: string; shortageReason?: string }) {
   return postCommand('REVERSE_DOCUMENT', { ...input, id } as typeof input, async session => {
     const document = await BusinessDocument.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!document) throw new NotFoundError('Posted document not found.');
@@ -212,16 +223,31 @@ export async function reverseOperation(id: string, input: { requestId?: string; 
     }
     if (['YARN_ADJUSTMENT', 'YARN_RETURN', 'YARN_RECEIPT', 'YARN_PURCHASE', 'YARN_CLIENT_RETURN'].includes(document.kind)) {
       for (const item of document.items) {
-        const match = { yarnSpec: item.yarnSpec, ownerKey: item.ownerKey, packageUnit: item.packageUnit };
-        const stock = await YarnInventory.findOne(match).session(session);
-        const delta = document.kind === 'YARN_CLIENT_RETURN' ? -1 : 1;
-        if (!stock || weight(stock.totalWeightKg - delta * item.weightKg) < 0 || stock.quantity - delta * item.rolls < 0) throw new BadRequestError('This yarn has already been used. Reverse later movements first.');
-        stock.totalWeightKg = weight(stock.totalWeightKg - delta * item.weightKg);stock.quantity -= delta * item.rolls;await stock.save({ session });
+        const delta = document.kind === 'YARN_CLIENT_RETURN' ? 1 : -1;
+        await moveYarn({ yarnSpec: item.yarnSpec, ownerKey: item.ownerKey, packageUnit: item.packageUnit, sourceId: document._id,
+          date: new Date(), partyId: document.partyId || undefined, reason: `Reversal: ${input.reason}` },
+        { quantity: delta * item.rolls, weightKg: weight(delta * item.weightKg) }, session,
+        'This yarn has already been used. Reverse later movements first.');
         if (document.kind === 'YARN_RETURN') {
           const issue = await YarnTransaction.findById(document.sourceId).session(session);if (!issue) throw new BadRequestError('Original yarn issue is missing.');
-          issue.returnedPackages = (issue.returnedPackages || 0) - item.rolls;issue.remainingYarnBalanceKg = weight(issue.remainingYarnBalanceKg + item.weightKg);await issue.save({ session });
+          const gaps = await Reconciliation.find({ sourceId: document._id, kind: 'YARN_RETURN', lineId: issue._id, yarnSpec: item.yarnSpec }).session(session);
+          let restoredPackages = item.rolls;
+          let restoredKg = item.weightKg;
+          for (const event of gaps.flatMap(gap => gap.events)) {
+            if (!event.sourceId || (!event.appliedKg && !event.appliedQuantity)) continue;
+            const linked = await YarnTransaction.findById(event.sourceId).session(session);
+            if (!linked || linked.status === 'REVERSED') throw new BadRequestError('A reconciled yarn issue is missing.');
+            linked.returnedPackages -= event.appliedQuantity || 0;
+            linked.remainingYarnBalanceKg = weight(linked.remainingYarnBalanceKg + (event.appliedKg || 0));
+            restoredPackages -= event.appliedQuantity || 0;
+            restoredKg = weight(restoredKg - (event.appliedKg || 0));
+            await linked.save({ session });
+          }
+          issue.returnedPackages = (issue.returnedPackages || 0) - restoredPackages;
+          issue.remainingYarnBalanceKg = weight(issue.remainingYarnBalanceKg + restoredKg);
+          await issue.save({ session });
         }
-        await StockMovement.create([{ sourceId: document._id, material: 'YARN', item: item.yarnSpec, weightKg: -delta * item.weightKg, quantity: -delta * item.rolls, ownerKey: item.ownerKey, packageUnit: item.packageUnit, partyId: document.partyId, location: 'ZR_GODOWN', date: new Date(), reason: `Reversal: ${input.reason}`, actorId: businessContext.getStore()!.actorId }], { session });
+
       }
     }
     if (['FABRIC_RECEIPT', 'FABRIC_PURCHASE'].includes(document.kind)) for (const item of document.items) await moveFabric({ ...item.toObject(), ownerKey: item.ownerKey || 'OWN' }, document.location, -1, document._id, new Date(), input.reason, session);
@@ -229,6 +255,7 @@ export async function reverseOperation(id: string, input: { requestId?: string; 
     if (allocations.length) throw new BadRequestError('Reverse the linked supplier bill first.');
     if (document.total && document.partyId) await postPartyAmount(document.partyId, document.direction === 'PAYABLE' ? document.total : -document.total, document._id, document.number, new Date(), `Reversal: ${input.reason}`, session, 'ADJUSTMENT');
     await BillAllocation.deleteMany({ billId: document._id }).session(session);
+    await Reconciliation.updateMany({ sourceId: document._id, kind: 'YARN_RETURN', open: true }, { $set: { open: false, quantity: 0, weightKg: 0 } }, { session });
     document.status = 'REVERSED';document.remarks += ` | Reversed: ${input.reason}`;await document.save({ session });
     return document.toObject();
   });

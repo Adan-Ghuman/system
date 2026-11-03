@@ -1,3 +1,4 @@
+import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { CatalogField } from '../../../components/ui/CatalogField.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
 import { loadAllRecords } from '../../../lib/pagedResources.js';
@@ -36,6 +37,7 @@ const COMMON_FABRIC_TYPES = [
 ];
 
 export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHUMMAN_DYEING' }: IssueBatchModalProps) {
+  const [references, setReferences] = useDocumentReferences();
   const [millName, setMillName] = useState<DyeingMillType>(initialMill);
   const [customMillName, setCustomMillName] = useState('');
   const [batchNo, setBatchNo] = useState('');
@@ -136,6 +138,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       }
 
       const payload: CreateBatchPayload = {
+        ...references,
         batchNo: batchNo.trim().toUpperCase(),
         millName,
         customMillName: millName === 'OTHER' ? customMillName.trim() : undefined,
@@ -201,6 +204,7 @@ export function IssueBatchModal({ isOpen, onClose, onSuccess, initialMill = 'GHU
       className="max-w-xl"
     >
       <form id="issue-batch-modal-form" onSubmit={handleSubmit} className="space-y-4">
+        <DocumentReferences shortage value={references} onChange={setReferences} />
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />

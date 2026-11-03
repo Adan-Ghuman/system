@@ -1,3 +1,4 @@
+import { ShortageFabricFields, emptyFabricIdentity } from '../../../components/ui/ShortageFabricFields.js';
 import { StockChoice } from '../../../components/ui/StockChoice.js';
 import { DocumentReferences, useDocumentReferences } from '../../../components/ui/DocumentReferences.js';
 import { getLocalDateInput } from '../../../lib/formatters.js';
@@ -55,12 +56,15 @@ export function TransferStockModal({
   const { data: stockData } = useQuery<{ items: FabricInventoryItem[] }>({
     queryKey: ['inventory-items', fromLocation],
     queryFn: async () => {
-      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation });
+      return loadAllRecords<FabricInventoryItem>('/inventory/items', { location: fromLocation, includeZero: 'true' });
     },
     enabled: isOpen
   });
 
-  const availableItems = stockData?.items || [];
+  const availableItems = (stockData?.items || []).filter(item => references.shortageReason !== undefined || (item.totalRolls > 0 && item.totalWeightKg > 0));
+  const [manualFabric, setManualFabric] = useState(emptyFabricIdentity);
+  const [manualState, setManualState] = useState<'RAW_ECRU' | 'FINISHED_DYED'>('RAW_ECRU');
+  const [manualOwner, setManualOwner] = useState('OWN');
   const owners = useQuery({ queryKey: ['party-options', 'all'], queryFn: () => loadAllRecords<{ _id: string; name: string }>('/parties'), enabled: isOpen });
 
 
@@ -71,7 +75,7 @@ export function TransferStockModal({
     e.preventDefault();
     if (isSubmittingRef.current || isLoading) return;
 
-    if (!activeItem) {
+    if (!activeItem && !references.shortageReason?.trim()) {
       setError('Please select a valid fabric holding to transfer');
       return;
     }
@@ -82,13 +86,13 @@ export function TransferStockModal({
     setIsLoading(true);
 
     try {
-      const payload: CreateTransferPayload = { ...references, ownerKey: activeItem.ownerKey || 'OWN',
+      const payload: CreateTransferPayload = { ...references, ownerKey: activeItem?.ownerKey || manualOwner,
         fromLocation,
         toLocation,
-        fabricType: activeItem.fabricType,
-        yarnSpec: activeItem.yarnSpec,
-        state: activeItem.state,
-        color: activeItem.color,
+        fabricType: activeItem?.fabricType || manualFabric.fabricType,
+        yarnSpec: activeItem?.yarnSpec || manualFabric.yarnSpec,
+        state: activeItem?.state || manualState,
+        color: activeItem?.color || (manualState === 'RAW_ECRU' ? 'ECRU' : manualFabric.color),
         rollsCount: parseInt(rollsCount, 10),
         weightKg: parseFloat(weightKg),
         gatePassNo: gatePassNo.trim(),
@@ -132,7 +136,7 @@ export function TransferStockModal({
       description="Transfer physically available fabric between the selected godown or mill locations."
       className="max-w-xl"
     >
-      <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><DocumentReferences value={references} onChange={setReferences} />
+      <form id="transfer-stock-modal-form" onSubmit={handleSubmit} className="space-y-4"><DocumentReferences shortage value={references} onChange={setReferences} />
         {error && (
           <div role="alert" className="flex items-center gap-2 p-3 text-xs rounded-md bg-red-500/10 border border-red-500/30 text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -181,8 +185,8 @@ export function TransferStockModal({
             setError(null);setSelectedItemId(selectedId);
             const found = availableItems.find((i) => i._id === selectedId);
             if (found) {
-              setRollsCount(String(found.totalRolls));
-              setWeightKg(String(found.totalWeightKg));
+              setRollsCount(found.totalRolls > 0 ? String(found.totalRolls) : '');
+              setWeightKg(found.totalWeightKg > 0 ? String(found.totalWeightKg) : '');
             }
           }}
           options={
@@ -195,6 +199,13 @@ export function TransferStockModal({
           }
         />
 
+        {references.shortageReason !== undefined && !activeItem && <>
+          <Select label="Fabric owner" value={manualOwner} onChange={event => setManualOwner(event.target.value)}
+            options={[{ value: 'OWN', label: 'Rozain Textile' }, ...(owners.data?.items || []).map(party => ({ value: party._id, label: party.name }))]} />
+          <Select label="Fabric condition" value={manualState} onChange={event => setManualState(event.target.value as typeof manualState)}
+            options={[{ value: 'RAW_ECRU', label: 'Raw / undyed' }, { value: 'FINISHED_DYED', label: 'Finished / dyed' }]} />
+          <ShortageFabricFields value={manualFabric} raw={manualState === 'RAW_ECRU'} onChange={setManualFabric} />
+        </>}
         {activeItem && (
           <div className="p-3 rounded-lg bg-canvas border border-line flex items-center justify-between text-xs">
             <div>

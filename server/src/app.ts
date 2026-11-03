@@ -1,3 +1,4 @@
+import { reconciliationRoutes } from './business/reconciliation.routes.js';
 import { transactionRoutes } from './business/transactions.routes.js';
 import { intercompanyRoutes } from './business/intercompany.routes.js';
 import { sourceRoutes } from './business/source.routes.js';
@@ -75,6 +76,7 @@ export function createApp(): express.Application {
   businessScope.use('/workspace', workspaceRoutes);
   businessScope.use('/workspace/sales', salesRoutes);
   businessScope.use('/workspace/transactions', transactionRoutes);
+  businessScope.use('/workspace/reconciliation', reconciliationRoutes);
   businessScope.use('/production', productionRoutes);
   businessScope.use('/intercompany', intercompanyRoutes);
   businessScope.use('/sources', sourceRoutes);
@@ -86,6 +88,7 @@ export function createApp(): express.Application {
   workspace.use('/workspace', workspaceRoutes);
   workspace.use('/workspace/sales', salesRoutes);
   workspace.use('/workspace/transactions', transactionRoutes);
+  workspace.use('/workspace/reconciliation', reconciliationRoutes);
   workspace.use('/production', productionRoutes);
   workspace.use('/sources', sourceRoutes);
   workspace.use(operations);

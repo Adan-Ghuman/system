@@ -52,13 +52,11 @@ const fabricInventorySchema = new Schema<IFabricInventory>(
     ownerKey: { type: String, default: 'OWN' },
     totalRolls: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
     totalWeightKg: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     }
   },
   {

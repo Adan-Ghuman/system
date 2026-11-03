@@ -27,8 +27,16 @@ dyeingReportRoutes.get('/status-report', requirePermission('dyeing:read'), async
   if ((from && !Number.isFinite(+from)) || (to && !Number.isFinite(+to)) || (from && to && from > to)) throw new BadRequestError('Choose a valid date range.');
   const batches = await DyeingBatch.find({ status: query.status || { $ne: 'REVERSED' }, ...(from || to ? { dateIssued: { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) } } : {}), ...(query.millName ? { millName: query.millName } : {}), ...(query.ownerKey ? { ownerKey: query.ownerKey } : {}), ...(query.shade ? { targetColor: new RegExp('^' + escapeRegex(query.shade) + '$', 'i') } : {}), ...(query.search ? { $or: ['batchNo', 'fabricType', 'yarnSpec', 'ogpNo'].map(field => ({ [field]: new RegExp(escapeRegex(query.search!), 'i') })) } : {}) }).populate('millPartyId', 'name').sort({ dateIssued: -1, _id: -1 }).lean();
   const owners = await Party.find({ _id: { $in: batches.map(batch => batch.ownerKey).filter(value => value && value !== 'OWN') } }).select('name').lean();
-  const receipts = await DyeingReceipt.find({ status: 'POSTED', 'items.batchId': { $in: batches.map(batch => batch._id) } }).sort({ date: 1, _id: 1 }).lean();
-  const items = batches.map(batch => ({ ...batch, ...lotQuantities(batch), millLabel: (batch.millPartyId as unknown as { name?: string })?.name || batch.customMillName || batch.millName, ownerName: !batch.ownerKey || batch.ownerKey === 'OWN' ? 'Rozain Textile' : owners.find(owner => String(owner._id) === batch.ownerKey)?.name || 'Owner not recorded', receipts: receipts.flatMap(receipt => receipt.items.filter(item => String(item.batchId) === String(batch._id)).map(item => ({ date: receipt.date, number: receipt.number, challan: receipt.gatePassNo, rawKg: item.rawKg, weightKg: item.weightKg, rolls: item.rolls, wastageKg: item.wastageKg }))) }));
+  const batchIds = batches.map(batch => batch._id);
+  const receipts = await DyeingReceipt.find({ status: 'POSTED',
+    $or: [{ 'items.batchId': { $in: batchIds } }, { 'items.allocations.batchId': { $in: batchIds } }] }).sort({ date: 1, _id: 1 }).lean();
+  const receiptLines = receipts.flatMap(receipt => receipt.items.flatMap(item => (item.batchId ? [item] : item.allocations || []).map(line => ({
+    ...line, date: receipt.date, number: receipt.number, challan: receipt.gatePassNo
+  }))));
+  const items = batches.map(batch => ({ ...batch, ...lotQuantities(batch),
+    millLabel: (batch.millPartyId as unknown as { name?: string })?.name || batch.customMillName || batch.millName,
+    ownerName: !batch.ownerKey || batch.ownerKey === 'OWN' ? 'Rozain Textile' : owners.find(owner => String(owner._id) === batch.ownerKey)?.name || 'Owner not recorded',
+    receipts: receiptLines.filter(line => String(line.batchId) === String(batch._id)) }));
   const summary = items.reduce((total, item) => ({ sentKg: weight(total.sentKg + item.ecruWeightKg), processedKg: weight(total.processedKg + (item.processedKg || 0)), receivedKg: weight(total.receivedKg + item.receivedKg), pendingKg: weight(total.pendingKg + (item.pendingKg || 0)), shortageKg: weight(total.shortageKg + (item.shortageKg || 0)), unknownLots: total.unknownLots + (item.processedKg === undefined ? 1 : 0) }), { sentKg: 0, processedKg: 0, receivedKg: 0, pendingKg: 0, shortageKg: 0, unknownLots: 0 });
   if (query.format) {
     const headers = ['Lot', 'Mill', 'Owner', 'Fabric', 'Yarn', 'Shade', 'GSM', 'Width / dia', 'Sent date', 'OGP', 'Status', 'Sent rolls', 'Sent kg', 'Processed kg', 'Received rolls', 'Received kg', 'Pending rolls', 'Pending kg', 'Shortage kg', 'Shortage %', 'Receipt history'];

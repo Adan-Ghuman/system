@@ -1,3 +1,6 @@
+import { shortageReasonField } from './references.js';
+import { Reconciliation } from './reconciliation.models.js';
+import { moveFabric } from './stock.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { Types } from 'mongoose';
@@ -37,9 +40,9 @@ workspaceRoutes.get('/locations', asyncHandler(async (req, res) => {
   const units = await DyeingUnit.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });res.json({ success: true, data: units.map(unit => ({ value: unit.code, label: locationName(unit) })) });
 }));
 workspaceRoutes.post('/documents/:id/returns', requirePermission('accounts:write'), requirePermission('inventory:write'), asyncHandler(async (req, res) => { res.status(201).json({ success: true, data: await postReturn(String(req.params.id), returnInput.parse(req.body)) }); }));
-workspaceRoutes.post('/yarn-deliveries/:id/reverse', requirePermission('knitting:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseYarnDelivery(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) }); }));
+workspaceRoutes.post('/yarn-deliveries/:id/reverse', requirePermission('knitting:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseYarnDelivery(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body)) }); }));
 workspaceRoutes.post('/yarn-movements/:id/reverse', requirePermission('knitting:write'), asyncHandler(async (req, res) => {
-  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body);const document = await BusinessDocument.findById(req.params.id);
+  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body);const document = await BusinessDocument.findById(req.params.id);
   if (document && !document.kind.startsWith('YARN')) throw new ForbiddenError('This is not a yarn movement.');
   res.json({ success: true, data: document ? await reverseOperation(String(req.params.id), input) : await reverseYarnDelivery(String(req.params.id), input) });
 }));
@@ -59,8 +62,8 @@ workspaceRoutes.get('/dyeing-receipts', requirePermission('dyeing:read'), asyncH
   const [items, total] = await Promise.all([DyeingReceipt.find(match).populate('partyId', 'name code').sort({ date: -1, _id: -1 }).skip(skip).limit(limit), DyeingReceipt.countDocuments(match)]);
   res.json({ success: true, data: formatPaginatedResult(items, total, page, limit) });
 }));
-workspaceRoutes.post('/dyeing-receipts/:id/reverse', requirePermission('dyeing:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDyeingReceipt(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) }); }));
-workspaceRoutes.post('/dyeing-issues/:id/reverse', requirePermission('dyeing:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDyeingIssue(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) }); }));
+workspaceRoutes.post('/dyeing-receipts/:id/reverse', requirePermission('dyeing:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDyeingReceipt(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body)) }); }));
+workspaceRoutes.post('/dyeing-issues/:id/reverse', requirePermission('dyeing:write'), asyncHandler(async (req, res) => { res.json({ success: true, data: await reverseDyeingIssue(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body)) }); }));
 const permitted = (req: Parameters<Parameters<typeof asyncHandler>[0]>[0], permissions: string[]) => {
   if (req.user?.role !== 'admin' && !permissions.every(permission => req.user?.permissions.includes(permission))) throw new ForbiddenError('You do not have permission for this action.');
 };
@@ -78,23 +81,27 @@ workspaceRoutes.get('/receipts', requirePermission('knitting:read'), asyncHandle
   res.json({ success: true, data: formatPaginatedResult(items, total, page, limit) });
 }));
 workspaceRoutes.post('/receipts/:id/reverse', requirePermission('knitting:write'), asyncHandler(async (req, res) => {
-  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body);
+  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body);
   const result = await postCommand('REVERSE_KNITTING_RECEIPT', { ...input, id: req.params.id }, async session => {
     const receipt = await KnittingReceipt.findOne({ _id: req.params.id, status: 'POSTED' }).session(session);
     if (!receipt) throw new NotFoundError('Posted receipt not found.');
     if (await BillAllocation.countDocuments({ sourceId: receipt._id }).session(session)) throw new BadRequestError('Reverse its processing bills before reversing this receipt.');
     for (const item of receipt.items) {
       const issues = await YarnTransaction.find({ _id: { $in: item.allocations.map(allocation => allocation.transactionId) } }).session(session);
-      const ownerKey = issues[0]?.ownerKey || 'OWN';
-      const stock = await FabricInventory.findOneAndUpdate({ fabricType: item.fabricType, yarnSpec: item.yarnSpec, color: 'ECRU', state: 'RAW_ECRU', location: 'ZR_GODOWN', ownerKey, totalRolls: { $gte: item.rollsCount }, totalWeightKg: { $gte: item.weightKg } }, { $inc: { totalRolls: -item.rollsCount, totalWeightKg: -item.weightKg } }, { new: true, session });
-      if (!stock) throw new BadRequestError('This fabric has already moved. Return or reverse the later movement first.');
+      const ownerKey = item.ownerKey || issues[0]?.ownerKey || 'OWN';
+      await moveFabric({ ...item.toObject(), state: 'RAW_ECRU', color: 'ECRU', ownerKey, rolls: item.rollsCount },
+        'ZR_GODOWN', -1, receipt._id, new Date(), `Receipt reversed: ${input.reason}`, session);
       for (const allocation of item.allocations) {
         const issue = issues.find(value => String(value._id) === String(allocation.transactionId));
         if (!issue) throw new BadRequestError('A linked yarn issue is missing.');
         issue.receivedFabricKg = weight(issue.receivedFabricKg - (allocation.fabricKg || 0));issue.actualWastageKg = weight(issue.actualWastageKg - (allocation.wastageKg || 0));issue.remainingYarnBalanceKg = weight(issue.remainingYarnBalanceKg + (allocation.weightKg || 0));await issue.save({ session });
       }
-      await StockMovement.create([{ sourceId: receipt._id, material: 'FABRIC', item: `${item.fabricType} / ${item.yarnSpec}`, weightKg: -item.weightKg, quantity: -item.rollsCount, location: 'ZR_GODOWN', date: new Date(), reason: `Receipt reversed: ${input.reason}`, actorId: businessContext.getStore()!.actorId }], { session });
+
     }
+    await Reconciliation.updateMany({ sourceId: receipt._id, kind: 'KNITTING', open: true }, {
+      $set: { open: false, weightKg: 0 },
+      $push: { events: { sourceId: receipt._id, date: new Date(), recordedAt: new Date(), reason: input.reason, actorId: businessContext.getStore()!.actorId, weightKg: 0, quantity: 0 } }
+    }, { session });
     receipt.status = 'REVERSED';receipt.remarks += ` | ${input.reason}`;await receipt.save({ session });return receipt.toObject();
   });res.json({ success: true, data: result });
 }));
@@ -127,7 +134,7 @@ workspaceRoutes.post('/documents/:id/post', asyncHandler(async (req, res) => {
 }));
 workspaceRoutes.post('/documents/:id/reverse', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
   const original = await BusinessDocument.findById(req.params.id);if (original?.kind.startsWith('YARN')) permitted(req, ['knitting:write']);if (original && ['FABRIC_RECEIPT', 'FABRIC_PURCHASE', 'CREDIT_NOTE'].includes(original.kind)) permitted(req, ['inventory:write']);
-  res.json({ success: true, data: await reverseOperation(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body)) });
+  res.json({ success: true, data: await reverseOperation(String(req.params.id), z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body)) });
 }));
 workspaceRoutes.post('/documents/:id/payments', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: await payBill(String(req.params.id), z.object({ amount: z.number().min(0.01).multipleOf(0.01), date: z.string().datetime(), reference: z.string().optional(), existingVoucherId: z.string().regex(/^[a-f0-9]{24}$/i).optional(), paymentMode: paymentModeEnum.optional(), bankName: z.string().max(150).optional(), chequeNo: z.string().max(100).optional(), chequeDate: z.string().datetime().optional(), transactionRef: z.string().max(150).optional(), refund: z.boolean().optional(), requestId: z.string().uuid() }).parse(req.body)) });
@@ -139,7 +146,7 @@ workspaceRoutes.get('/documents/:id/available-vouchers', requirePermission('acco
 }));
 workspaceRoutes.get('/documents/:id/payments', requirePermission('accounts:read'), asyncHandler(async (req, res) => { res.json({ success: true, data: await BillPayment.find({ billId: req.params.id }).populate('voucherId').sort({ date: -1 }) }); }));
 workspaceRoutes.post('/payments/:id/reverse', requirePermission('accounts:write'), asyncHandler(async (req, res) => {
-  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid() }).parse(req.body);
+  const input = z.object({ reason: z.string().trim().min(3), requestId: z.string().uuid(), shortageReason: shortageReasonField }).parse(req.body);
   const result = await postCommand('REVERSE_BILL_PAYMENT', { ...input, paymentId: req.params.id }, async session => {
     const payment = await BillPayment.findOne({ _id: req.params.id, status: 'POSTED' }).session(session);if (!payment) throw new NotFoundError('Payment not found.');
     const bill = await BusinessDocument.findById(payment.billId).session(session);if (!bill || !bill.partyId) throw new NotFoundError('Bill not found.');
@@ -180,7 +187,7 @@ workspaceRoutes.patch('/documents/:id/draft', asyncHandler(async (req, res) => {
   const kind = z.enum(operationKinds).parse(req.body.kind);permitted(req, ['YARN_PURCHASE', 'YARN_SUPPLIER_BILL'].includes(kind) ? ['knitting:write', 'accounts:write'] : kind.startsWith('YARN') ? ['knitting:write'] : kind === 'FABRIC_RECEIPT' ? ['inventory:write'] : kind === 'FABRIC_PURCHASE' ? ['inventory:write', 'accounts:write'] : ['accounts:write']);const document = await BusinessDocument.findOneAndUpdate({ _id: req.params.id, kind, status: 'DRAFT' }, { $set: { draft: req.body, reference: String(req.body.reference || ''), partyId: Types.ObjectId.isValid(String(req.body.partyId)) ? req.body.partyId : undefined, date: Number.isFinite(new Date(req.body.date).valueOf()) ? new Date(req.body.date) : new Date() } }, { new: true });if (!document) throw new NotFoundError('Editable draft not found.');res.json({ success: true, data: document });
 }));
 workspaceRoutes.get('/yarn-issues', requirePermission('knitting:read'), asyncHandler(async (req, res) => {
-  const { page, limit, skip } = parsePagination(req.query, 20);const match = { transactionType: 'OUTWARD_TO_KNITTER', remainingYarnBalanceKg: { $gt: 0 } };
+  const { page, limit, skip } = parsePagination(req.query, 20);const match = { transactionType: 'OUTWARD_TO_KNITTER', status: { $ne: 'REVERSED' }, ...(req.query.includeClosed === 'true' ? {} : { remainingYarnBalanceKg: { $gt: 0 } }) };
   const [rows, total] = await Promise.all([YarnTransaction.find(match).populate('partyId', 'name').sort({ date: 1, _id: 1 }).skip(skip).limit(limit), YarnTransaction.countDocuments(match)]);
   const items = rows.map(row => ({ _id: row._id, label: row.gatePassNo + ' · ' + row.yarnSpec + ' · ' + row.remainingYarnBalanceKg + ' kg unused', partyId: String((row.partyId as unknown as { _id: Types.ObjectId })._id), items: [{ yarnSpec: row.yarnSpec, weightKg: row.remainingYarnBalanceKg, rolls: 0, packageUnit: row.packageUnit, ownerKey: row.ownerKey }] }));
   res.json({ success: true, data: formatPaginatedResult(items, total, page, limit) });

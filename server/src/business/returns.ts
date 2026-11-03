@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { shortageReasonField } from './references.js';
 import { z } from 'zod';
 import { BusinessDocument } from './commerce.models.js';
 import { Dispatch } from '../models/Dispatch.js';
@@ -8,7 +9,7 @@ import { postPartyAmount } from './finance.js';
 import { businessContext } from './context.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 
-export const returnInput = z.object({ requestId: z.string().uuid(), date: z.string().datetime(), reason: z.string().trim().min(3).max(1000), financialOnly: z.boolean().default(false), items: z.array(z.object({ lineId: z.string(), rolls: z.number().int().nonnegative(), weightKg: z.number().nonnegative() })).min(1).max(100) });
+export const returnInput = z.object({ shortageReason: shortageReasonField, requestId: z.string().uuid(), date: z.string().datetime(), reason: z.string().trim().min(3).max(1000), financialOnly: z.boolean().default(false), items: z.array(z.object({ lineId: z.string(), rolls: z.number().int().nonnegative(), weightKg: z.number().nonnegative() })).min(1).max(100) });
 export async function postReturn(id: string, input: z.infer<typeof returnInput>) {
   return postCommand('SOURCE_RETURN', { ...input, id }, async session => {
     const original = await BusinessDocument.findOne({ _id: id, status: 'POSTED' }).session(session);

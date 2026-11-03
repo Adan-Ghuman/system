@@ -18,7 +18,7 @@ import { FormFeedback } from '../components/ui/WorkflowForm.js';
 import { QueryError } from '../components/ui/QueryError.js';
 import { ScrollableTable } from '../components/ui/ScrollableTable.js';
 import { PaginationControls } from '../components/ui/Pagination.js';
-import { requestReason } from '../components/ui/ReasonDialog.js';
+import { requestStockReversal } from '../components/ui/ReasonDialog.js';
 import { formatCurrency, formatDate } from '../lib/formatters.js';
 import { PurchaseForm } from './PurchaseForm.js';
 import { PurchaseCache, PurchaseMode, PurchaseResult } from './purchase.types.js';
@@ -91,7 +91,7 @@ export function TransactionsPage() {
         else setEntry({ key: crypto.randomUUID(), type: 'CUSTOMER', draft: saved });
       } else if (kind === 'PAY') setPaying(saved);
       else if (kind === 'RETURN') setReturning(saved);
-      else { const reason = await requestReason('Why is this bill being reversed? Resolve its recorded payments and credits first.');if (reason?.trim()) { await api.post('/workspace/documents/' + saved._id + '/reverse', { reason, requestId: crypto.randomUUID() });await client.invalidateQueries(); } }
+      else { const reversal = await requestStockReversal('Why is this bill being reversed? Resolve its recorded payments and credits first.');if (reversal?.reason) { await api.post('/workspace/documents/' + saved._id + '/reverse', { ...reversal, requestId: crypto.randomUUID() });await client.invalidateQueries(); } }
     } catch (failure) { setError(errorText(failure)); } finally { setBusy(false); }
   }
   function billReceipt(row: Activity) {

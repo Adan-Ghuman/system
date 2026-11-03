@@ -1,3 +1,5 @@
+import { needsShortageReason } from './stock-reconciliation.js';
+import { validateLocation } from './stock.js';
 import { ClientSession, Types } from 'mongoose';
 import { SaleInput } from './sales.schema.js';
 import { BusinessDocument, BillPayment, SourceBillingAssignment } from './commerce.models.js';
@@ -30,13 +32,26 @@ async function prepareSale(input: SaleInput, session?: ClientSession) {
   }
   let items = input.items.map(item => ({ ...item }));
   let stock;
+  let stockBalance;
   if (input.mode === 'FABRIC') {
-    stock = await FabricInventory.findById(input.inventoryId).session(session || null);
-    if (!stock || canonicalOwnerKey(stock.ownerKey || 'OWN') !== 'OWN' || stock.location !== input.location) throw new BadRequestError('Choose Rozain-owned fabric at the selected location.');
-    if (stock.state === 'RAW_ECRU' && stock.color !== 'ECRU') throw new BadRequestError('Correct this raw fabric shade to ECRU in Fabric stock before selling it.');
+    const entered = items[0];
+    const selected = input.inventoryId ? await FabricInventory.findById(input.inventoryId).session(session || null)
+      : await FabricInventory.findOne({ fabricType: entered.fabricType, yarnSpec: entered.yarnSpec, state: entered.state,
+        color: entered.color.toUpperCase(), ownerKey: 'OWN', location: input.location }).session(session || null);
+    if ((input.inventoryId && !selected) || (selected && (canonicalOwnerKey(selected.ownerKey || 'OWN') !== 'OWN' || selected.location !== input.location))) {
+      throw new BadRequestError('Choose Rozain-owned fabric at the selected location.');
+    }
+    if (!selected && (!entered.fabricType || !entered.yarnSpec || !entered.color)) throw new BadRequestError('Enter the fabric, yarn count and current shade.');
+    await validateLocation(input.location, session);
+    if (input.location === 'IN_TRANSIT') throw new BadRequestError('Receive the goods into store before delivering them.');
+    stock = selected || { ...entered, _id: undefined, location: input.location, totalRolls: 0, totalWeightKg: 0 };
+    if (stock.state === 'RAW_ECRU' && stock.color.toUpperCase() !== 'ECRU') throw new BadRequestError('Correct this raw fabric shade to ECRU in Fabric stock before selling it.');
     const numbers = new Set<number>();
     const kg = weight(input.rolls.reduce((sum, roll) => { if (numbers.has(roll.rollNumber)) throw new BadRequestError('Roll numbers must be unique.');numbers.add(roll.rollNumber);const net = weight(roll.grossWeightKg - roll.tareKg);if (net <= 0) throw new BadRequestError('Gross weight must exceed tare for every roll.');return sum + net; }, 0));
-    if (input.rolls.length > stock.totalRolls || kg > stock.totalWeightKg + 0.000001) throw new BadRequestError('Available rolls or measured kg have changed. Review Fabric stock and reduce the delivery.');
+    const before = { quantity: stock.totalRolls, weightKg: stock.totalWeightKg };
+    const after = { quantity: before.quantity - input.rolls.length, weightKg: weight(before.weightKg - kg) };
+    stockBalance = { before, after };
+    if (needsShortageReason(before, after, true) && !input.shortageReason) throw new BadRequestError('Available rolls or measured kg have changed. Review Fabric stock and reduce the delivery.');
     items = [{ ...items[0], fabricType: stock.fabricType, yarnSpec: stock.yarnSpec, color: stock.color, state: stock.state, rolls: input.rolls.length, weightKg: kg, ownerKey: 'OWN', basis: 'KG' }];
   } else if (input.sourceMode === 'WORK') {
     const available = await customerSources(input.mode, input.customerId, session);
@@ -68,11 +83,11 @@ async function prepareSale(input: SaleInput, session?: ClientSession) {
     if (input.payment.method === 'CHEQUE' && !input.payment.chequeNo) throw new BadRequestError('Enter the cheque number.');
     if (['BANK_TRANSFER', 'ONLINE'].includes(input.payment.method) && !input.payment.transactionRef) throw new BadRequestError('Enter the bank/provider transaction reference.');
   }
-  return { kind, items, stock, totals, received, outstanding: input.payment.kind === 'UNKNOWN' ? null : money(totals.total - received) };
+  return { kind, items, stock, stockBalance, totals, received, outstanding: input.payment.kind === 'UNKNOWN' ? null : money(totals.total - received) };
 }
 export async function quoteSale(input: SaleInput) {
-  const { totals, received, outstanding, items } = await prepareSale(input);
-  return { ...totals, received, outstanding, items };
+  const { totals, received, outstanding, items, stockBalance } = await prepareSale(input);
+  return { ...totals, received, outstanding, items, stockBalance };
 }
 export async function postSale(input: SaleInput) {
   return postCommand('CUSTOMER_SALE', input, async session => {
@@ -82,7 +97,7 @@ export async function postSale(input: SaleInput) {
     let payment: unknown;
     if (input.mode === 'FABRIC') {
       const stock = prepared.stock!;
-      const result = await postDeliveryInSession({ requestId: input.requestId, customerId: input.customerId, purpose: 'SALE', billNow: input.billNow, state: stock.state, fromLocation: stock.location, fabricType: stock.fabricType, yarnSpec: stock.yarnSpec, color: stock.color, rolls: input.rolls, ratePerKg: input.billNow ? prepared.items[0].rate : 1, invoiceType: input.taxPercent === 18 ? 'TAX_18_PERCENT' : 'NON_GST', date: input.date, driverName: input.driverName, vehicleNo: input.vehicleNo, remarks: input.remarks, poNo: input.poNo, externalReference: input.externalReference }, session, input.reference, String(stock._id));
+      const result = await postDeliveryInSession({ requestId: input.requestId, customerId: input.customerId, purpose: 'SALE', billNow: input.billNow, state: stock.state, fromLocation: stock.location, fabricType: stock.fabricType, yarnSpec: stock.yarnSpec, color: stock.color, rolls: input.rolls, ratePerKg: input.billNow ? prepared.items[0].rate : 1, invoiceType: input.taxPercent === 18 ? 'TAX_18_PERCENT' : 'NON_GST', date: input.date, driverName: input.driverName, vehicleNo: input.vehicleNo, remarks: input.remarks, poNo: input.poNo, externalReference: input.externalReference }, session, input.reference, stock._id ? String(stock._id) : undefined);
       deliveryId = String(result.dispatch._id);billId = result.invoice ? String(result.invoice._id) : undefined;
       if (input.draftId) await BusinessDocument.updateOne({ _id: input.draftId, status: 'DRAFT' }, { $set: { kind: 'SALES_DRAFT', status: 'POSTED', sourceId: result.dispatch._id } }, { session });
     } else {

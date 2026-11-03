@@ -52,6 +52,7 @@ export const createAdjustmentSchema = z.object({
 });
 
 export const queryInventorySchema = z.object({
+  includeZero: z.enum(['true', 'false']).optional(),
   location: locationEnum.optional(),
   state: stateEnum.optional(),
   fabricType: z.string().optional(),
@@ -81,8 +82,8 @@ export const updateInventoryItemSchema = z.object({
   state: stateEnum.optional(),
   color: z.string().min(1, 'Color is required').trim().toUpperCase().optional(),
   location: locationEnum.optional(),
-  totalRolls: z.number().int().min(0, 'Rolls count cannot be negative').optional(),
-  totalWeightKg: z.number().min(0, 'Total weight cannot be negative').optional()
+  totalRolls: z.number().int().safe().optional(),
+  totalWeightKg: z.number().finite().optional()
 }).refine(input => !input.correctionReason || Boolean(input.requestId), { message: 'A shade correction needs a submission key.', path: ['requestId'] });
 
 export type CreateTransferInput = z.infer<typeof createTransferSchema>;

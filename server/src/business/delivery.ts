@@ -4,7 +4,7 @@ import { Invoice } from '../models/Invoice.js';
 import { Party } from '../models/Party.js';
 import { BusinessDocument, BillAllocation } from './commerce.models.js';
 import { postCommand, nextDocumentNo, weight } from './posting.js';
-import { moveFabric, validateLocation } from './stock.js';
+import { moveFabric, validateLocation, validateRawShade } from './stock.js';
 import { postPartyAmount } from './finance.js';
 import { referenceFields } from './references.js';
 import { businessContext } from './context.js';
@@ -13,7 +13,7 @@ import { CreateDispatchInput } from '../modules/dispatch/dispatch.schema.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 
 export async function postDelivery(input: CreateDispatchInput) {
-  return postCommand('DELIVERY', input, session => postDeliveryInSession(input, session));
+  return postCommand('DELIVERY', input, session => postDeliveryInSession(input, session, undefined, input.inventoryId));
 }
 
 export async function postDeliveryInSession(input: CreateDispatchInput, session: ClientSession, paperReference?: string, inventoryId?: string) {
@@ -35,6 +35,7 @@ export async function postDeliveryInSession(input: CreateDispatchInput, session:
     });
     const totalNetWeightKg = weight(rolls.reduce((sum, roll) => sum + roll.netWeightKg, 0));
     const date = new Date(input.date), id = new Types.ObjectId();
+    validateRawShade(input);
     await moveFabric({ inventoryId, fabricType: input.fabricType, yarnSpec: input.yarnSpec, state: input.state, color: input.color, ownerKey: clientReturn ? String(party._id) : 'OWN', rolls: rolls.length, weightKg: totalNetWeightKg }, input.fromLocation, -1, id, date, clientReturn ? 'Client-owned fabric returned' : 'Customer delivery', session);
     const [dispatch] = await Dispatch.create([{ _id: id, ...input, sourceInventoryId: inventoryId, ownerKey: clientReturn ? String(party._id) : 'OWN', ...referenceFields(input), dispatchNo: await nextDocumentNo('DSP', session), ogpNo: await nextDocumentNo('OGP-DISP', session), rolls, totalRolls: rolls.length, totalNetWeightKg, date, status: 'POSTED' }], { session });
     if (draft) { draft.status = 'POSTED';draft.sourceId = id;draft.reference = dispatch.dispatchNo;await draft.save({ session }); }
@@ -48,7 +49,7 @@ export async function postDeliveryInSession(input: CreateDispatchInput, session:
     return { dispatch, invoice };
 }
 
-export async function reverseDelivery(id: string, input: { reason: string; requestId?: string }) {
+export async function reverseDelivery(id: string, input: { reason: string; requestId?: string; shortageReason?: string }) {
   return postCommand('REVERSE_DELIVERY', { ...input, id }, async session => {
     const dispatch = await Dispatch.findOne({ _id: id, status: 'POSTED' }).session(session);
     if (!dispatch) throw new NotFoundError('Posted delivery not found.');

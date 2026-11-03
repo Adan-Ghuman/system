@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { loadAllRecords } from '../lib/pagedResources.js';
 import { Select } from '../components/ui/Select.js';
-import { requestReason } from '../components/ui/ReasonDialog.js';
+import { requestStockReversal } from '../components/ui/ReasonDialog.js';
 import { ReturnForm } from './ReturnForm.js';
 import { saveBlob } from '../lib/fileDownload.js';
 import { PartyLink } from './PartyLink.js';
@@ -37,8 +37,8 @@ export function WorkspacePage({ mode }: { mode: 'buying' | 'bills' }) {
   const kinds = mode === 'buying' ? 'FABRIC_RECEIPT,FABRIC_PURCHASE,SUPPLIER_BILL,CREDIT_NOTE' : 'YARN_RECEIPT,YARN_PURCHASE,YARN_SUPPLIER_BILL,YARN_CLIENT_RETURN,FABRIC_PURCHASE,SUPPLIER_BILL,KNITTING_CHARGE,DYEING_CHARGE,CREDIT_NOTE,INTERCOMPANY_SALE,INTERCOMPANY_PURCHASE';
   const query = useQuery({ queryKey: ['workspace-documents', mode, debounced, from, to, partyId, page, limit], queryFn: async () => (await api.get<{ data: PaginatedData<OperationDocument> }>('/workspace/documents', { params: { kinds, from: from || undefined, to: to || undefined, partyId: partyId || undefined, search: debounced, page, limit, side: mode === 'bills' ? 'SUPPLIER' : undefined } })).data.data, enabled: Boolean(businessId) });
   async function action(document: OperationDocument, name: 'reverse' | 'post') {
-    const reason = name === 'reverse' ? await requestReason(`Why are you reversing ${document.number}? Its stock and balance effects will be reversed together.`) : undefined;if (name === 'reverse' && !reason?.trim()) return;
-    setWorking(document._id);setError(null);try { await api.post(`/workspace/documents/${document._id}/${name}`, { reason, requestId: crypto.randomUUID() });await client.invalidateQueries(); } catch (failure) { const value = failure as { response?: { data?: { error?: string } } };setError(value.response?.data?.error || 'The action could not be completed.'); } finally { setWorking(''); }
+    const reversal = name === 'reverse' ? await requestStockReversal(`Why are you reversing ${document.number}? Its stock and balance effects will be reversed together.`) : undefined;if (name === 'reverse' && !reversal?.reason) return;
+    setWorking(document._id);setError(null);try { await api.post(`/workspace/documents/${document._id}/${name}`, { ...reversal, requestId: crypto.randomUUID() });await client.invalidateQueries(); } catch (failure) { const value = failure as { response?: { data?: { error?: string } } };setError(value.response?.data?.error || 'The action could not be completed.'); } finally { setWorking(''); }
   }
   async function download(format: 'csv' | 'xlsx') { setWorking(format);setError(null);try { const response = await api.get('/workspace/documents', { params: { kinds, from: from || undefined, to: to || undefined, partyId: partyId || undefined, search: debounced, format, side: mode === 'bills' ? 'SUPPLIER' : undefined }, responseType: 'blob' });saveBlob(response.data, mode + '.' + format); } catch { setError('Could not export the matching documents.'); } finally { setWorking(''); } }
   const actions: OperationKind[] = mode === 'buying' ? ['FABRIC_RECEIPT', 'FABRIC_PURCHASE', 'SUPPLIER_BILL'] : ['KNITTING_CHARGE', 'DYEING_CHARGE', 'YARN_SUPPLIER_BILL'];
