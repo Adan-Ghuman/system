@@ -50,11 +50,21 @@ export async function loginUser(input: LoginInput): Promise<AuthResult> {
   };
 }
 
+export async function changeUserPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user || !user.isActive || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw new UnauthorizedError('Current password is incorrect');
+  }
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  user.passwordChangedAt = new Date();
+  await user.save();
+}
+
 export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; user: AuthResult['user'] }> {
   try {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.userId);
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || payload.iat * 1000 < user.passwordChangedAt.getTime()) {
       throw new UnauthorizedError('User not found or inactive');
     }
 

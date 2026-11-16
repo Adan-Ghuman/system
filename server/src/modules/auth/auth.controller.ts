@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { env } from '../../config/env.js';
 import { sendSuccess } from '../../utils/response.js';
 import { UnauthorizedError } from '../../utils/errors.js';
-import { loginUser, refreshAccessToken } from './auth.service.js';
+import { loginUser, refreshAccessToken, changeUserPassword } from './auth.service.js';
 
 const COOKIE_NAME = 'refreshToken';
 
@@ -52,4 +52,10 @@ export async function handleGetMe(req: Request, res: Response): Promise<void> {
     role: user.role,
     permissions: user.permissions
   });
+}
+
+export async function handleChangePassword(req: Request, res: Response): Promise<void> {
+  await changeUserPassword(req.user!._id.toString(), req.body.currentPassword, req.body.newPassword);
+  res.clearCookie(COOKIE_NAME, { httpOnly: true, secure: env.NODE_ENV === 'production', sameSite: 'lax', path: '/' });
+  sendSuccess(res, null, 'Password changed. Please sign in again on your other devices.');
 }

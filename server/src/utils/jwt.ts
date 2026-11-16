@@ -20,10 +20,10 @@ export function signRefreshToken(payload: Pick<TokenPayload, 'userId'>): string 
   });
 }
 
-export function verifyAccessToken(token: string): TokenPayload {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as TokenPayload;
+export function verifyAccessToken(token: string): TokenPayload & { iat: number } {
+  return jwt.verify(token, env.JWT_ACCESS_SECRET) as TokenPayload & { iat: number };
 }
 
-export function verifyRefreshToken(token: string): { userId: string } {
-  return jwt.verify(token, env.JWT_REFRESH_SECRET) as { userId: string };
+export function verifyRefreshToken(token: string): { userId: string; iat: number } {
+  return jwt.verify(token, env.JWT_REFRESH_SECRET) as { userId: string; iat: number };
 }

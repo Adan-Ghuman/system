@@ -22,7 +22,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   try {
     const payload = verifyAccessToken(token);
     const user = await User.findById(payload.userId);
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || payload.iat * 1000 < user.passwordChangedAt.getTime()) {
       throw new UnauthorizedError('User account is inactive or not found');
     }
 

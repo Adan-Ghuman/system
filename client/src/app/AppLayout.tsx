@@ -11,7 +11,8 @@ import { ThemePicker } from '../components/ui/Theme.js';
 import { LoadingState } from '../components/ui/LoadingState.js';
 import { Dialog } from '../components/ui/Dialog.js';
 import { cn } from '../lib/cn.js';
-import { LayoutDashboard, Users, Layers, Palette, Boxes, Truck, Wallet, LogOut, Shield, Menu, ArrowUpRight, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Users, Layers, Palette, Boxes, Truck, Wallet, LogOut, Shield, Menu, ArrowUpRight, ClipboardList, KeyRound } from 'lucide-react';
+import { Input } from '../components/ui/Input.js';
 
 const navigation = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, group: 'Workspace' },
@@ -37,6 +38,11 @@ export function AppLayout() {
   const location = useLocation();
   const { user, clearAuth } = useAuthStore();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [passwordDialog, setPasswordDialog] = useState(false);
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const menuRef = useRef<HTMLButtonElement>(null);
   const access: Record<string, string[]> = { '/sales': ['accounts:read'], '/transactions': ['accounts:read'], '/knitting': ['knitting:read'], '/yarn': ['knitting:read'], '/dyeing': ['dyeing:read'], '/units': ['dyeing:read'], '/inventory': ['inventory:read'], '/dispatch': ['dispatch:read'], '/buying': ['inventory:read', 'accounts:read'], '/bills': ['accounts:read'], '/parties': ['parties:read'], '/accounts': ['accounts:read'], '/production': ['knitting:read', 'dyeing:read', 'inventory:read'], '/intercompany': ['inventory:read', 'accounts:read'] };
   const items = navigation.filter(item => user?.role === 'admin' || (item.to !== '/users' && (item.to === '/reconciliation' ? ['inventory:read', 'knitting:read', 'dyeing:read'].some(permission => user?.permissions.includes(permission)) : (access[item.to] || []).every(permission => user?.permissions.includes(permission)))));
@@ -51,6 +57,18 @@ export function AppLayout() {
   async function handleLogout() {
     try { await api.post('/auth/logout'); } catch {}
     finally { clearAuth(); navigate('/login'); }
+  }
+
+  async function handleChangePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setPasswordError(''); setPasswordMessage(''); setPasswordSaving(true);
+    try {
+      const response = await api.post('/auth/change-password', passwords);
+      setPasswordMessage(response.data?.message || 'Password changed. Please sign in again.');
+      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => { void handleLogout(); }, 1200);
+    } catch (error) {
+      setPasswordError((error as { response?: { data?: { error?: string; message?: string } } }).response?.data?.error || (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Could not change password. Check your current password and try again.');
+    } finally { setPasswordSaving(false); }
   }
 
   function renderNavigation() {
@@ -98,12 +116,22 @@ export function AppLayout() {
             <button ref={menuRef} type="button" onClick={() => setIsMobileOpen(true)} aria-label="Open menu" aria-expanded={isMobileOpen} className="rounded-lg p-2 text-soft hover:bg-subtle lg:hidden"><Menu className="h-5 w-5" /></button>
             <p className="truncate text-xs text-soft"><span className="hidden sm:inline">Workspace <span className="mx-2 text-control">/</span></span><span className="font-medium text-ink">{current?.label || 'Overview'}</span></p>
           </div>
-          <div className="flex shrink-0 items-center gap-2"><span className="hidden sm:inline"><ThemePicker /></span><span className="hidden text-xs text-soft md:block">{user?.email}</span><Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0 lg:hidden" aria-label="Sign out"><LogOut className="h-4 w-4" /></Button></div>
+          <div className="flex shrink-0 items-center gap-2"><span className="hidden sm:inline"><ThemePicker /></span><span className="hidden text-xs text-soft md:block">{user?.email}</span><Button variant="outline" size="sm" onClick={() => setPasswordDialog(true)}><KeyRound className="mr-2 h-4 w-4"/>Change password</Button><Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 p-0 lg:hidden" aria-label="Sign out"><LogOut className="h-4 w-4" /></Button></div>
         </header>
         <main id="main-content" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 p-4 outline-none sm:p-7 lg:p-8"><Suspense fallback={<LoadingState className="min-h-48" />}><Outlet /></Suspense></main>
       </div>
       <Dialog isOpen={isMobileOpen} onClose={() => setIsMobileOpen(false)} title="Your workspace" description="Choose where you want to work." className="max-w-sm">
         {renderNavigation()}
+      </Dialog>
+      <Dialog isOpen={passwordDialog} onClose={() => { if (!passwordSaving) setPasswordDialog(false); }} title="Change password" description="Enter your current password, then choose a new one. You’ll be signed out after the change." className="max-w-md">
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <Input label="Current password" type="password" autoComplete="current-password" required value={passwords.currentPassword} onChange={event => setPasswords({ ...passwords, currentPassword: event.target.value })}/>
+          <Input label="New password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={passwords.newPassword} onChange={event => setPasswords({ ...passwords, newPassword: event.target.value })}/>
+          <Input label="Confirm new password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required value={passwords.confirmPassword} onChange={event => setPasswords({ ...passwords, confirmPassword: event.target.value })}/>
+          <p className="text-xs text-soft">Use at least 8 characters. Other devices will need to sign in again.</p>
+          {passwordError && <p role="alert" className="text-sm text-danger">{passwordError}</p>}{passwordMessage && <p role="status" className="text-sm text-success">{passwordMessage}</p>}
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={passwordSaving} onClick={() => setPasswordDialog(false)}>Cancel</Button><Button type="submit" disabled={passwordSaving}>{passwordSaving ? 'Changing…' : 'Change password'}</Button></div>
+        </form>
       </Dialog>
     </div>
   );
